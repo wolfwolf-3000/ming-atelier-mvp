@@ -102,7 +102,10 @@ def register_font() -> str:
             continue
         name = "MingCJK"
         if name not in pdfmetrics.getRegisteredFontNames():
-            pdfmetrics.registerFont(TTFont(name, font_path))
+            try:
+                pdfmetrics.registerFont(TTFont(name, font_path))
+            except Exception:
+                continue
         return name
     name = "STSong-Light"
     if name not in pdfmetrics.getRegisteredFontNames():
