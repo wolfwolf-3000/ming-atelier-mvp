@@ -728,24 +728,84 @@ def income_probabilities(strength: int, useful: list[str], data: dict) -> list[l
     ]
 
 
-def annual_rows(selected_ganzhi: str) -> list[list[str]]:
+def annual_rows(selected_ganzhi: str, useful: list[str]) -> list[list[str]]:
+    useful_text = "、".join(useful) or "规则与节奏"
     years = [
-        ("2026", "丙午"), ("2027", "丁未"), ("2028", "戊申"), ("2029", "己酉"), ("2030", "庚戌"),
-        ("2031", "辛亥"), ("2032", "壬子"), ("2033", "癸丑"), ("2034", "甲寅"), ("2035", "乙卯"), ("2036", "丙辰"),
+        ("2026", "丙午", 4, 3, 6, 8, 7, 4, 8, f"丙午火势很旺，容易把行动、表达和承诺一起点燃；本盘喜用{useful_text}，这一年要先控现金流、库存、杠杆和口头合伙。"),
+        ("2027", "丁未", 5, 4, 5, 7, 6, 5, 6, "丁火透出、未土承接，适合整理产品、团队和交付流程；不宜在规则没成型前扩大固定成本。"),
+        ("2028", "戊申", 7, 7, 5, 5, 4, 4, 5, f"申金出现，财星、客户、合同和定价能力被激活；若喜用含{useful_text}，适合谈长期客户、收账和标准化报价。"),
+        ("2029", "己酉", 7, 8, 7, 5, 5, 4, 8, "酉金财气更明显，钱、关系、分成和股权容易同场出现；所有合作要写清比例、退出、税务和账期。"),
+        ("2030", "庚戌", 7, 7, 5, 6, 4, 5, 6, "庚金透出利商业化、定价和资产化；戌土带承接也带规则成本，适合把经验沉淀成产品或制度。"),
+        ("2031", "辛亥", 7, 7, 6, 5, 4, 5, 5, "辛金与亥水并见，利合同、沟通、跨城/跨境、数据和长期资源；关系上更看边界与现实承诺。"),
+        ("2032", "壬子", 7, 7, 6, 6, 4, 5, 5, "壬子水势强，压力、流动性、制度和学习要求上升；适合证照、系统化、跨境流通，但要管住焦虑和过劳。"),
+        ("2033", "癸丑", 6, 6, 5, 5, 4, 5, 5, "癸水落丑土，适合预算、结算、库存和稳定合作；这年重点不是冲规模，而是把账、货、人和合同收拢。"),
+        ("2034", "甲寅", 6, 5, 5, 6, 5, 4, 5, "甲寅木气生发，利学习、内容、教育、产品迭代和新方向；财务兑现偏后置，避免为新故事提前重投入。"),
+        ("2035", "乙卯", 5, 5, 7, 6, 6, 5, 8, "乙卯木旺带人际、合作和关系调整，卯木容易触发边界议题；合规、口碑、情绪承诺和合同条款要提前稳住。"),
+        ("2036", "丙辰", 5, 4, 5, 7, 6, 5, 6, "丙火再起、辰土收束，像一次复盘与重整；不要重复 2026 的冲动扩张，要用预算、复盘和退出条件先框住机会。"),
     ]
-    rows = []
-    for idx, (year, pillar) in enumerate(years):
-        fire = "午" in pillar or "丙" in pillar or "丁" in pillar
-        metal_water = any(x in pillar for x in "申酉亥子壬癸庚辛")
-        career = 5 + (2 if metal_water else 0) - (1 if fire else 0)
-        wealth = 5 + (2 if metal_water else 0) - (2 if fire else 0)
-        relation = 5 + (1 if idx in (3, 5, 6) else 0)
-        stress = 5 + (2 if fire else 0)
-        loss = 4 + (2 if fire else 0) + (1 if idx in (3, 9) else 0)
-        family = 4 + (1 if idx in (5, 6, 9) else 0)
-        compliance = 5 + (2 if year in {"2026", "2029", "2035"} else 0)
-        rows.append([year, pillar, selected_ganzhi or "未识别", str(career), str(wealth), str(relation), str(stress), str(loss), str(family), str(compliance), "按流年五行与盘面合冲作模型估计。"])
-    return rows
+    return [[year, pillar, selected_ganzhi or "未识别", str(career), str(wealth), str(relation), str(stress), str(loss), str(family), str(compliance), trigger] for year, pillar, career, wealth, relation, stress, loss, family, compliance, trigger in years]
+
+
+def income_stage_rows() -> list[list[str]]:
+    return [
+        ["2026-2027", "筑底与控风险", "先把现金流、合同、账期、库存和交付 SOP 建起来。", "火土压力偏重，最怕先承诺再核算。"],
+        ["2028-2029", "客户与财星被激活", "适合提价、收账、谈长期客户、做可复制产品。", "钱和关系同场，分成、股权、税务必须写清。"],
+        ["2030-2033", "资产化与系统化", "适合沉淀团队、产品、数据、证照、跨城/跨境资源。", "制度成本上升，不能靠个人状态硬扛。"],
+        ["2034-2036", "新方向再筛选", "适合学习、内容、教育、产品迭代和重新定位。", "回报延迟，不宜为新叙事提前重资产投入。"],
+    ]
+
+
+def career_rows(data: dict, model: dict) -> list[list[str]]:
+    industry = data.get("industry") or "未填写"
+    role = data.get("role") or "未填写"
+    useful_text = "、".join(model["useful_elements"]) or "节奏与边界"
+    return [
+        ["适合行业", "专业服务、咨询、内容产品、金融/数据/法务/技术、供应链、教育训练、品牌运营。", f"依据是日主{model['day_strength_label']}与喜用{useful_text}，更适合可标准化、可复盘、可管理现金流的路径。"],
+        ["当前基线", f"{industry} / {role}", "当前信息只作为现实基线，不覆盖命盘；行业越能沉淀方法论和长期客户，匹配度越高。"],
+        ["发展模式", "先做规则，再放大机会。", "适合把经验写成流程、报价、合同、交付标准和复盘机制，再考虑扩大团队或投入。"],
+        ["贵人路径", "制度型、专业型、合同型贵人更重要。", "贵人不等于别人来救场，更像平台、资质、专业人士、上级、客户规则带来的保护。"],
+        ["风险节点", "高波动赛道可以做，但不适合无账期、无退出、无复盘地重押。", "遇到火旺或关系冲动年份，先降杠杆、缩规模、延迟重大付款。"],
+    ]
+
+
+def crisis_rows() -> list[list[str]]:
+    return [
+        ["核心限制", "机会、情绪、承诺和现金流同时出现时，容易先行动后核算。", "所有重大合作先写范围、账期、违约、退出，再谈情面。"],
+        ["事业风险", "为了速度跳过流程，导致交付、团队、客户预期失控。", "用 SOP、报价单、合同版本、周复盘把速度装进规则里。"],
+        ["财富风险", "高杠杆、重库存、模糊分成、冲动投资。", "重大支出延迟 24 小时，超过预算阈值必须二次审核。"],
+        ["关系风险", "把关系承诺和金钱承诺混在一起，后期消耗加倍。", "先谈现实责任、城市选择、消费观和时间安排，再谈长期承诺。"],
+        ["压力风险", "忙的时候忽略休息、体检和情绪调节。", "这是压力管理建议，不是医学诊断；若已有症状需找专业人士。"],
+    ]
+
+
+def shensha_balance_text(label: str, rows: list[list[str]]) -> str:
+    stars = [row[1] for row in rows]
+    support = [s for s in stars if s in {"天乙贵人", "文昌贵人", "学堂", "国印", "福星贵人", "太极贵人"}]
+    risk = [s for s in stars if s in {"羊刃", "空亡", "灾煞", "童子"}]
+    if support and risk:
+        return f"{label}神煞制衡关系：{ '、'.join(support) }能提供制度、学习、贵人或专业缓冲，但{ '、'.join(risk) }提示兑现不稳或冲突压力；必须用规则、合同和复盘承接。"
+    if support:
+        return f"{label}神煞制衡关系：{ '、'.join(support) }偏向支持学习、资质、制度和专业表达；它能加分，但仍需大运流年触发。"
+    if risk:
+        return f"{label}神煞制衡关系：{ '、'.join(risk) }提示该柱主题有延迟、冲突或不稳定，不能单独断凶，应回到十神、地支关系和现实行为控制。"
+    return f"{label}神煞制衡关系：未见强神煞制衡，不硬凑，以月令、十神、大运流年为主。"
+
+
+def cross_shensha_balance(rows_by_group: dict[str, list[list[str]]]) -> str:
+    all_stars = [row[1] for rows in rows_by_group.values() for row in rows]
+    helpers = [s for s in all_stars if s in {"天乙贵人", "文昌贵人", "学堂", "国印", "福星贵人", "太极贵人"}]
+    risks = [s for s in all_stars if s in {"羊刃", "空亡", "灾煞", "童子"}]
+    if helpers and risks:
+        return f"跨柱神煞制衡关系：{ '、'.join(unique(helpers)) }可以缓冲{ '、'.join(unique(risks)) }，但前提是走制度、专业、合同、长辈/机构支持，而不是靠情绪硬扛。"
+    if helpers:
+        return f"跨柱神煞制衡关系：{ '、'.join(unique(helpers)) }重复出现时，说明学习、文书、制度和贵人资源可作为长期支点。"
+    if risks:
+        return f"跨柱神煞制衡关系：{ '、'.join(unique(risks)) }偏风险提示，需用地支关系、大运流年和现实风险控制复核，不能单凭神煞定凶。"
+    return "跨柱神煞制衡关系：无明显强制衡关系，神煞仅作辅助修正。"
+
+
+def june_2026_detail() -> str:
+    return "2026 年 6 月甲午是全年高风险月：午火叠加全年丙午，容易把表达、投资、情绪承诺、业务扩张和现金流压力同时点燃。业务上不宜签模糊分成、不宜重库存、不宜为了面子提前承诺交付；投资上避免高杠杆、追涨和短线冲动；关系上避免在情绪高点摊牌或绑定重大金钱承诺。行动规则是降仓位、缩周期、留书面记录、重大付款延迟 24 小时。"
 
 
 def monthly_rows() -> list[list[str]]:
@@ -789,7 +849,8 @@ def report_model(data: dict, computed: dict) -> dict:
     events = (data.get("events") or "").strip()
     calibration_title = "事件校准" if events else "置信度校准"
     dominant = "、".join(f"{k}{v}%" for k, v in sorted(profile.items(), key=lambda item: item[1], reverse=True))
-    return {
+    shensha = shensha_rows(computed)
+    model = {
         "ec": ec,
         "chart": chart,
         "profile": profile,
@@ -802,10 +863,13 @@ def report_model(data: dict, computed: dict) -> dict:
         "selected_dayun": selected.getGanZhi() if selected else "未识别",
         "dayun_rows": dayun_rows,
         "ten_god_rows": ten_god_rows(computed),
-        "shensha_rows": shensha_rows(computed),
+        "shensha_rows": shensha,
+        "shensha_balance": {label: shensha_balance_text(label, rows) for label, rows in shensha.items()},
+        "cross_shensha_balance": cross_shensha_balance(shensha),
         "branch_relation_rows": branch_relation_rows(computed),
         "income_rows": income_probabilities(strength, useful, data),
-        "annual_rows": annual_rows(selected.getGanZhi() if selected else ""),
+        "income_stage_rows": income_stage_rows(),
+        "annual_rows": annual_rows(selected.getGanZhi() if selected else "", useful),
         "monthly_rows": monthly_rows(),
         "relationship_rows": relationship_profile(data, useful),
         "calibration_title": calibration_title,
@@ -816,6 +880,10 @@ def report_model(data: dict, computed: dict) -> dict:
             "当前自动标准版以盘面、大运、流年为主，现实事件只作校准，不覆盖命局结构。",
         ],
     }
+    model["career_rows"] = career_rows(data, model)
+    model["crisis_rows"] = crisis_rows()
+    model["june_2026_detail"] = june_2026_detail()
+    return model
 
 
 def load_font(size: int, bold: bool = False):
@@ -832,32 +900,64 @@ def generate_standard_visuals(run_id: str, elements: list[str]) -> tuple[Path, P
     colors_map = {"金": "#d8b35f", "水": "#73a9d8", "木": "#76b978", "火": "#d96b4d", "土": "#b89362"}
     useful_path = GENERATED / f"{run_id}-useful-gods.png"
     crystal_path = GENERATED / f"{run_id}-crystals.png"
-    font_big = load_font(92, True)
-    font_mid = load_font(30)
-    img = PILImage.new("RGB", (1200, 680), "#080604")
+    font_big = load_font(120, True)
+    font_mid = load_font(34)
+    font_small = load_font(24)
+
+    def center_text(draw: ImageDraw.ImageDraw, xy: tuple[int, int], text: str, font, fill: str) -> None:
+        box = draw.textbbox((0, 0), text, font=font)
+        draw.text((xy[0] - (box[2] - box[0]) / 2, xy[1] - (box[3] - box[1]) / 2), text, font=font, fill=fill)
+
+    img = PILImage.new("RGB", (1600, 920), "#080604")
     draw = ImageDraw.Draw(img)
-    draw.rectangle((18, 18, 1182, 662), outline="#c7963f", width=3)
-    draw.text((58, 42), "Ming Atelier · 喜用神", font=font_mid, fill="#f0c47a")
+    draw.rectangle((28, 28, 1572, 892), outline="#c7963f", width=4)
+    draw.rectangle((58, 58, 1542, 862), outline="#3c2c12", width=2)
+    draw.text((88, 82), "Ming Atelier · 喜用神", font=font_mid, fill="#f0c47a")
+    draw.text((88, 132), "Five-element remedy sigils", font=font_small, fill="#8d7b58")
     for i, element in enumerate(elements[:2] or ["金", "水"]):
-        cx = 330 + i * 520
+        cx = 450 + i * 700
+        cy = 485
         color = colors_map.get(element, "#d8b35f")
-        draw.ellipse((cx - 150, 170, cx + 150, 470), outline=color, width=5)
-        draw.line((cx, 120, cx, 520), fill=color, width=2)
-        draw.arc((cx - 220, 110, cx + 220, 550), 25, 335, fill=color, width=2)
-        draw.text((cx - 45, 255), element, font=font_big, fill=color)
-        draw.text((cx - 170, 500), element_behavior(element)[:22], font=font_mid, fill="#e8d7b4")
+        draw.ellipse((cx - 210, cy - 210, cx + 210, cy + 210), outline=color, width=5)
+        draw.ellipse((cx - 140, cy - 140, cx + 140, cy + 140), outline=color, width=3)
+        draw.line((cx, cy - 260, cx, cy + 260), fill=color, width=2)
+        draw.arc((cx - 290, cy - 255, cx + 290, cy + 255), 22, 338, fill=color, width=3)
+        draw.arc((cx - 260, cy - 290, cx + 260, cy + 290), 202, 158, fill=color, width=2)
+        if element == "水":
+            for offset in (-42, 0, 42):
+                draw.arc((cx - 105, cy + offset, cx + 105, cy + 100 + offset), 190, 350, fill=color, width=4)
+        elif element == "木":
+            draw.line((cx, cy + 120, cx, cy - 125), fill=color, width=5)
+            draw.line((cx, cy - 40, cx - 95, cy - 115), fill=color, width=4)
+            draw.line((cx, cy - 15, cx + 95, cy - 95), fill=color, width=4)
+        elif element == "火":
+            draw.polygon([(cx, cy - 155), (cx - 88, cy + 105), (cx + 88, cy + 105)], outline=color)
+            draw.line((cx, cy - 155, cx, cy + 120), fill=color, width=3)
+        elif element == "土":
+            draw.rectangle((cx - 112, cy - 112, cx + 112, cy + 112), outline=color, width=4)
+            draw.line((cx - 145, cy + 130, cx + 145, cy + 130), fill=color, width=5)
+        else:
+            draw.line((cx - 125, cy - 125, cx + 125, cy + 125), fill=color, width=4)
+            draw.line((cx + 125, cy - 125, cx - 125, cy + 125), fill=color, width=4)
+        center_text(draw, (cx, cy), element, font_big, color)
+        center_text(draw, (cx, 760), f"{element} · 五行补足", font_mid, "#f0c47a")
     img.save(useful_path)
-    crystal = PILImage.new("RGB", (1200, 680), "#0b0906")
+    crystal = PILImage.new("RGB", (1600, 920), "#0b0906")
     draw = ImageDraw.Draw(crystal)
-    draw.rectangle((18, 18, 1182, 662), outline="#c7963f", width=3)
-    draw.text((58, 42), "Ming Atelier · 适配水晶", font=font_mid, fill="#f0c47a")
+    draw.rectangle((28, 28, 1572, 892), outline="#c7963f", width=4)
+    draw.rectangle((58, 58, 1542, 862), outline="#3c2c12", width=2)
+    draw.text((88, 82), "Ming Atelier · 适配水晶", font=font_mid, fill="#f0c47a")
+    draw.text((88, 132), "Crystal anchors for daily reminders", font=font_small, fill="#8d7b58")
     for i, row in enumerate(crystal_rows(elements[:2] or ["金", "水"])):
         element, name, fit, _ = row
-        x = 90 + i * 540
+        x = 160 + i * 700
         color = colors_map.get(element, "#d8b35f")
-        draw.polygon([(x + 140, 170), (x + 250, 235), (x + 220, 390), (x + 60, 390), (x + 30, 235)], outline=color, fill="#151209")
-        draw.text((x, 430), f"{element}｜{name}", font=font_mid, fill=color)
-        draw.text((x, 480), fit[:24], font=font_mid, fill="#e8d7b4")
+        draw.polygon([(x + 245, 260), (x + 390, 360), (x + 340, 620), (x + 150, 620), (x + 100, 360)], outline=color, fill="#151209")
+        draw.line((x + 245, 260, x + 245, 620), fill=color, width=2)
+        draw.line((x + 100, 360, x + 390, 360), fill=color, width=2)
+        center_text(draw, (x + 245, 455), element, font_big, color)
+        draw.text((x + 60, 690), f"{element}｜{name}", font=font_mid, fill=color)
+        draw.text((x + 60, 740), fit[:18], font=font_small, fill="#e8d7b4")
     crystal.save(crystal_path)
     return useful_path, crystal_path
 
@@ -891,6 +991,42 @@ def html_detail_cards(rows_by_group: dict[str, list[list[str]]]) -> str:
         )
         cards.append(f"<article class='card fade'><h3>{html.escape(group)}</h3>{items}</article>")
     return "<div class='grid two'>" + "".join(cards) + "</div>"
+
+
+def html_shensha_tables(model: dict) -> str:
+    parts = []
+    for group, rows in model["shensha_rows"].items():
+        detail = "".join(
+            f"<details class='star-detail'><summary>{html.escape(row[1])}<span>{html.escape(row[2])}</span></summary>"
+            f"<p>{html.escape(row[3])}</p><p>{html.escape(row[4])}</p></details>"
+            for row in rows
+        )
+        parts.append(
+            f"<article class='card shensha-block'><h3>{html.escape(group)}神煞</h3>"
+            f"{html_table(['排名','神煞','强度','通用解释','在该柱代表什么'], rows)}"
+            f"<p class='balance'>{html.escape(model['shensha_balance'][group])}</p>{detail}</article>"
+        )
+    parts.append(f"<article class='card'><h3>跨柱神煞制衡关系</h3><p>{html.escape(model['cross_shensha_balance'])}</p></article>")
+    return "".join(parts)
+
+
+def html_income_cards(model: dict) -> str:
+    cards = []
+    for tier, probability, amount, condition in model["income_rows"]:
+        width = re.sub(r"\D", "", probability) or "0"
+        cards.append(
+            f"<article class='card income-band'><b>{html.escape(tier)}</b><strong>{html.escape(probability)}</strong>"
+            f"<div class='bar-track'><span class='bar' style='--w:{width}%'></span></div>"
+            f"<p>{html.escape(amount)}</p><p>{html.escape(condition)}</p></article>"
+        )
+    return "<div class='grid three'>" + "".join(cards) + "</div>"
+
+
+def html_card_table(rows: list[list[str]], title_key: str = "主题") -> str:
+    return "<div class='grid two'>" + "".join(
+        f"<article class='card'><b>{html.escape(row[0])}</b><p>{html.escape(row[1])}</p><small>{html.escape(row[2])}</small></article>"
+        for row in rows
+    ) + "</div>"
 
 
 def report_plain_summary(data: dict, model: dict) -> str:
@@ -941,24 +1077,29 @@ def deep_report_pdf(data: dict, computed: dict, chart_png: Path, output: Path) -
         paragraph(model["useful_text"], styles["body"]),
         pdf_table([["喜用", "行为落地"]] + [[e, element_behavior(e)] for e in model["useful_elements"]], [28 * mm, 142 * mm], font),
         paragraph("三、十神分析", styles["h1"]),
-        pdf_table([["十神", "位置", "通用解释", "本盘含义"]] + model["ten_god_rows"], [22 * mm, 34 * mm, 52 * mm, 62 * mm], font, 6.8),
+        pdf_table([["十神", "柱(干/支)", "通用解释", "判断"]] + model["ten_god_rows"], [22 * mm, 34 * mm, 52 * mm, 62 * mm], font, 6.8),
+        paragraph("十神制衡关系：外显天干决定可见行为，地支藏干决定暗线动机。判断时不能只看一个十神，要看它在年、月、日、时四个位置分别作用于圈层、事业、自我关系和长期项目。", styles["body"]),
         paragraph("四、分析：神煞体系", styles["h1"]),
     ])
     for group, rows in model["shensha_rows"].items():
         story.append(paragraph(group, styles["body"]))
         story.append(pdf_table([["排名", "神煞", "强度", "通用解释", "在该柱代表什么"]] + rows, [14 * mm, 24 * mm, 18 * mm, 58 * mm, 56 * mm], font, 6.6))
+        story.append(paragraph(model["shensha_balance"][group], styles["body"]))
         story.append(Spacer(1, 5))
     story.extend([
+        paragraph(model["cross_shensha_balance"], styles["body"]),
         paragraph("地支关系制衡", styles["body"]),
         pdf_table([["关系", "结构提示", "可能影响", "现实制化"]] + model["branch_relation_rows"], [34 * mm, 43 * mm, 48 * mm, 45 * mm], font, 6.8),
         paragraph("五、专项剖析：事业发展、财运与感情", styles["h1"]),
-        paragraph("事业上，本盘更适合走专业沉淀、方法论输出、规则化交付和长期客户信任路线。若选择高波动赛道，必须先设计现金流、合约和退出条件。", styles["body"]),
+        pdf_table([["主题", "判断", "依据"]] + model["career_rows"], [30 * mm, 70 * mm, 70 * mm], font, 6.8),
         paragraph("财运不宜只看机会大小，更要看承接系统。下面收入层级为模型概率，不代表保证结果。", styles["body"]),
         pdf_table([["层级", "概率", "金额", "条件"]] + model["income_rows"], [24 * mm, 18 * mm, 38 * mm, 90 * mm], font, 6.8),
+        pdf_table([["阶段", "收入判断", "关键条件", "风险"]] + model["income_stage_rows"], [26 * mm, 38 * mm, 58 * mm, 48 * mm], font, 6.6),
         pdf_table([["主题", "判断", "说明"]] + model["relationship_rows"], [35 * mm, 48 * mm, 87 * mm], font, 6.8),
         paragraph("六、未来十年财运与风险", styles["h1"]),
-        pdf_table([["年份", "流年", "大运", "事业", "财运", "感情", "健康/压力", "破财", "家宅", "合规", "触发"]] + model["annual_rows"], [14 * mm, 16 * mm, 18 * mm, 13 * mm, 13 * mm, 13 * mm, 17 * mm, 13 * mm, 13 * mm, 13 * mm, 27 * mm], font, 5.6),
+        pdf_table([["年份", "流年", "大运", "事业", "财运", "感情", "健康/压力", "破财", "家宅", "合规", "触发与行动规则"]] + model["annual_rows"], [12 * mm, 14 * mm, 16 * mm, 8 * mm, 8 * mm, 8 * mm, 13 * mm, 8 * mm, 8 * mm, 8 * mm, 75 * mm], font, 5.2),
         paragraph("七、2026 年单独流月拆解", styles["h1"]),
+        paragraph(model["june_2026_detail"], styles["note"]),
         pdf_table([["月份", "月柱", "节气", "事业", "财运", "关系", "风险", "行动建议"]] + model["monthly_rows"], [18 * mm, 16 * mm, 28 * mm, 13 * mm, 13 * mm, 13 * mm, 13 * mm, 56 * mm], font, 6.0),
         paragraph(f"八、{model['calibration_title']}", styles["h1"]),
     ])
@@ -966,8 +1107,7 @@ def deep_report_pdf(data: dict, computed: dict, chart_png: Path, output: Path) -
         story.append(paragraph(line, styles["body"]))
     story.extend([
         paragraph("九、结论：核心限制与潜在危机", styles["h1"]),
-        paragraph("核心限制不是没有机会，而是机会、情绪、承诺和现金流同时出现时，容易先行动后核算。高风险年份或月份应减少重资产、重库存、高杠杆、模糊合伙和口头承诺。", styles["body"]),
-        paragraph("最需要守住的是三件事：第一，所有合作写清楚边界；第二，重大支出延迟 24 小时再决定；第三，情绪关系和金钱关系分开处理。", styles["body"]),
+        pdf_table([["风险", "表现", "控制方式"]] + model["crisis_rows"], [28 * mm, 72 * mm, 70 * mm], font, 6.8),
         paragraph("十、大白话总结", styles["h1"]),
         paragraph(report_plain_summary(data, model), styles["body"]),
         paragraph("十一、喜用神与五行补足", styles["h1"]),
@@ -994,8 +1134,9 @@ def deep_report_html(data: dict, computed: dict, chart_png: Path, output: Path) 
         ("pattern", "格局与用神"),
         ("ten-god", "十神分析"),
         ("shensha", "神煞体系"),
-        ("career", "事业财运感情"),
-        ("annual", "未来十年"),
+        ("career", "事业发展"),
+        ("wealth", "未来十年财运"),
+        ("relationship", "感情运势"),
         ("monthly", "2026流月"),
         ("calibration", model["calibration_title"]),
         ("crisis", "核心危机"),
@@ -1005,27 +1146,43 @@ def deep_report_html(data: dict, computed: dict, chart_png: Path, output: Path) 
     ]
     nav = "".join(f"<a href='#{sid}'>{html.escape(label)}</a>" for sid, label in sections)
     relation_text = "；".join(computed["chart"].get("relations") or [])
+    risk_year = max(model["annual_rows"], key=lambda row: int(row[6]) + int(row[7]) + int(row[9]))
+    useful_text = "、".join(model["useful_elements"]) or "节奏"
+    kpis = [
+        ["身强估计", f"{model['day_strength_label']} {model['day_strength']}%", model["strength_reason"]],
+        ["核心喜用", useful_text, model["useful_text"]],
+        ["当前大运", model["selected_dayun"], "以 2026 所在大运为基准，所有流年判断均需与大运叠加。"],
+        ["风险最高年", f"{risk_year[0]} {risk_year[1]}", risk_year[10]],
+    ]
+    kpi_html = "".join(f"<div class='kpi'><span>{html.escape(k[0])}</span><b>{html.escape(k[1])}</b><p>{html.escape(k[2])}</p></div>" for k in kpis)
+    monthly_html = "".join(
+        f"<article class='month'><i></i><b>{html.escape(row[0])}｜{html.escape(row[1])}</b><em>{html.escape(row[2])}</em>"
+        f"<p>{html.escape(row[7])}</p><small>事业 {row[3]} / 财运 {row[4]} / 关系 {row[5]} / 风险 {row[6]}</small></article>"
+        for row in model["monthly_rows"]
+    )
     output.write_text(f"""<!doctype html>
 <html lang="zh-CN">
 <head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>{title}</title><link rel="stylesheet" href="/pages.css">
 <style>
-body{{background:#080604;color:#f7ead2}}.scroll-progress{{position:fixed;top:0;left:0;height:3px;background:#d8b35f;z-index:80;width:0}}.report-nav{{position:sticky;top:70px;z-index:20;background:rgba(8,6,4,.88);backdrop-filter:blur(12px);border-block:1px solid rgba(216,179,95,.2);overflow:auto;white-space:nowrap}}.report-nav .shell{{display:flex;gap:18px;padding:12px 20px}}.report-nav a{{color:#e8d7b4;text-decoration:none;font-size:13px}}.hero{{min-height:78vh;display:grid;align-items:center;padding:98px 0 56px;background:radial-gradient(circle at 50% 18%,rgba(216,179,95,.24),transparent 34%),linear-gradient(180deg,#0d0905,#080604)}}.hero h1{{font-size:56px;line-height:1.08;max-width:760px;color:#f7ead2}}.lead{{max-width:760px;color:#e8d7b4}}.panel{{max-width:1120px;margin:0 auto;padding:42px 20px;border-top:1px solid rgba(216,179,95,.2)}}.panel h2{{color:#f0c47a;font-size:28px}}.grid{{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px}}.grid.two{{grid-template-columns:repeat(2,minmax(0,1fr))}}.card,.kpi{{border:1px solid rgba(216,179,95,.28);background:rgba(20,15,8,.72);border-radius:8px;padding:18px}}.kpi b{{display:block;color:#f0c47a;font-size:28px}}.table-wrap{{overflow:auto;border:1px solid rgba(216,179,95,.22);border-radius:8px}}table{{border-collapse:collapse;width:100%;min-width:760px}}th,td{{border-bottom:1px solid rgba(216,179,95,.16);padding:11px 12px;text-align:left;vertical-align:top}}th{{color:#f0c47a;background:rgba(216,179,95,.08)}}td{{color:#ead9b7}}.chart{{max-width:520px;margin:22px auto}}.chart img,.god-art img{{width:100%;border:1px solid rgba(216,179,95,.35);border-radius:8px}}.bar{{height:9px;border-radius:99px;background:linear-gradient(90deg,#d8b35f,#8f6a2a);margin-top:10px}}.income-band b,.warning b{{color:#f0c47a}}details.star-detail{{border-top:1px solid rgba(216,179,95,.18);padding:10px 0}}details.star-detail summary{{cursor:pointer;color:#f0c47a}}details.star-detail summary span{{float:right;color:#d8b35f}}.timeline{{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px}}.month{{border:1px solid rgba(216,179,95,.22);border-radius:8px;padding:14px;background:rgba(20,15,8,.65)}}.fade{{opacity:0;transform:translateY(18px);transition:opacity .7s ease,transform .7s ease}}.fade.show{{opacity:1;transform:none}}footer{{padding:34px 20px;color:#9f8d6b}}@media(max-width:760px){{.hero h1{{font-size:38px}}.grid,.grid.two,.timeline{{grid-template-columns:1fr}}.report-nav{{top:64px}}}}
-</style></head>
-<body><header class="top"><nav class="shell nav"><a class="brand" href="/"><img src="/assets/ming-four-pillars-mark.png"><span>Ming Atelier<small>命理工坊</small></span></a><div class="links"><a href="/">首页</a><a href="/questionnaire.html">问卷</a><a href="/divination.html">起卦</a></div></nav></header>
-<div class="scroll-progress" id="scrollProgress"></div><main><section class="hero"><div class="shell fade"><p class="eyebrow">Ming Atelier · Eastern Destiny Readings</p><h1>{title}</h1><p class="lead">以八字四柱为底图，读性格、节奏、选择与关系。关于你如何行动、如何取舍、如何顺势。</p></div></section><nav class="report-nav"><div class="shell">{nav}</div></nav>
-<section class="panel fade" id="raw"><h2>原始盘信息</h2><div class="grid"><div class="kpi"><span>日主强弱</span><b>{html.escape(model["day_strength_label"])}</b><div class="bar" style="width:{model["day_strength"]}%"></div></div><div class="kpi"><span>强度估计</span><b>{model["day_strength"]}%</b></div><div class="kpi"><span>当前/2026大运</span><b>{html.escape(model["selected_dayun"])}</b></div></div><div class="chart"><img src="{chart_url}" alt="命盘图"></div>{html_table(["项目","内容"], [["四柱", f"{ec.getYear()} 年｜{ec.getMonth()} 月｜{ec.getDay()} 日｜{ec.getTime()} 时"], ["五行估计", model["dominant"]], ["地支关系", relation_text]])}</section>
-<section class="panel fade" id="pattern"><h2>格局与用神体系</h2><div class="card"><p>{html.escape(model["strength_reason"])}</p><p>{html.escape(model["useful_text"])}</p></div>{html_table(["喜用","行为落地"], [[e, element_behavior(e)] for e in model["useful_elements"]])}</section>
-<section class="panel fade" id="ten-god"><h2>十神分析</h2>{html_table(["十神","位置","通用解释","本盘含义"], model["ten_god_rows"])}</section>
-<section class="panel fade" id="shensha"><h2>神煞体系</h2>{html_detail_cards(model["shensha_rows"])}{html_table(["关系","结构提示","可能影响","现实制化"], model["branch_relation_rows"])}</section>
-<section class="panel fade" id="career"><h2>事业发展、财运与感情</h2><div class="grid two"><article class="card income-band"><b>事业路径</b><p>适合走专业沉淀、方法论输出、规则化交付和长期客户信任路线。高波动赛道必须先设计现金流、合约和退出条件。</p></article><article class="card warning"><b>财运原则</b><p>财运不只看机会大小，更要看承接系统。收入层级是模型概率，不是保证结果。</p></article></div>{html_table(["层级","概率","金额","条件"], model["income_rows"])}{html_table(["主题","判断","说明"], model["relationship_rows"])}</section>
-<section class="panel fade" id="annual"><h2>未来十年财运与风险</h2>{html_table(["年份","流年","大运","事业","财运","感情","健康/压力","破财","家宅","合规","触发"], model["annual_rows"])}</section>
-<section class="panel fade" id="monthly"><h2>2026 年单独流月拆解</h2><div class="timeline">{"".join(f"<article class='month'><b>{html.escape(row[0])}｜{html.escape(row[1])}</b><p>{html.escape(row[7])}</p><small>事业 {row[3]} / 财运 {row[4]} / 关系 {row[5]} / 风险 {row[6]}</small></article>" for row in model["monthly_rows"])}</div></section>
-<section class="panel fade" id="calibration"><h2>{html.escape(model["calibration_title"])}</h2><div class="card">{"".join(f"<p>{html.escape(line)}</p>" for line in model["calibration_lines"])}</div></section>
-<section class="panel fade" id="crisis"><h2>核心限制与潜在危机</h2><div class="grid two"><article class="card warning"><b>限制</b><p>机会、情绪、承诺和现金流同时出现时，容易先行动后核算。</p></article><article class="card warning"><b>守法则</b><p>合作写清边界，重大支出延迟 24 小时，情绪关系和金钱关系分开处理。</p></article></div></section>
-<section class="panel fade" id="summary"><h2>大白话总结</h2><div class="card"><p>{html.escape(report_plain_summary(data, model))}</p></div></section>
-<section class="panel fade elements" id="elements"><h2>喜用神与五行补足</h2><div class="god-art"><img src="{useful_url}" alt="喜用神图"></div></section>
-<section class="panel fade" id="crystals"><h2>适配水晶建议</h2><div class="god-art"><img src="{crystal_url}" alt="适配水晶图"></div>{html_table(["五行","建议","适配点","使用方式"], crystal_rows(model["useful_elements"]))}</section></main>
-<footer class="shell">Ming Atelier｜命理工坊。自动标准版用于客测交付，关键人生决策建议叠加人工复核。</footer><script>const p=document.getElementById('scrollProgress');addEventListener('scroll',()=>{{const h=document.documentElement; p.style.width=((h.scrollTop)/(h.scrollHeight-h.clientHeight)*100)+'%';}});const io=new IntersectionObserver(es=>es.forEach(e=>e.isIntersecting&&e.target.classList.add('show')),{{threshold:.14}});document.querySelectorAll('.fade').forEach(el=>io.observe(el));</script></body></html>""", encoding="utf-8")
+	body{{background:#080604;color:#f7ead2}}.scroll-progress{{position:fixed;top:0;left:0;height:3px;background:#d8b35f;z-index:80;width:0}}.report-nav{{position:sticky;top:70px;z-index:20;background:rgba(8,6,4,.9);backdrop-filter:blur(12px);border-block:1px solid rgba(216,179,95,.22);overflow:auto;white-space:nowrap}}.report-nav .shell{{display:flex;gap:18px;padding:12px 20px}}.report-nav a{{color:#e8d7b4;text-decoration:none;font-size:13px}}.hero{{min-height:82vh;display:grid;align-items:center;padding:98px 0 56px;background:radial-gradient(circle at 50% 18%,rgba(216,179,95,.24),transparent 34%),linear-gradient(180deg,#0d0905,#080604);position:relative;overflow:hidden}}.hero:before{{content:"命";position:absolute;right:7vw;top:10vh;font-size:34vw;line-height:1;color:rgba(216,179,95,.07);animation:breathe 6s ease-in-out infinite}}.hero h1{{font-size:56px;line-height:1.08;max-width:760px;color:#f7ead2}}.lead{{max-width:760px;color:#e8d7b4}}.hero-actions{{display:flex;gap:12px;flex-wrap:wrap;margin-top:26px}}.print-btn{{border:1px solid rgba(216,179,95,.5);background:#d8b35f;color:#090604;border-radius:6px;padding:12px 18px;text-decoration:none;font-weight:700;cursor:pointer}}.panel{{max-width:1160px;margin:0 auto;padding:46px 20px;border-top:1px solid rgba(216,179,95,.2)}}.panel h2{{color:#f0c47a;font-size:28px}}.grid{{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px}}.grid.two{{grid-template-columns:repeat(2,minmax(0,1fr))}}.grid.three{{grid-template-columns:repeat(3,minmax(0,1fr))}}.card,.kpi{{border:1px solid rgba(216,179,95,.28);background:rgba(20,15,8,.72);border-radius:8px;padding:18px;box-shadow:0 18px 44px rgba(0,0,0,.18);transition:transform .25s ease,border-color .25s ease}}.card:hover,.kpi:hover{{transform:translateY(-3px);border-color:rgba(240,196,122,.58)}}.kpi b{{display:block;color:#f0c47a;font-size:25px;line-height:1.2;margin:8px 0}}.kpi p,.card small{{color:#cdbb98}}.table-wrap{{overflow:auto;border:1px solid rgba(216,179,95,.22);border-radius:8px;margin-top:14px}}table{{border-collapse:collapse;width:100%;min-width:850px}}th,td{{border-bottom:1px solid rgba(216,179,95,.16);padding:11px 12px;text-align:left;vertical-align:top}}th{{color:#f0c47a;background:rgba(216,179,95,.08)}}td{{color:#ead9b7}}tr:hover td{{background:rgba(216,179,95,.05)}}.chart{{max-width:520px;margin:22px auto;animation:softGlow 4s ease-in-out infinite}}.chart img,.god-art img{{width:100%;height:auto;object-fit:contain;border:1px solid rgba(216,179,95,.35);border-radius:8px}}.god-art{{animation:lineDrift 5s ease-in-out infinite}}.bar-track{{height:10px;border-radius:99px;background:rgba(216,179,95,.13);overflow:hidden;margin:12px 0}}.bar{{display:block;height:100%;width:var(--w);border-radius:99px;background:linear-gradient(90deg,#d8b35f,#8f6a2a);animation:barGrow 1.2s ease both}}.income-band b,.warning b{{color:#f0c47a}}.income-band strong{{display:block;font-size:28px;color:#f7ead2;margin-top:8px}}.balance{{color:#dcc796}}details.star-detail{{border-top:1px solid rgba(216,179,95,.18);padding:10px 0}}details.star-detail summary{{cursor:pointer;color:#f0c47a}}details.star-detail summary span{{float:right;color:#d8b35f}}.timeline{{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px}}.month{{position:relative;border:1px solid rgba(216,179,95,.22);border-radius:8px;padding:16px 16px 16px 42px;background:rgba(20,15,8,.65)}}.month i{{position:absolute;left:16px;top:22px;width:10px;height:10px;border-radius:50%;background:#d8b35f;box-shadow:0 0 0 0 rgba(216,179,95,.5);animation:pulse 2.2s infinite}}.month b,.month em{{display:block;color:#f0c47a;font-style:normal}}.fade{{opacity:0;transform:translateY(18px);transition:opacity .7s ease,transform .7s ease}}.fade.show{{opacity:1;transform:none}}footer{{padding:34px 20px;color:#9f8d6b}}@keyframes breathe{{50%{{transform:scale(1.04);opacity:.8}}}}@keyframes softGlow{{50%{{filter:drop-shadow(0 0 22px rgba(216,179,95,.26))}}}}@keyframes barGrow{{from{{width:0}}to{{width:var(--w)}}}}@keyframes pulse{{70%{{box-shadow:0 0 0 12px rgba(216,179,95,0)}}100%{{box-shadow:0 0 0 0 rgba(216,179,95,0)}}}}@keyframes lineDrift{{50%{{transform:translateY(-7px)}}}}@media(max-width:760px){{.hero h1{{font-size:38px}}.grid,.grid.two,.grid.three,.timeline{{grid-template-columns:1fr}}.report-nav{{top:64px}}table{{min-width:760px}}}}
+	</style></head>
+		<body><header class="top"><nav class="shell nav"><a class="brand" href="/"><img src="/assets/ming-four-pillars-mark.png"><span>Ming Atelier<small>命理工坊</small></span></a><div class="links"><a href="/">首页</a><a href="/questionnaire.html">问卷</a><a href="/divination.html">起卦</a></div></nav></header>
+		<div class="scroll-progress" id="scrollProgress"></div><main>
+	<section class="hero"><div class="shell fade"><p class="eyebrow">Ming Atelier · Eastern Destiny Readings</p><h1>{title}</h1><p class="lead">以八字四柱为底图，读性格、节奏、选择与关系。关于你如何行动、如何取舍、如何顺势。</p><div class="hero-actions"><button class="print-btn" onclick="window.print()">保存 PDF</button><a class="print-btn" href="/">回到主页</a></div></div></section><nav class="report-nav"><div class="shell">{nav}</div></nav>
+	<section class="panel fade" id="raw"><h2>原始盘信息</h2><div class="grid">{kpi_html}</div><div class="chart"><img src="{chart_url}" alt="命盘图"></div>{html_table(["项目","内容"], [["四柱", f"{ec.getYear()} 年｜{ec.getMonth()} 月｜{ec.getDay()} 日｜{ec.getTime()} 时"], ["五行估计", model["dominant"]], ["地支关系", relation_text]])}</section>
+	<section class="panel fade" id="pattern"><h2>格局与用神体系</h2><div class="card"><p>{html.escape(model["strength_reason"])}</p><p>{html.escape(model["useful_text"])}</p></div>{html_table(["喜用","行为落地"], [[e, element_behavior(e)] for e in model["useful_elements"]])}</section>
+	<section class="panel fade" id="ten-god"><h2>十神分析</h2>{html_table(["十神","柱(干/支)","通用解释","判断"], model["ten_god_rows"])}<div class="grid two"><article class="card"><b>十神制衡关系</b><p>外显天干决定可见行为，地支藏干决定暗线动机。判断时不能只看一个十神，要看它在年、月、日、时四个位置分别作用于圈层、事业、自我关系和长期项目。</p></article><article class="card"><b>地支合冲与大盘制化</b>{html_table(["关系","盘面含义","对大盘影响","制化/化解方式"], model["branch_relation_rows"])}</article></div></section>
+	<section class="panel fade" id="shensha"><h2>神煞体系</h2>{html_shensha_tables(model)}</section>
+	<section class="panel fade" id="career"><h2>事业发展</h2>{html_card_table(model["career_rows"])}</section>
+	<section class="panel fade" id="wealth"><h2>未来十年财运与收入层级</h2>{html_income_cards(model)}{html_table(["阶段","收入判断","关键条件","风险"], model["income_stage_rows"])}{html_table(["年份","流年","大运","事业","财运","感情","健康/压力","破财","家宅","合规","触发与行动规则"], model["annual_rows"])}</section>
+	<section class="panel fade" id="relationship"><h2>感情运势</h2>{html_table(["主题","判断","说明"], model["relationship_rows"])}</section>
+	<section class="panel fade" id="monthly"><h2>2026 年单独流月拆解</h2><div class="card warning"><b>6 月甲午重点提示</b><p>{html.escape(model["june_2026_detail"])}</p></div><div class="timeline">{monthly_html}</div></section>
+	<section class="panel fade" id="calibration"><h2>{html.escape(model["calibration_title"])}</h2><div class="card">{"".join(f"<p>{html.escape(line)}</p>" for line in model["calibration_lines"])}</div></section>
+	<section class="panel fade" id="crisis"><h2>核心限制与潜在危机</h2>{html_card_table(model["crisis_rows"])}</section>
+	<section class="panel fade" id="summary"><h2>大白话总结</h2><div class="card"><p>{html.escape(report_plain_summary(data, model))}</p></div></section>
+	<section class="panel fade elements" id="elements"><h2>喜用神</h2><div class="god-art"><img src="{useful_url}" alt="喜用神图"></div>{html_table(["喜用","行为落地"], [[e, element_behavior(e)] for e in model["useful_elements"]])}</section>
+	<section class="panel fade" id="crystals"><h2>适配水晶建议</h2><div class="god-art"><img src="{crystal_url}" alt="适配水晶图"></div>{html_table(["五行","建议","适配点","使用方式"], crystal_rows(model["useful_elements"]))}</section></main>
+	<footer class="shell">Ming Atelier｜命理工坊。自动标准版用于客测交付，关键人生决策建议叠加人工复核。</footer><script>const p=document.getElementById('scrollProgress');addEventListener('scroll',()=>{{const h=document.documentElement; p.style.width=((h.scrollTop)/(h.scrollHeight-h.clientHeight)*100)+'%';}});const io=new IntersectionObserver(es=>es.forEach(e=>e.isIntersecting&&e.target.classList.add('show')),{{threshold:.14}});document.querySelectorAll('.fade').forEach(el=>io.observe(el));</script></body></html>""", encoding="utf-8")
 
 
 class Handler(BaseHTTPRequestHandler):
