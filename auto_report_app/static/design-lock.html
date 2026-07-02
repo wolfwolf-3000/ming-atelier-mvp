@@ -1,0 +1,153 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Ming Atelier MVP Design Lock</title>
+  <style>
+    :root{
+      --obsidian:#11100e;--ink:#18130e;--charcoal:#24211d;--gold:#b98a3a;--gold-soft:#e6c27a;
+      --jade:#1e6a62;--ivory:#fbf7ef;--paper:#fffdf8;--line:#dfd3c0;--red:#9d3f2f;--muted:#766b5d;
+      --shadow:0 18px 42px rgba(31,24,16,.12)
+    }
+    *{box-sizing:border-box}
+    body{margin:0;background:var(--ivory);color:var(--ink);font-family:-apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft YaHei",sans-serif;line-height:1.55}
+    .hero{min-height:560px;position:relative;overflow:hidden;background:var(--obsidian);color:#fff}
+    .hero:before{content:"";position:absolute;inset:0;background:linear-gradient(90deg,rgba(17,16,14,.96),rgba(17,16,14,.72) 48%,rgba(17,16,14,.12));z-index:1}
+    .hero-bg{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;opacity:.62}
+    .shell{width:min(1180px,calc(100% - 32px));margin:0 auto}
+    .hero-inner{position:relative;z-index:2;min-height:560px;display:grid;grid-template-columns:1fr 360px;gap:40px;align-items:center}
+    .lockup{display:flex;align-items:center;gap:16px;margin-bottom:28px}
+    .lockup img{width:74px;height:74px;border-radius:10px;background:#090807;object-fit:contain}
+    .eyebrow{margin:0 0 12px;color:var(--gold-soft);font-size:13px;font-weight:850;letter-spacing:.08em;text-transform:uppercase}
+    h1{margin:0;font-size:64px;line-height:1.02;letter-spacing:0}
+    .lead{max-width:700px;margin:18px 0 0;color:#f2e8d7;font-size:19px}
+    .decision-card{background:rgba(255,253,248,.94);color:var(--ink);border:1px solid rgba(255,255,255,.2);border-radius:8px;padding:20px;box-shadow:var(--shadow)}
+    .decision-card h2{margin:0 0 12px;font-size:22px}.decision-card p{margin:0 0 10px;color:var(--muted)}
+    section{padding:48px 0}.section-head{display:flex;justify-content:space-between;gap:20px;align-items:end;margin-bottom:18px}
+    h2{font-size:30px;line-height:1.18;margin:0}.section-head p{max-width:620px;margin:0;color:var(--muted)}
+    .grid{display:grid;gap:14px}.cols4{grid-template-columns:repeat(4,1fr)}.cols3{grid-template-columns:repeat(3,1fr)}.cols2{grid-template-columns:repeat(2,1fr)}
+    .panel{background:var(--paper);border:1px solid var(--line);border-radius:8px;padding:18px;box-shadow:var(--shadow)}
+    .panel h3{margin:0 0 8px;font-size:19px}.panel p{margin:0;color:var(--muted)}
+    .swatch{height:96px;border-radius:8px;border:1px solid rgba(0,0,0,.08);margin-bottom:10px}
+    .type-sample strong{display:block;font-size:42px;line-height:1.05}.type-sample span{display:block;color:var(--muted);margin-top:10px}
+    .logo-row{display:grid;grid-template-columns:180px 1fr;gap:18px;align-items:center}.logo-row img{width:180px;border-radius:8px;background:#11100e}.rule{border-top:1px solid var(--line);padding-top:14px;margin-top:14px}
+    .mock{min-height:360px;border-radius:8px;background:#11100e;color:#fff;position:relative;overflow:hidden;padding:28px;display:flex;flex-direction:column;justify-content:space-between}
+    .mock:before{content:"";position:absolute;inset:0;background:url('/assets/bazi-standalone-site-concept.png') center/cover;opacity:.38}.mock>*{position:relative;z-index:1}
+    .mock h3{font-size:42px;line-height:1.05;margin:0;max-width:520px}.mock p{max-width:500px;color:#f2e8d7}.button-row{display:flex;gap:10px;flex-wrap:wrap}.btn{border-radius:8px;padding:11px 15px;font-weight:850;background:#fff;color:#11100e}.btn.primary{background:var(--gold);color:#fff}
+    .home-link{position:fixed;top:16px;left:16px;z-index:10;display:inline-flex;align-items:center;min-height:40px;padding:9px 12px;border-radius:8px;background:rgba(17,16,14,.82);border:1px solid rgba(230,194,122,.5);color:#f5ead1;text-decoration:none;font-weight:850;backdrop-filter:blur(12px)}
+    .report-card{background:#fffdf8;border:1px solid var(--line);border-radius:8px;padding:18px}.report-card .chart{height:260px;border-radius:8px;background:linear-gradient(145deg,#f6f3ec,#fff);border:1px solid var(--line);display:grid;place-items:center;color:var(--gold);font-weight:900;font-size:34px}
+    .do-dont{grid-template-columns:1fr 1fr}.yes{border-left:5px solid var(--jade)}.no{border-left:5px solid var(--red)}
+    ul{margin:0;padding-left:18px;color:var(--muted)}li{margin:6px 0}
+    footer{padding:28px 0 42px;color:var(--muted);border-top:1px solid var(--line);font-size:13px}
+    @media(max-width:900px){.hero-inner,.cols4,.cols3,.cols2,.do-dont{grid-template-columns:1fr}h1{font-size:42px}.logo-row{grid-template-columns:1fr}.logo-row img{width:140px}}
+  </style>
+</head>
+<body>
+  <a class="home-link" href="/">返回首页</a>
+  <header class="hero">
+    <img class="hero-bg" src="/assets/bazi-standalone-site-concept.png" alt="Ming Atelier BaZi visual">
+    <div class="shell hero-inner">
+      <div>
+        <div class="lockup">
+          <img src="/assets/ming-four-pillars-mark.png" alt="Four Pillars Mark">
+          <div>
+            <div class="eyebrow">MVP Design Lock</div>
+            <strong>Ming Atelier｜命理工坊</strong>
+          </div>
+        </div>
+        <p class="eyebrow">Eastern Destiny Readings · BaZi · Divination · Ritual Objects</p>
+        <h1>Read the Script of Your Life</h1>
+        <p class="lead">MVP 视觉定稿：黑金、克制、东方、私密、高级。第一版用四柱图标建立 BaZi 识别，用免费排盘和报告体验承接转化。</p>
+      </div>
+      <aside class="decision-card">
+        <h2>定稿结论</h2>
+        <p><strong>Logo:</strong> Four Pillars Mark</p>
+        <p><strong>主视觉:</strong> 黑金命盘概念图</p>
+        <p><strong>主 CTA:</strong> Free BaZi Chart</p>
+        <p><strong>报告:</strong> 免费版极简，深度版保留完整产品感</p>
+      </aside>
+    </div>
+  </header>
+
+  <section>
+    <div class="shell">
+      <div class="section-head"><h2>品牌系统</h2><p>第一版只锁定足够上线的设计规则，避免后续每个页面重新发明视觉。</p></div>
+      <div class="logo-row panel">
+        <img src="/assets/ming-four-pillars-mark.png" alt="Four Pillars Mark">
+        <div>
+          <h3>主图标：Four Pillars Mark</h3>
+          <p>用于 favicon、导航、报告角标、社媒头像和加载态。比中文字“命”更国际化，也更直接绑定四柱 / BaZi。</p>
+          <div class="rule"><strong>使用规则：</strong>图标单独使用时配黑底；和文字组合时，文字用 Ming Atelier，中文“命理工坊”作为副标。</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <div class="shell">
+      <div class="section-head"><h2>配色定稿</h2><p>避免普通玄学站的红黄高饱和，也避免紫色 tarot 风。</p></div>
+      <div class="grid cols4">
+        <div class="panel"><div class="swatch" style="background:#11100e"></div><h3>Obsidian</h3><p>#11100E · 主背景</p></div>
+        <div class="panel"><div class="swatch" style="background:#B98A3A"></div><h3>Deep Gold</h3><p>#B98A3A · CTA / 品牌线</p></div>
+        <div class="panel"><div class="swatch" style="background:#FBF7EF"></div><h3>Warm Ivory</h3><p>#FBF7EF · 正文背景</p></div>
+        <div class="panel"><div class="swatch" style="background:#1E6A62"></div><h3>Jade</h3><p>#1E6A62 · 辅助状态</p></div>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <div class="shell">
+      <div class="section-head"><h2>首页首屏</h2><p>第一屏必须让用户知道这是 BaZi 平台，不是普通中文工具站。</p></div>
+      <div class="mock">
+        <div>
+          <p class="eyebrow">BaZi · Divination · Ritual Objects</p>
+          <h3>Read the Script of Your Life</h3>
+          <p>Free BaZi Chart 负责低门槛体验，Essential Ming Report 负责规模化转化，Divination 承接具体问事。</p>
+        </div>
+        <div class="button-row"><span class="btn primary">Start Free Chart</span><span class="btn">View Report Sample</span></div>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <div class="shell">
+      <div class="section-head"><h2>报告视觉</h2><p>免费版要轻，付费版要完整。两者不能混淆。</p></div>
+      <div class="grid cols2">
+        <article class="report-card">
+          <h3>免费版报告</h3>
+          <div class="chart">BaZi Chart</div>
+          <p>只保留完整命盘图和一段大白话总结。适合从免费排盘后的即时交付。</p>
+        </article>
+        <article class="report-card">
+          <h3>深度付费报告</h3>
+          <div class="chart">Interactive HTML + PDF</div>
+          <p>保留封面、十神、神煞、未来十年、感情、喜用神和水晶建议，作为 xxx 产品。</p>
+        </article>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <div class="shell">
+      <div class="section-head"><h2>文字与组件</h2><p>页面要像高端工作室，不像堆功能的后台。</p></div>
+      <div class="grid cols3">
+        <div class="panel type-sample"><strong>Ming Atelier</strong><span>大标题使用英文主品牌，中文只作为副标和信任补充。</span></div>
+        <div class="panel"><h3>卡片</h3><p>8px 圆角、细边框、轻阴影；不要使用大圆角泡泡或过度装饰。</p></div>
+        <div class="panel"><h3>按钮</h3><p>主按钮黑底或金底；起卦/风险可少量暗红；不要大量渐变按钮。</p></div>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <div class="shell">
+      <div class="grid do-dont">
+        <div class="panel yes"><h3>保留</h3><ul><li>四柱图标</li><li>黑金命盘主视觉</li><li>英文优先品牌表达</li><li>少量中文增强信任</li><li>完整排盘图作为免费价值</li></ul></div>
+        <div class="panel no"><h3>避免</h3><ul><li>单个“命”字作为主 logo</li><li>紫色星空 tarot 风</li><li>红黄高饱和算命站风格</li><li>免费报告写得像深度报告</li><li>商品区像低价杂货铺</li></ul></div>
+      </div>
+    </div>
+  </section>
+
+  <footer class="shell">Ming Atelier MVP Design Lock · Use this page as the visual baseline before deploying the online test.</footer>
+</body>
+</html>

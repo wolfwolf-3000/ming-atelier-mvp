@@ -1,0 +1,7 @@
+.DS_Store
+__pycache__/
+*.pyc
+.env
+.venv/
+auto_report_app/generated/
+auto_report_app/__pycache__/

@@ -1,0 +1,174 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>深度报告问卷｜Ming Atelier</title>
+  <link rel="stylesheet" href="/pages.css">
+</head>
+<body>
+  <header class="top">
+    <nav class="shell nav">
+      <a class="brand" href="/"><img src="/assets/ming-four-pillars-mark.png" alt="Ming Atelier"><span>Ming Atelier<small>命理工坊</small></span></a>
+      <div class="links"><a href="/">首页</a><a href="/free-report.html">免费报告</a><a href="/deep-report.html">深度报告</a><a href="/divination.html">起卦</a></div>
+    </nav>
+  </header>
+
+  <section class="hero">
+    <img class="hero-bg" src="/assets/bazi-standalone-site-concept.png" alt="BaZi platform concept">
+    <div class="shell hero-inner">
+      <div>
+        <p class="eyebrow">Deep Report Intake</p>
+        <h1>深度报告问卷</h1>
+        <p class="lead">深度报告不是只看出生时间。它需要命盘、现实基线、关键年份和你真正想问的问题一起校准，才能把结论落到事业、财富、感情和未来节奏里。</p>
+      </div>
+      <div class="hero-card">
+        <h3>填写原则</h3>
+        <p>能确定的如实填写；不确定的直接写“不确定”。关键事件只用于校准，不会覆盖八字结构本身。</p>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <div class="shell">
+      <div class="section-head">
+        <h2>信息采集</h2>
+        <p>填写后可生成一份文本结果，后续用于深度报告、人工复核或订单沟通。</p>
+      </div>
+
+      <form id="questionnaire" class="grid">
+        <div class="panel">
+          <h3>一、排盘硬信息</h3>
+          <div class="fields">
+            <div><label>姓名或称呼</label><input name="姓名或称呼" placeholder="用于报告标题"></div>
+            <div><label>性别 *</label><select name="性别" required><option value="">请选择</option><option>男</option><option>女</option><option>其他/不方便填写</option></select></div>
+            <div><label>出生日期 *</label><input name="出生日期" placeholder="例如：1995-08-15" required></div>
+            <div><label>日期类型 *</label><select name="日期类型" required><option>阳历</option><option>农历</option><option>不确定</option></select></div>
+            <div><label>出生时间 *</label><input name="出生时间" placeholder="例如：14:30；不确定可写时间段" required></div>
+            <div><label>出生时间来源 *</label><select name="出生时间来源" required><option value="">请选择</option><option>出生证明</option><option>医院记录</option><option>家人记忆</option><option>大概时间段</option><option>不确定</option></select></div>
+            <div><label>出生时间准确度 *</label><select name="出生时间准确度" required><option value="">请选择</option><option>精确到分钟</option><option>误差15分钟内</option><option>误差1小时内</option><option>只知道时辰</option><option>不确定</option></select></div>
+            <div><label>真太阳时</label><select name="真太阳时"><option>不知道</option><option>已换算</option><option>未换算</option><option>需要协助判断</option></select></div>
+            <div class="full"><label>出生地点 *</label><input name="出生地点" placeholder="国家 + 城市 + 区县 / 医院附近" required></div>
+          </div>
+        </div>
+
+        <div class="panel">
+          <h3>二、现实基线</h3>
+          <div class="fields">
+            <div><label>当前所在城市 *</label><input name="当前所在城市" placeholder="例如：洛杉矶 / 上海" required></div>
+            <div><label>当前状态 *</label><select name="当前状态" required><option value="">请选择</option><option>学生</option><option>工作</option><option>创业</option><option>工作+副业</option><option>自由职业</option><option>待业/转型中</option><option>其他</option></select></div>
+            <div><label>最高学历</label><select name="最高学历"><option value="">请选择</option><option>高中及以下</option><option>本科</option><option>硕士</option><option>博士</option><option>其他</option></select></div>
+            <div><label>当前行业/专业</label><input name="当前行业或专业" placeholder="行业 + 具体方向"></div>
+            <div><label>当前角色</label><input name="当前角色" placeholder="员工 / 管理 / 创始人 / 技术 / 销售等"></div>
+            <div><label>主要收入来源</label><input name="主要收入来源" placeholder="工资 / 副业 / 投资 / 创业 / 家族支持"></div>
+            <div><label>当前年收入区间</label><select name="当前年收入区间"><option value="">请选择</option><option>低于50万人民币</option><option>50万-100万人民币</option><option>100万-300万人民币</option><option>300万-500万人民币</option><option>500万-1000万人民币</option><option>1000万人民币以上</option><option>使用外币，备注说明</option><option>不方便填写</option></select></div>
+            <div><label>资产/负债状态</label><select name="资产负债状态"><option value="">请选择</option><option>资产稳定，无明显负债压力</option><option>有房贷/车贷等长期负债</option><option>现金流压力明显</option><option>投资波动较大</option><option>不方便填写</option></select></div>
+            <div class="full"><label>正在推进的重要事项</label><textarea name="正在推进的重要事项" placeholder="例如：换工作、创业融资、买房、移居、结婚、生育、投资决策等。"></textarea></div>
+          </div>
+        </div>
+
+        <div class="panel">
+          <h3>三、事业与财富重点</h3>
+          <div class="fields">
+            <div class="full"><label>事业最想问什么？</label><textarea name="事业重点问题" placeholder="例如：适合继续打工还是创业？适合哪个行业？什么时候事业上升更明显？"></textarea></div>
+            <div class="full"><label>财运最想问什么？</label><textarea name="财运重点问题" placeholder="例如：未来几年收入节奏如何？适合做副业/投资吗？破财风险在哪里？"></textarea></div>
+            <div class="full"><label>你目前最担心的现实风险</label><textarea name="现实风险" placeholder="例如：行业下行、合伙风险、现金流、职业转型、健康、家庭变动等。"></textarea></div>
+          </div>
+        </div>
+
+        <div class="panel">
+          <h3>四、感情与家庭状态</h3>
+          <div class="fields">
+            <div><label>当前感情状态</label><select name="当前感情状态"><option value="">请选择</option><option>单身</option><option>暧昧/接触中</option><option>恋爱中</option><option>已婚</option><option>离异</option><option>复杂/不方便说</option></select></div>
+            <div><label>是否有子女</label><select name="是否有子女"><option value="">请选择</option><option>无</option><option>有</option><option>计划中</option><option>不方便填写</option></select></div>
+            <div class="full"><label>感情重点问题</label><textarea name="感情重点问题" placeholder="例如：正缘画像、适合结婚时间、现有关系是否稳定、容易反复的问题。"></textarea></div>
+            <div class="full"><label>家庭/居住重点问题</label><textarea name="家庭居住问题" placeholder="例如：是否适合移居、买房、与家庭关系、子女计划等。"></textarea></div>
+          </div>
+        </div>
+
+        <div class="panel">
+          <h3>五、关键年份校准</h3>
+          <div class="fields">
+            <div class="full"><label>3-5 个关键年份事件</label><textarea name="关键年份事件" placeholder="建议格式：年份 + 事件 + 结果&#10;例如：2020 换城市，事业压力变大但收入上升。&#10;例如：2023 感情结束，随后开始转型。"></textarea></div>
+            <div class="full"><label>身体/健康明显变化年份</label><textarea name="健康变化年份" placeholder="如没有可空着。只需写年份和大概情况，不需要隐私细节。"></textarea></div>
+            <div class="full"><label>财务明显变化年份</label><textarea name="财务变化年份" placeholder="例如收入明显上升、亏损、投资波动、买房、负债变化等。"></textarea></div>
+          </div>
+        </div>
+
+        <div class="panel">
+          <h3>六、报告重点与交付偏好</h3>
+          <div class="fields">
+            <div class="full"><label>最想看的方向 *</label><textarea name="最想看的方向" required placeholder="可写：事业、财运、感情、未来十年、2026流年、创业、移居、健康风险等。"></textarea></div>
+            <div class="full"><label>一个最重要的问题 *</label><textarea name="最重要的问题" required placeholder="请写成一个具体问题。越具体，报告越能落地。"></textarea></div>
+            <div><label>报告语言偏好</label><select name="报告语言偏好"><option>中文</option><option>英文</option><option>中英双语</option></select></div>
+            <div><label>解读风格偏好</label><select name="解读风格偏好"><option>直接清楚</option><option>温和一点</option><option>更偏商业决策</option><option>更偏感情关系</option></select></div>
+            <div class="full"><label>其他备注</label><textarea name="其他备注" placeholder="出生时间可能跨时辰、外币收入、希望避开的内容、特别想强调的背景等。"></textarea></div>
+          </div>
+        </div>
+
+        <div class="actions">
+          <button class="btn secondary" type="button" id="copy">生成并复制问卷结果</button>
+          <button class="btn gold" type="button" id="download">下载填写结果</button>
+        </div>
+      </form>
+
+      <div class="panel" id="outputBox" style="display:none;margin-top:18px">
+        <h3>填写结果</h3>
+        <textarea id="result" readonly style="min-height:260px"></textarea>
+      </div>
+    </div>
+  </section>
+
+  <footer class="shell">问卷用于深度报告校准。MVP 阶段先生成可复制文本，正式版再接订单、支付和数据库。</footer>
+
+  <script>
+    function collect() {
+      const data = new FormData(document.getElementById('questionnaire'));
+      const lines = ['# Ming Atelier 深度报告问卷结果', ''];
+      for (const [key, value] of data.entries()) {
+        const clean = String(value || '').trim();
+        if (clean) lines.push(`## ${key}\n${clean}\n`);
+      }
+      if (lines.length === 2) lines.push('未填写内容。');
+      return lines.join('\n');
+    }
+    function validateRequired() {
+      const form = document.getElementById('questionnaire');
+      if (form.reportValidity()) return true;
+      const firstInvalid = form.querySelector(':invalid');
+      if (firstInvalid) firstInvalid.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      return false;
+    }
+    function show(text) {
+      document.getElementById('result').value = text;
+      document.getElementById('outputBox').style.display = 'block';
+      document.getElementById('outputBox').scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+    document.getElementById('copy').addEventListener('click', async () => {
+      if (!validateRequired()) return;
+      const text = collect();
+      show(text);
+      try {
+        await navigator.clipboard.writeText(text);
+        alert('已复制问卷结果。');
+      } catch {
+        alert('浏览器不允许自动复制，请手动复制下方文本。');
+      }
+    });
+    document.getElementById('download').addEventListener('click', () => {
+      if (!validateRequired()) return;
+      const text = collect();
+      show(text);
+      const blob = new Blob([text], { type: 'text/plain;charset=utf-8' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'Ming-Atelier-深度报告问卷结果.txt';
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+    });
+  </script>
+</body>
+</html>

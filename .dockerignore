@@ -1,0 +1,8 @@
+.DS_Store
+.git
+.env
+.venv
+__pycache__/
+*.pyc
+auto_report_app/generated/
+auto_report_app/__pycache__/
