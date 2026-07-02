@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import html
 import os
 import re
 import subprocess
@@ -550,6 +551,144 @@ def report_pdf(data: dict, computed: dict, chart_png: Path, output: Path) -> Non
     doc.build(story)
 
 
+def day_master_assessment(ec, profile: dict) -> tuple[str, int, str, str]:
+    day_element = STEM_ELEMENT.get(ec.getDayGan(), "")
+    parent = {"木": "水", "火": "木", "土": "火", "金": "土", "水": "金"}.get(day_element, "")
+    child = GENERATES.get(day_element, "")
+    wealth = CONTROLS.get(day_element, "")
+    officer = next((k for k, v in CONTROLS.items() if v == day_element), "")
+    support = profile.get(day_element, 0) + profile.get(parent, 0)
+    drain = profile.get(child, 0) + profile.get(wealth, 0) + profile.get(officer, 0)
+    strength = max(28, min(82, 50 + support - drain // 2))
+    if strength >= 62:
+        label = "偏强"
+        useful = f"宜用{child or '泄秀'}、{wealth or '财星'}来疏导能量，避免只凭惯性硬顶。"
+    elif strength <= 44:
+        label = "偏弱"
+        useful = f"宜补{parent or '印星'}、{day_element or '比劫'}，先稳资源、专业和支持系统。"
+    else:
+        label = "中和"
+        useful = "宜看具体流年和现实选择，不必一味补或泄，关键是顺势调整节奏。"
+    reason = f"日主{ec.getDayGan()}{day_element}，同类与生扶约{support}%，消耗、财星与压力约{drain}%。"
+    return label, strength, useful, reason
+
+
+def deep_report_sections(data: dict, computed: dict) -> list[tuple[str, list[str]]]:
+    ec = computed["ec"]
+    profile = computed["profile"]
+    chart = computed["chart"]
+    label, strength, useful, reason = day_master_assessment(ec, profile)
+    dominant = "、".join(f"{k}{v}%" for k, v in sorted(profile.items(), key=lambda item: item[1], reverse=True)[:3])
+    focus = data.get("focus") or data.get("keyQuestion") or "综合命理阅读"
+    industry = data.get("industry") or "未填写"
+    role = data.get("role") or data.get("status") or "未填写"
+    income = data.get("income") or "未填写"
+    events = data.get("events") or "未填写"
+    relation_question = data.get("relationshipQuestion") or "未填写"
+    ten_god_lines = []
+    pillar_names = ["年柱", "月柱", "日柱", "时柱"]
+    for name, pillar in zip(pillar_names, chart["pillars"]):
+        ten_god_lines.append(
+            f"{name}：天干为{pillar['stem']}，十神{pillar['gan_shen']}；地支为{pillar['branch']}，藏干/十神为{'、'.join(pillar['zhi_shen']) or '未明'}。"
+        )
+    shensha_lines = []
+    for name, pillar in zip(pillar_names, chart["pillars"]):
+        stars = "、".join(pillar["shen_sha"]) if pillar["shen_sha"] else "无明显主星"
+        shensha_lines.append(f"{name}：{stars}。本项只作辅助，不单独决定吉凶。")
+    yun, selected, dayun_rows = current_dayun(ec, data.get("gender", "男"))
+    dayun_text = "；".join(f"{row[0]}({row[1]})" for row in dayun_rows[:5]) or "暂未识别"
+    relationship_note = "感情判断以日支、财官和现实状态共同看。MVP 版先给关系模式和风险边界；正缘外貌、行业和年份需要后续人工复核提高置信度。"
+    if data.get("gender") == "男":
+        relationship_note += " 男命重点看财星与日支承接力。"
+    elif data.get("gender") == "女":
+        relationship_note += " 女命重点看官杀与日支稳定性。"
+    return [
+        ("原始盘信息", [
+            f"四柱：{ec.getYear()} 年｜{ec.getMonth()} 月｜{ec.getDay()} 日｜{ec.getTime()} 时。",
+            f"日主：{ec.getDayGan()}，身强身弱模型判断为{label} {strength}%。",
+            f"五行分布：{dominant}。",
+            f"当前/2026 大运：{selected.getGanZhi() if selected else '未识别'}。",
+        ]),
+        ("核心判断", [
+            reason,
+            useful,
+            f"你填写的重点是“{focus}”。这份 MVP 深度报告会把命盘结构、现实基线和关键问题合并判断，但不替代人工复核。",
+        ]),
+        ("十神八维拆解", ten_god_lines + [
+            "十神不是性格标签，而是行动方式：比劫看自我与竞争，食伤看表达与产出，财星看资源与交易，官杀看规则与压力，印星看学习与支持。",
+        ]),
+        ("地支关系与神煞", computed["chart"]["relations"] + shensha_lines),
+        ("事业与财富", [
+            f"当前行业/角色：{industry} / {role}。",
+            f"当前收入区间：{income}。",
+            "事业上先看月柱和十神组合：月令代表现实赛道，食伤代表输出，财星代表商业化，官杀代表规则压力。MVP 版会给方向感，正式版再做十年收入节奏和月份拆解。",
+            "财富上不做保证式预测。更适合把财运理解为资源转化能力：能否把专业、流量、产品、客户和现金流稳定连接起来。",
+        ]),
+        ("感情与关系", [
+            f"你填写的感情问题：{relation_question}。",
+            relationship_note,
+            "若一段关系长期消耗金钱、时间、承诺或城市选择，这类关系对命盘节奏的损耗会比单纯情绪冲突更大。",
+        ]),
+        ("大运与未来节奏", [
+            f"可识别的大运序列：{dayun_text}。",
+            "MVP 版先展示大运背景，不做完整十年逐年展开。正式深度版会把大运、流年、2026 月份节奏和关键风险单独拆开。",
+        ]),
+        ("事件校准与置信度", [
+            f"你提供的关键年份事件：{events}。",
+            "若关键年份越具体，报告置信度越高；若出生时间只知道时辰或不确定，涉及时柱、子女、晚年、副业和细节时间窗的判断会降低置信度。",
+            "当前自动深度体验版置信度约 65%-72%，适合体验报告结构和初步方向，不等同人工最终版。",
+        ]),
+        ("大白话总结", [
+            free_report_summary(data, computed),
+        ]),
+    ]
+
+
+def deep_report_pdf(data: dict, computed: dict, chart_png: Path, output: Path) -> None:
+    font = register_font()
+    base = getSampleStyleSheet()
+    styles = {
+        "title": ParagraphStyle("deepTitle", parent=base["Title"], fontName=font, fontSize=22, leading=30, alignment=1, wordWrap="CJK"),
+        "sub": ParagraphStyle("deepSub", parent=base["BodyText"], fontName=font, fontSize=9.5, leading=14, alignment=1, textColor=colors.HexColor("#666666"), wordWrap="CJK"),
+        "h1": ParagraphStyle("deepH1", parent=base["Heading1"], fontName=font, fontSize=14.5, leading=21, spaceBefore=12, spaceAfter=8, wordWrap="CJK"),
+        "body": ParagraphStyle("deepBody", parent=base["BodyText"], fontName=font, fontSize=9, leading=14, spaceAfter=5, wordWrap="CJK"),
+        "note": ParagraphStyle("deepNote", parent=base["BodyText"], fontName=font, fontSize=8.2, leading=12, backColor=colors.HexColor("#fff6df"), borderColor=colors.HexColor("#ead69d"), borderWidth=0.4, borderPadding=6, textColor=colors.HexColor("#6d541d"), wordWrap="CJK"),
+    }
+    story = [
+        paragraph(f"{data.get('name') or '匿名'} 命理深度体验报告", styles["title"]),
+        paragraph(f"{data.get('calendar', '阳历')} {data.get('birthDate')} {data.get('birthTime')}｜{data.get('birthPlace', '')}｜{data.get('gender', '')}", styles["sub"]),
+        Spacer(1, 8),
+        paragraph("MVP 深度体验版：用于展示深度报告的结构、语气和基础分析能力。正式版会继续补充人工复核、互动模块、支付和订单追踪。", styles["note"]),
+        Spacer(1, 8),
+        Image(str(chart_png), width=135 * mm, height=205 * mm),
+        PageBreak(),
+    ]
+    for title, lines in deep_report_sections(data, computed):
+        story.append(paragraph(title, styles["h1"]))
+        for line in lines:
+            story.append(paragraph(line, styles["body"]))
+    doc = SimpleDocTemplate(str(output), pagesize=A4, rightMargin=16 * mm, leftMargin=16 * mm, topMargin=14 * mm, bottomMargin=14 * mm)
+    doc.build(story)
+
+
+def deep_report_html(data: dict, computed: dict, chart_png: Path, output: Path) -> None:
+    title = f"{html.escape(data.get('name') or '匿名')} 命理深度体验报告"
+    sections = []
+    for heading, lines in deep_report_sections(data, computed):
+        body = "".join(f"<p>{html.escape(line)}</p>" for line in lines)
+        sections.append(f"<section class='report-section'><h2>{html.escape(heading)}</h2>{body}</section>")
+    chart_url = f"/generated/{chart_png.name}"
+    output.write_text(f"""<!doctype html>
+<html lang="zh-CN">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>{title}</title><link rel="stylesheet" href="/pages.css">
+<style>
+body{{background:#080604;color:#f7ead2}}.report-cover{{min-height:72vh;display:grid;place-items:center;padding:88px 0 48px;background:radial-gradient(circle at 50% 20%,rgba(199,150,63,.22),transparent 38%),#080604}}.report-cover h1{{font-size:54px;max-width:760px}}.report-section{{max-width:980px;margin:0 auto;padding:34px 20px;border-top:1px solid rgba(199,150,63,.28)}}.report-section h2{{color:#f0c47a}}.report-section p{{color:#e8d7b4}}.chart-wrap{{max-width:520px;margin:24px auto}}.chart-wrap img{{width:100%;border:1px solid rgba(199,150,63,.35);border-radius:8px}}
+</style></head>
+<body><header class="top"><nav class="shell nav"><a class="brand" href="/"><img src="/assets/ming-four-pillars-mark.png"><span>Ming Atelier<small>命理工坊</small></span></a><div class="links"><a href="/">首页</a><a href="/questionnaire.html">问卷</a><a href="/divination.html">起卦</a></div></nav></header>
+<main><section class="report-cover"><div class="shell"><p class="eyebrow">Essential Ming Report · MVP</p><h1>{title}</h1><p class="lead">以八字四柱为底图，读性格、节奏、选择与关系。关于你如何行动、如何取舍、如何顺势。</p></div></section><div class="chart-wrap"><img src="{chart_url}" alt="命盘图"></div>{''.join(sections)}</main>
+<footer class="shell">Ming Atelier｜命理工坊。自动深度体验版用于产品测试，不替代人工复核。</footer></body></html>""", encoding="utf-8")
+
+
 class Handler(BaseHTTPRequestHandler):
     def content_type_for(self, target: Path) -> str:
         return {
@@ -616,7 +755,7 @@ class Handler(BaseHTTPRequestHandler):
         self.end_headers()
 
     def do_POST(self) -> None:
-        if self.path not in {"/api/report", "/api/divination"}:
+        if self.path not in {"/api/report", "/api/deep-report", "/api/divination"}:
             self.send_error(404)
             return
         try:
@@ -642,6 +781,26 @@ class Handler(BaseHTTPRequestHandler):
                 return
             run_id = f"{safe_name(data.get('name') or 'anonymous')}-{uuid.uuid4().hex[:8]}"
             computed, chart_png = build_chart(data, run_id)
+            if self.path == "/api/deep-report":
+                pdf_path = GENERATED / f"{run_id}-deep.pdf"
+                html_path = GENERATED / f"{run_id}-deep.html"
+                deep_report_pdf(data, computed, chart_png, pdf_path)
+                deep_report_html(data, computed, chart_png, html_path)
+                pdf_url = f"/generated/{pdf_path.name}"
+                html_url = f"/generated/{html_path.name}"
+                chart_url = f"/generated/{chart_png.name}"
+                append_record({
+                    "id": run_id,
+                    "type": "deep-bazi",
+                    "createdAt": now_text(),
+                    "title": f"{data.get('name') or '匿名'}命理深度体验报告",
+                    "input": data,
+                    "pdfUrl": pdf_url,
+                    "htmlUrl": html_url,
+                    "chartUrl": chart_url,
+                })
+                self.send_json({"ok": True, "recordId": run_id, "pdfUrl": pdf_url, "htmlUrl": html_url, "chartUrl": chart_url})
+                return
             pdf_path = GENERATED / f"{run_id}.pdf"
             report_pdf(data, computed, chart_png, pdf_path)
             pdf_url = f"/generated/{pdf_path.name}"

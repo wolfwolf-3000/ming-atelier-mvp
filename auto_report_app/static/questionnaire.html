@@ -42,9 +42,9 @@
           <div class="fields">
             <div><label>姓名或称呼</label><input name="姓名或称呼" placeholder="用于报告标题"></div>
             <div><label>性别 *</label><select name="性别" required><option value="">请选择</option><option>男</option><option>女</option><option>其他/不方便填写</option></select></div>
-            <div><label>出生日期 *</label><input name="出生日期" placeholder="例如：1995-08-15" required></div>
+            <div><label>出生日期 *</label><input type="date" name="出生日期" required></div>
             <div><label>日期类型 *</label><select name="日期类型" required><option>阳历</option><option>农历</option><option>不确定</option></select></div>
-            <div><label>出生时间 *</label><input name="出生时间" placeholder="例如：14:30；不确定可写时间段" required></div>
+            <div><label>出生时间 *</label><input type="time" name="出生时间" step="60" required></div>
             <div><label>出生时间来源 *</label><select name="出生时间来源" required><option value="">请选择</option><option>出生证明</option><option>医院记录</option><option>家人记忆</option><option>大概时间段</option><option>不确定</option></select></div>
             <div><label>出生时间准确度 *</label><select name="出生时间准确度" required><option value="">请选择</option><option>精确到分钟</option><option>误差15分钟内</option><option>误差1小时内</option><option>只知道时辰</option><option>不确定</option></select></div>
             <div><label>真太阳时</label><select name="真太阳时"><option>不知道</option><option>已换算</option><option>未换算</option><option>需要协助判断</option></select></div>
@@ -107,6 +107,7 @@
         </div>
 
         <div class="actions">
+          <button class="btn primary" type="button" id="generate">生成深度体验报告</button>
           <button class="btn secondary" type="button" id="copy">生成并复制问卷结果</button>
           <button class="btn gold" type="button" id="download">下载填写结果</button>
         </div>
@@ -116,12 +117,31 @@
         <h3>填写结果</h3>
         <textarea id="result" readonly style="min-height:260px"></textarea>
       </div>
+      <div class="panel" id="reportBox" style="display:none;margin-top:18px">
+        <h3>深度体验报告</h3>
+        <p>报告已生成，可在线阅读，也可以下载 PDF。</p>
+        <div class="actions">
+          <a class="btn primary" id="htmlLink" target="_blank" rel="noopener">在线阅读 HTML</a>
+          <a class="btn secondary" id="pdfLink" target="_blank" rel="noopener">下载 PDF</a>
+          <a class="btn gold" id="chartLink" target="_blank" rel="noopener">查看命盘图</a>
+        </div>
+      </div>
     </div>
   </section>
 
   <footer class="shell">问卷用于深度报告校准。MVP 阶段先生成可复制文本，正式版再接订单、支付和数据库。</footer>
 
   <script>
+    async function postJson(url, payload) {
+      const res = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+      const data = await res.json();
+      if (!res.ok || !data.ok) throw new Error(data.error || '生成失败');
+      return data;
+    }
     function collect() {
       const data = new FormData(document.getElementById('questionnaire'));
       const lines = ['# Ming Atelier 深度报告问卷结果', ''];
@@ -131,6 +151,46 @@
       }
       if (lines.length === 2) lines.push('未填写内容。');
       return lines.join('\n');
+    }
+    function collectPayload() {
+      const form = document.getElementById('questionnaire');
+      const data = new FormData(form);
+      const get = key => String(data.get(key) || '').trim();
+      return {
+        name: get('姓名或称呼'),
+        gender: get('性别'),
+        birthDate: get('出生日期'),
+        birthTime: get('出生时间'),
+        birthPlace: get('出生地点'),
+        calendar: get('日期类型') || '阳历',
+        timeSource: get('出生时间来源'),
+        timeAccuracy: get('出生时间准确度'),
+        trueSolarTime: get('真太阳时'),
+        currentCity: get('当前所在城市'),
+        status: get('当前状态'),
+        education: get('最高学历'),
+        industry: get('当前行业或专业'),
+        role: get('当前角色'),
+        incomeSource: get('主要收入来源'),
+        income: get('当前年收入区间'),
+        assetStatus: get('资产负债状态'),
+        currentMatter: get('正在推进的重要事项'),
+        careerQuestion: get('事业重点问题'),
+        wealthQuestion: get('财运重点问题'),
+        realRisk: get('现实风险'),
+        relationshipStatus: get('当前感情状态'),
+        children: get('是否有子女'),
+        relationshipQuestion: get('感情重点问题'),
+        familyQuestion: get('家庭居住问题'),
+        events: get('关键年份事件'),
+        healthEvents: get('健康变化年份'),
+        moneyEvents: get('财务变化年份'),
+        focus: get('最想看的方向'),
+        keyQuestion: get('最重要的问题'),
+        language: get('报告语言偏好'),
+        style: get('解读风格偏好'),
+        notes: get('其他备注')
+      };
     }
     function validateRequired() {
       const form = document.getElementById('questionnaire');
@@ -144,6 +204,27 @@
       document.getElementById('outputBox').style.display = 'block';
       document.getElementById('outputBox').scrollIntoView({ behavior: 'smooth', block: 'start' });
     }
+    document.getElementById('generate').addEventListener('click', async () => {
+      if (!validateRequired()) return;
+      const button = document.getElementById('generate');
+      const box = document.getElementById('reportBox');
+      button.disabled = true;
+      button.textContent = '生成中...';
+      box.style.display = 'none';
+      try {
+        const data = await postJson('/api/deep-report', collectPayload());
+        document.getElementById('htmlLink').href = data.htmlUrl;
+        document.getElementById('pdfLink').href = data.pdfUrl;
+        document.getElementById('chartLink').href = data.chartUrl;
+        box.style.display = 'block';
+        box.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      } catch (error) {
+        alert(error.message);
+      } finally {
+        button.disabled = false;
+        button.textContent = '生成深度体验报告';
+      }
+    });
     document.getElementById('copy').addEventListener('click', async () => {
       if (!validateRequired()) return;
       const text = collect();
