@@ -1,7 +1,7 @@
 services:
   - type: web
     name: ming-atelier-mvp
-    env: docker
-    plan: starter
-    autoDeploy: false
+    runtime: docker
+    plan: free
+    autoDeployTrigger: commit
     healthCheckPath: /api/health
