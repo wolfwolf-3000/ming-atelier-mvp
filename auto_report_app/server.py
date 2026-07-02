@@ -84,6 +84,8 @@ TRIGRAMS = {
     7: ("艮", "山", "土", (0, 1, 1)),
     8: ("坤", "地", "土", (0, 0, 0)),
 }
+GENERATES = {"木": "火", "火": "土", "土": "金", "金": "水", "水": "木"}
+CONTROLS = {"木": "土", "土": "水", "水": "火", "火": "金", "金": "木"}
 HEXAGRAM_NAMES = {
     ("乾", "乾"): "乾为天", ("乾", "兑"): "天泽履", ("乾", "离"): "天火同人", ("乾", "震"): "天雷无妄", ("乾", "巽"): "天风姤", ("乾", "坎"): "天水讼", ("乾", "艮"): "天山遁", ("乾", "坤"): "天地否",
     ("兑", "乾"): "泽天夬", ("兑", "兑"): "兑为泽", ("兑", "离"): "泽火革", ("兑", "震"): "泽雷随", ("兑", "巽"): "泽风大过", ("兑", "坎"): "泽水困", ("兑", "艮"): "泽山咸", ("兑", "坤"): "泽地萃",
@@ -295,7 +297,19 @@ def free_report_summary(data: dict, computed: dict) -> str:
     )
 
 
+def normalize_time(value: str) -> str:
+    match = re.search(r"(\d{1,2}):(\d{2})", str(value or ""))
+    if not match:
+        raise ValueError("时间格式请填写为 HH:MM")
+    hour = int(match.group(1))
+    minute = int(match.group(2))
+    if hour > 23 or minute > 59:
+        raise ValueError("时间格式请填写为 HH:MM")
+    return f"{hour:02d}:{minute:02d}"
+
+
 def build_chart(data: dict, run_id: str) -> tuple[dict, Path]:
+    data["birthTime"] = normalize_time(data["birthTime"])
     birth = datetime.fromisoformat(data["birthDate"] + "T" + data["birthTime"])
     solar = Solar.fromYmdHms(birth.year, birth.month, birth.day, birth.hour, birth.minute, 0)
     lunar = solar.getLunar()
@@ -364,11 +378,61 @@ def hexagram_name(upper_index: int, lower_index: int) -> str:
     return HEXAGRAM_NAMES.get((upper, lower), f"{upper}{lower}卦")
 
 
+def element_relation(body_element: str, use_element: str) -> tuple[str, int, str]:
+    if body_element == use_element:
+        return "体用同气", 8, "内在状态和外部事情同频，推进阻力较小，但也容易停在原有节奏里。"
+    if GENERATES.get(use_element) == body_element:
+        return "用生体", 14, "外部条件来生扶自己，事情容易得到资源、回应或贵人助力。"
+    if GENERATES.get(body_element) == use_element:
+        return "体生用", -8, "自己要付出更多去托举事情，容易先耗精力、时间或情绪。"
+    if CONTROLS.get(body_element) == use_element:
+        return "体克用", 4, "自己能压住局面，但要靠主动争取、规则和执行力，不能等对方自然配合。"
+    if CONTROLS.get(use_element) == body_element:
+        return "用克体", -16, "外部条件对自己形成压力，容易遇到卡点、反复、拖延或对方强势。"
+    return "体用关系混杂", -2, "卦气不算顺直，需要结合现实进展判断，不宜只凭感觉推进。"
+
+
+def support_score(element: str, month_element: str, day_element: str) -> int:
+    score = 0
+    if month_element == element:
+        score += 7
+    elif GENERATES.get(month_element) == element:
+        score += 4
+    elif CONTROLS.get(month_element) == element:
+        score -= 6
+    if day_element == element:
+        score += 5
+    elif GENERATES.get(day_element) == element:
+        score += 3
+    elif CONTROLS.get(day_element) == element:
+        score -= 4
+    return score
+
+
+def moving_line_reading(line: int) -> tuple[str, int, str]:
+    if line in (1, 2):
+        return "初段", 4, "事情还在起势阶段，先看信息是否补齐、对方是否回应，不宜急着定终局。"
+    if line in (3, 4):
+        return "中段", -6, "事情进入拉扯区，变数最大，容易因为沟通、条件或节奏出现反复。"
+    return "后段", -2, "事情已经有明显走势，后续更看收尾、承诺兑现和现实条件能否落地。"
+
+
+def verdict_from_score(score: int) -> tuple[str, str, str]:
+    if score >= 72:
+        return "吉", "顺势可进", "整体卦气偏顺，适合主动推进，但仍要把承诺、时间和边界落到具体动作。"
+    if score >= 60:
+        return "小吉", "可进但要控节奏", "有推进空间，但不是无条件顺利，需要先处理关键阻力。"
+    if score >= 48:
+        return "平", "谨慎观察", "事情未到定局，短期适合试探、补信息、留后手，不宜重押。"
+    return "凶", "暂缓为宜", "阻力较明显，当前不适合硬推；若必须推进，应先降风险、缩小投入。"
+
+
 def build_divination(data: dict) -> dict:
     question = data.get("question", "").strip()
     if not question:
         raise ValueError("请填写要问的具体事情")
     if data.get("divinationDate") and data.get("divinationTime"):
+        data["divinationTime"] = normalize_time(data["divinationTime"])
         divination_time = datetime.fromisoformat(data["divinationDate"] + "T" + data["divinationTime"])
     else:
         divination_time = datetime.now()
@@ -393,10 +457,36 @@ def build_divination(data: dict) -> dict:
     mutual_upper = trigram_index_from_lines(tuple(lines[2:5]))
     body_element = TRIGRAMS[upper_index][2]
     use_element = TRIGRAMS[lower_index][2]
-    relation = "同气" if body_element == use_element else f"体卦{body_element}，用卦{use_element}"
-    risk = 5 + (1 if moving_line in (3, 4) else 0) + (1 if body_element != use_element else -1)
+    month_element = BRANCH_ELEMENT.get(ec.getMonthZhi(), "")
+    day_element = BRANCH_ELEMENT.get(ec.getDayZhi(), "")
+    relation, relation_score, relation_text = element_relation(body_element, use_element)
+    phase, phase_score, phase_text = moving_line_reading(moving_line)
+    body_score = support_score(body_element, month_element, day_element)
+    use_score = support_score(use_element, month_element, day_element)
+    success = max(28, min(86, 58 + relation_score + body_score - max(0, use_score - body_score) // 2 + phase_score))
+    risk = 5 + (2 if success < 48 else 0) + (1 if moving_line in (3, 4) else 0) + (1 if relation == "用克体" else 0) - (1 if success >= 68 else 0)
     risk = max(2, min(9, risk))
-    success = max(35, min(82, 72 - risk * 3 + (8 if body_element == use_element else 0)))
+    verdict, verdict_tone, verdict_text = verdict_from_score(success)
+    confidence = 58
+    confidence += 4 if data.get("location", "").strip() else -4
+    confidence += 3 if data.get("background", "").strip() else -4
+    confidence += 3 if data.get("omen", "").strip() else -2
+    confidence = max(45, min(72, confidence))
+    action_window = {
+        "初段": "先用 24-72 小时观察回应；若反馈顺，再推进下一步。",
+        "中段": "未来 3-14 天是关键拉扯期，适合谈条件、补材料、看对方态度。",
+        "后段": "未来 7-30 天看落地结果，重点放在确认、收尾和防反复。",
+    }[phase]
+    risk_points = [
+        "不要把卦象当作确定承诺，仍要以现实证据、合同、沟通记录和专业意见为准。",
+        "若对方回复含糊、条件不断变化，说明用卦压力在兑现，应降低投入。",
+        "若这件事涉及医疗、法律、投资或重大资金，不建议只凭自动起卦决策。",
+    ]
+    advice = [
+        "先把问题缩小到一个可验证动作：一次沟通、一个节点、一个明确条件。",
+        "能进则小步推进，不能进则先等信息，不要在不清楚的时候加码。",
+        "保留退出条件：时间、成本、对方承诺三项至少要有一项可量化。",
+    ]
     return {
         "question": question,
         "time": divination_time.strftime("%Y-%m-%d %H:%M"),
@@ -407,13 +497,23 @@ def build_divination(data: dict) -> dict:
         "mutualHexagram": hexagram_name(mutual_upper, mutual_lower),
         "changedHexagram": hexagram_name(changed_upper, changed_lower),
         "movingLine": moving_line,
+        "phase": phase,
         "body": f"{TRIGRAMS[upper_index][0]}卦（{body_element}）",
         "use": f"{TRIGRAMS[lower_index][0]}卦（{use_element}）",
         "relation": relation,
+        "relationText": relation_text,
+        "seasonText": f"月令偏{month_element or '未明'}，日辰偏{day_element or '未明'}；体卦得分 {body_score:+d}，用卦得分 {use_score:+d}。",
+        "movementText": phase_text,
+        "verdict": verdict,
+        "verdictTone": verdict_tone,
+        "verdictText": verdict_text,
         "success": f"{success}%",
         "risk": f"{risk}/10",
-        "confidence": "62%",
-        "summary": "这是自动年月日时起卦结果，适合做初步判断。若涉及投资、法律、健康或重大合同，必须结合现实资料复核。",
+        "confidence": f"{confidence}%",
+        "actionWindow": action_window,
+        "advice": advice,
+        "riskPoints": risk_points,
+        "summary": f"此卦判断为「{verdict}」，倾向是「{verdict_tone}」。核心原因是{relation}，再看动爻处于{phase}，所以短期不宜只凭情绪决定，应按节点、小步验证、留后手来处理。",
     }
 
 

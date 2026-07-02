@@ -115,7 +115,7 @@
               <div><label>姓名</label><input name="name" placeholder="用于报告标题"></div>
               <div><label>性别 *</label><select name="gender" required><option value="">请选择</option><option>男</option><option>女</option></select></div>
               <div><label>出生日期 *</label><input type="date" name="birthDate" required></div>
-              <div><label>出生时间 *</label><input type="time" name="birthTime" required></div>
+              <div><label>出生时间 *</label><input type="time" name="birthTime" step="60" required></div>
               <div class="full"><label>出生地点 *</label><input name="birthPlace" required placeholder="例如：中国广州天河区"></div>
               <div><label>当前行业</label><input name="industry" placeholder="行业 / 专业方向"></div>
               <div><label>当前角色</label><input name="role" placeholder="学生 / 创业 / 职位"></div>
@@ -221,7 +221,9 @@
       try {
         const data = await postJson('/api/divination', Object.fromEntries(new FormData(e.target).entries()));
         const r = data.result;
-        $('oracleResult').innerHTML = `<strong>${r.baseHexagram}，${r.movingLine}爻动，变${r.changedHexagram}</strong><span>互卦：${r.mutualHexagram}</span><span>体用：${r.body} / ${r.use}；${r.relation}</span><span>达成度：${r.success}；风险：${r.risk}；置信度：${r.confidence}</span><span>${r.summary}</span>`;
+        const esc = value => String(value || '').replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
+        const list = items => (items || []).map(item => `<li>${esc(item)}</li>`).join('');
+        $('oracleResult').innerHTML = `<strong>判断：${esc(r.verdict)}｜${esc(r.verdictTone)}</strong><span>${esc(r.baseHexagram)}，${esc(r.movingLine)}爻动，变${esc(r.changedHexagram)}；互卦：${esc(r.mutualHexagram)}</span><span>体用：${esc(r.body)} / ${esc(r.use)}；${esc(r.relation)}</span><span>${esc(r.relationText)}</span><span>${esc(r.seasonText)}</span><span>${esc(r.movementText)}</span><span>达成度：${esc(r.success)}；风险：${esc(r.risk)}；置信度：${esc(r.confidence)}</span><span>行动窗口：${esc(r.actionWindow)}</span><span>${esc(r.summary)}</span><ul>${list(r.advice)}</ul><ul>${list(r.riskPoints)}</ul>`;
         $('oracleResult').style.display = 'grid';
         await loadHistory();
       } catch (err) {
