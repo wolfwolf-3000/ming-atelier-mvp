@@ -839,6 +839,31 @@ def relationship_profile(data: dict, useful: list[str]) -> list[list[str]]:
     ]
 
 
+def event_calibration_rows(events: str, model: dict) -> list[list[str]]:
+    if not events.strip():
+        return []
+    parts = [item.strip(" ；;。") for item in re.split(r"[\n；;]+", events) if item.strip(" ；;。")]
+    rows = []
+    useful_text = "、".join(model["useful_elements"]) or "节奏"
+    for item in parts[:5]:
+        year_match = re.search(r"(19|20)\d{2}", item)
+        year = year_match.group(0) if year_match else "未标年份"
+        if any(word in item for word in ["换", "转型", "城市", "迁", "工作"]):
+            signal = "变动、职业环境和现实赛道被触发，重点看月柱/大运对事业节奏的牵引。"
+            impact = "支持报告中“先立规则再放大机会”的判断，置信度小幅上调。"
+        elif any(word in item for word in ["收入", "财", "副业", "投资", "产品", "创业"]):
+            signal = "财星、食伤输出和现金流承接被触发，重点看客户、定价、账期和交付系统。"
+            impact = f"支持喜用{useful_text}要落到合同、复盘、现金流规则上的判断。"
+        elif any(word in item for word in ["感情", "结婚", "分手", "关系", "恋爱"]):
+            signal = "日支/关系宫与现实承诺被触发，重点看关系边界、城市选择和金钱责任。"
+            impact = "支持报告中关系需要现实规则和节奏管理的判断。"
+        else:
+            signal = "作为背景事件保留，自动版不强行过拟合到单一年份。"
+            impact = "对核心结构影响中性，后续人工复核可进一步细分。"
+        rows.append([year, item, signal, impact])
+    return rows
+
+
 def report_model(data: dict, computed: dict) -> dict:
     ec = computed["ec"]
     profile = computed["profile"]
@@ -876,13 +901,14 @@ def report_model(data: dict, computed: dict) -> dict:
         "calibration_lines": [
             f"出生时间来源：{data.get('timeSource') or '未填写'}；准确度：{data.get('timeAccuracy') or '未填写'}；真太阳时：{data.get('trueSolarTime') or '未填写'}。",
             f"出生地/当前城市：{data.get('birthPlace') or '未填写'} / {data.get('currentCity') or '未填写'}。",
-            f"关键年份事件：{events or '未提供具体事件，因此不做事件校准，改用排盘边界与置信度校准。'}",
-            "当前自动标准版以盘面、大运、流年为主，现实事件只作校准，不覆盖命局结构。",
+            "已提供关键年份事件，以下只作为轻校准，不会覆盖命局、大运、流年结构。" if events else "未提供具体事件，因此不做事件校准，改用排盘边界与置信度校准。",
+            "当前自动标准版以盘面、大运、流年为主，现实事件只作校准；若事件与盘面冲突，会在人工复核阶段下调相应结论置信度。",
         ],
     }
     model["career_rows"] = career_rows(data, model)
     model["crisis_rows"] = crisis_rows()
     model["june_2026_detail"] = june_2026_detail()
+    model["event_calibration_rows"] = event_calibration_rows(events, model)
     return model
 
 
@@ -1105,6 +1131,8 @@ def deep_report_pdf(data: dict, computed: dict, chart_png: Path, output: Path) -
     ])
     for line in model["calibration_lines"]:
         story.append(paragraph(line, styles["body"]))
+    if model["event_calibration_rows"]:
+        story.append(pdf_table([["年份", "事件", "盘面/运势信号", "校准影响"]] + model["event_calibration_rows"], [18 * mm, 48 * mm, 54 * mm, 50 * mm], font, 6.6))
     story.extend([
         paragraph("九、结论：核心限制与潜在危机", styles["h1"]),
         pdf_table([["风险", "表现", "控制方式"]] + model["crisis_rows"], [28 * mm, 72 * mm, 70 * mm], font, 6.8),
@@ -1177,7 +1205,7 @@ def deep_report_html(data: dict, computed: dict, chart_png: Path, output: Path) 
 	<section class="panel fade" id="wealth"><h2>未来十年财运与收入层级</h2>{html_income_cards(model)}{html_table(["阶段","收入判断","关键条件","风险"], model["income_stage_rows"])}{html_table(["年份","流年","大运","事业","财运","感情","健康/压力","破财","家宅","合规","触发与行动规则"], model["annual_rows"])}</section>
 	<section class="panel fade" id="relationship"><h2>感情运势</h2>{html_table(["主题","判断","说明"], model["relationship_rows"])}</section>
 	<section class="panel fade" id="monthly"><h2>2026 年单独流月拆解</h2><div class="card warning"><b>6 月甲午重点提示</b><p>{html.escape(model["june_2026_detail"])}</p></div><div class="timeline">{monthly_html}</div></section>
-	<section class="panel fade" id="calibration"><h2>{html.escape(model["calibration_title"])}</h2><div class="card">{"".join(f"<p>{html.escape(line)}</p>" for line in model["calibration_lines"])}</div></section>
+	<section class="panel fade" id="calibration"><h2>{html.escape(model["calibration_title"])}</h2><div class="card">{"".join(f"<p>{html.escape(line)}</p>" for line in model["calibration_lines"])}</div>{html_table(["年份","事件","盘面/运势信号","校准影响"], model["event_calibration_rows"]) if model["event_calibration_rows"] else ""}</section>
 	<section class="panel fade" id="crisis"><h2>核心限制与潜在危机</h2>{html_card_table(model["crisis_rows"])}</section>
 	<section class="panel fade" id="summary"><h2>大白话总结</h2><div class="card"><p>{html.escape(report_plain_summary(data, model))}</p></div></section>
 	<section class="panel fade elements" id="elements"><h2>喜用神</h2><div class="god-art"><img src="{useful_url}" alt="喜用神图"></div>{html_table(["喜用","行为落地"], [[e, element_behavior(e)] for e in model["useful_elements"]])}</section>
