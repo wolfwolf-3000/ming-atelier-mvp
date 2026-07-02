@@ -107,7 +107,7 @@
         </div>
 
         <div class="actions">
-          <button class="btn primary" type="button" id="generate">生成深度体验报告</button>
+          <button class="btn primary" type="button" id="generate">生成标准深度报告</button>
           <button class="btn secondary" type="button" id="copy">生成并复制问卷结果</button>
           <button class="btn gold" type="button" id="download">下载填写结果</button>
         </div>
@@ -118,7 +118,7 @@
         <textarea id="result" readonly style="min-height:260px"></textarea>
       </div>
       <div class="panel" id="reportBox" style="display:none;margin-top:18px">
-        <h3>深度体验报告</h3>
+        <h3>标准深度报告</h3>
         <p>报告已生成，可在线阅读，也可以下载 PDF。</p>
         <div class="actions">
           <a class="btn primary" id="htmlLink" target="_blank" rel="noopener">在线阅读 HTML</a>
@@ -129,7 +129,7 @@
     </div>
   </section>
 
-  <footer class="shell">问卷用于深度报告校准。MVP 阶段先生成可复制文本，正式版再接订单、支付和数据库。</footer>
+  <footer class="shell">问卷用于深度报告校准。信息越具体，报告越能贴近真实人生节奏。</footer>
 
   <script>
     async function postJson(url, payload) {
@@ -222,7 +222,7 @@
         alert(error.message);
       } finally {
         button.disabled = false;
-        button.textContent = '生成深度体验报告';
+        button.textContent = '生成标准深度报告';
       }
     });
     document.getElementById('copy').addEventListener('click', async () => {
