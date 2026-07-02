@@ -20,11 +20,11 @@
       <div>
         <p class="eyebrow">Deep Report Intake</p>
         <h1>深度报告问卷</h1>
-        <p class="lead">深度报告不是只看出生时间。它需要命盘、现实基线、关键年份和你真正想问的问题一起校准，才能把结论落到事业、财富、感情和未来节奏里。</p>
+        <p class="lead">这份问卷只采集标准排盘信息和现实基线。报告会按固定模板输出事业、财运、感情、未来十年、2026流月、神煞、喜用神与水晶建议。</p>
       </div>
       <div class="hero-card">
         <h3>填写原则</h3>
-        <p>能确定的如实填写；不确定的直接写“不确定”。关键事件只用于校准，不会覆盖八字结构本身。</p>
+        <p>能确定的如实填写；不确定的直接选“不确定”。关键事件为可选项，只用于校准，不会覆盖八字结构本身。</p>
       </div>
     </div>
   </section>
@@ -33,7 +33,7 @@
     <div class="shell">
       <div class="section-head">
         <h2>信息采集</h2>
-        <p>填写后可生成一份文本结果，后续用于深度报告、人工复核或订单沟通。</p>
+        <p>填写后可直接生成标准深度报告，也可复制文本用于后续人工复核。</p>
       </div>
 
       <form id="questionnaire" class="grid">
@@ -68,41 +68,19 @@
         </div>
 
         <div class="panel">
-          <h3>三、事业与财富重点</h3>
-          <div class="fields">
-            <div class="full"><label>事业最想问什么？</label><textarea name="事业重点问题" placeholder="例如：适合继续打工还是创业？适合哪个行业？什么时候事业上升更明显？"></textarea></div>
-            <div class="full"><label>财运最想问什么？</label><textarea name="财运重点问题" placeholder="例如：未来几年收入节奏如何？适合做副业/投资吗？破财风险在哪里？"></textarea></div>
-            <div class="full"><label>你目前最担心的现实风险</label><textarea name="现实风险" placeholder="例如：行业下行、合伙风险、现金流、职业转型、健康、家庭变动等。"></textarea></div>
-          </div>
-        </div>
-
-        <div class="panel">
-          <h3>四、感情与家庭状态</h3>
+          <h3>三、感情与家庭状态</h3>
           <div class="fields">
             <div><label>当前感情状态</label><select name="当前感情状态"><option value="">请选择</option><option>单身</option><option>暧昧/接触中</option><option>恋爱中</option><option>已婚</option><option>离异</option><option>复杂/不方便说</option></select></div>
             <div><label>是否有子女</label><select name="是否有子女"><option value="">请选择</option><option>无</option><option>有</option><option>计划中</option><option>不方便填写</option></select></div>
-            <div class="full"><label>感情重点问题</label><textarea name="感情重点问题" placeholder="例如：正缘画像、适合结婚时间、现有关系是否稳定、容易反复的问题。"></textarea></div>
-            <div class="full"><label>家庭/居住重点问题</label><textarea name="家庭居住问题" placeholder="例如：是否适合移居、买房、与家庭关系、子女计划等。"></textarea></div>
+            <div class="full"><label>关系/家庭补充</label><textarea name="关系家庭补充" placeholder="可选：当前关系状态、家庭责任、居住/移居情况。没有可空着。"></textarea></div>
           </div>
         </div>
 
         <div class="panel">
-          <h3>五、关键年份校准</h3>
+          <h3>四、可选校准</h3>
           <div class="fields">
             <div class="full"><label>3-5 个关键年份事件</label><textarea name="关键年份事件" placeholder="建议格式：年份 + 事件 + 结果&#10;例如：2020 换城市，事业压力变大但收入上升。&#10;例如：2023 感情结束，随后开始转型。"></textarea></div>
-            <div class="full"><label>身体/健康明显变化年份</label><textarea name="健康变化年份" placeholder="如没有可空着。只需写年份和大概情况，不需要隐私细节。"></textarea></div>
-            <div class="full"><label>财务明显变化年份</label><textarea name="财务变化年份" placeholder="例如收入明显上升、亏损、投资波动、买房、负债变化等。"></textarea></div>
-          </div>
-        </div>
-
-        <div class="panel">
-          <h3>六、报告重点与交付偏好</h3>
-          <div class="fields">
-            <div class="full"><label>最想看的方向 *</label><textarea name="最想看的方向" required placeholder="可写：事业、财运、感情、未来十年、2026流年、创业、移居、健康风险等。"></textarea></div>
-            <div class="full"><label>一个最重要的问题 *</label><textarea name="最重要的问题" required placeholder="请写成一个具体问题。越具体，报告越能落地。"></textarea></div>
-            <div><label>报告语言偏好</label><select name="报告语言偏好"><option>中文</option><option>英文</option><option>中英双语</option></select></div>
-            <div><label>解读风格偏好</label><select name="解读风格偏好"><option>直接清楚</option><option>温和一点</option><option>更偏商业决策</option><option>更偏感情关系</option></select></div>
-            <div class="full"><label>其他备注</label><textarea name="其他备注" placeholder="出生时间可能跨时辰、外币收入、希望避开的内容、特别想强调的背景等。"></textarea></div>
+            <div class="full"><label>其他必要备注</label><textarea name="其他备注" placeholder="可选：出生时间可能跨时辰、外币收入、重大现实背景等。"></textarea></div>
           </div>
         </div>
 
@@ -175,20 +153,10 @@
         income: get('当前年收入区间'),
         assetStatus: get('资产负债状态'),
         currentMatter: get('正在推进的重要事项'),
-        careerQuestion: get('事业重点问题'),
-        wealthQuestion: get('财运重点问题'),
-        realRisk: get('现实风险'),
         relationshipStatus: get('当前感情状态'),
         children: get('是否有子女'),
-        relationshipQuestion: get('感情重点问题'),
-        familyQuestion: get('家庭居住问题'),
+        relationshipQuestion: get('关系家庭补充'),
         events: get('关键年份事件'),
-        healthEvents: get('健康变化年份'),
-        moneyEvents: get('财务变化年份'),
-        focus: get('最想看的方向'),
-        keyQuestion: get('最重要的问题'),
-        language: get('报告语言偏好'),
-        style: get('解读风格偏好'),
         notes: get('其他备注')
       };
     }
