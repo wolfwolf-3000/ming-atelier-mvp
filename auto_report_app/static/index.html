@@ -163,12 +163,6 @@
       </div>
     </section>
 
-    <section>
-      <div class="shell">
-        <div class="section-head"><h2>内测记录</h2><p>线上测试版先记录提交历史，正式版再接数据库和支付事件。</p></div>
-        <div class="record-panel" style="padding:16px"><div class="records" id="history">暂无记录</div></div>
-      </div>
-    </section>
   </main>
 
   <footer class="shell">Ming Atelier｜命理工坊。命理报告、起卦和五行物件均为传统文化与决策辅助内容，不替代医疗、法律、投资等专业意见。</footer>
@@ -180,15 +174,6 @@
       const data = await res.json();
       if (!res.ok || !data.ok) throw new Error(data.error || '请求失败');
       return data;
-    }
-    async function loadHistory() {
-      try {
-        const res = await fetch('/api/history');
-        const data = await res.json();
-        const box = $('history');
-        if (!data.records || !data.records.length) { box.textContent = '暂无记录'; return; }
-        box.innerHTML = data.records.slice(0, 8).map(r => `<div class="record"><b>${r.title || r.type}</b><small>${r.createdAt} · ${r.type}</small>${r.pdfUrl ? `<a href="${r.pdfUrl}" target="_blank" rel="noopener">打开 PDF</a>` : ''}</div>`).join('');
-      } catch (e) {}
     }
     $('reportForm').addEventListener('submit', async e => {
       e.preventDefault();
@@ -203,7 +188,6 @@
         $('pdfLink').href = data.pdfUrl;
         $('chartLink').href = data.chartUrl;
         $('reportResult').style.display = 'block';
-        await loadHistory();
       } catch (err) {
         $('reportError').textContent = err.message;
         $('reportError').style.display = 'block';
@@ -225,7 +209,6 @@
         const list = items => (items || []).map(item => `<li>${esc(item)}</li>`).join('');
         $('oracleResult').innerHTML = `<strong>判断：${esc(r.verdict)}｜${esc(r.verdictTone)}</strong><span>${esc(r.baseHexagram)}，${esc(r.movingLine)}爻动，变${esc(r.changedHexagram)}；互卦：${esc(r.mutualHexagram)}</span><span>体用：${esc(r.body)} / ${esc(r.use)}；${esc(r.relation)}</span><span>${esc(r.relationText)}</span><span>${esc(r.seasonText)}</span><span>${esc(r.movementText)}</span><span>达成度：${esc(r.success)}；风险：${esc(r.risk)}；置信度：${esc(r.confidence)}</span><span>行动窗口：${esc(r.actionWindow)}</span><span>${esc(r.summary)}</span><ul>${list(r.advice)}</ul><ul>${list(r.riskPoints)}</ul>`;
         $('oracleResult').style.display = 'grid';
-        await loadHistory();
       } catch (err) {
         $('oracleError').textContent = err.message;
         $('oracleError').style.display = 'block';
@@ -234,7 +217,6 @@
         $('oracleSubmit').textContent = '立即起卦';
       }
     });
-    loadHistory();
   </script>
 </body>
 </html>
