@@ -292,10 +292,11 @@ def free_report_summary(data: dict, computed: dict) -> str:
     return (
         f"大白话看，这个命盘的日主是{day_stem}{day_element}，五行里目前以{dominant_text}最显眼，所以性格上不是单纯外放或单纯内向，"
         f"而是会先看事情有没有结构、有没有确定性，再决定要不要投入。{personality}"
-        f"事业上，用户当前填写的行业/角色是“{industry} / {role}”，免费版只能做初筛：比较适合往{industries}"
+        f"事业上，你当前填写的行业/角色是“{industry} / {role}”，从五行气质看，比较适合往{industries}"
         f"如果要做得更顺，关键不是追热点，而是把自己的专业、流程、交付标准和现金流规则固定下来。"
-        f"感情上，{gender or '此盘'}看{spouse_logic}与日支状态，免费版不做细断正缘外貌和年份，只能说关系里最需要的是边界、节奏和现实责任感；"
-        f"如果一段关系长期让你在钱、时间、承诺或城市选择上反复消耗，就不适合硬拖。完整感情窗口、正缘特征和未来几年波动，需要付费深度报告结合大运流年再看。"
+        f"感情上，{gender or '此盘'}看{spouse_logic}与日支状态，关系里最需要的是边界、节奏和现实责任感；"
+        "如果一段关系长期让你在钱、时间、承诺或城市选择上反复消耗，就不适合硬拖。"
+        "免费版只做排盘后的基础阅读，不展开大运、流年、正缘年份和深度风险细断。"
     )
 
 
@@ -429,6 +430,57 @@ def verdict_from_score(score: int) -> tuple[str, str, str]:
     return "凶", "暂缓为宜", "阻力较明显，当前不适合硬推；若必须推进，应先降风险、缩小投入。"
 
 
+def divination_topic(question: str, background: str) -> str:
+    text = question + " " + background
+    topics = [
+        ("合作/副业", ["合作", "合伙", "副业", "项目", "客户", "合同", "报价", "资源", "推进"]),
+        ("感情/关系", ["感情", "恋爱", "复合", "分手", "结婚", "对象", "关系", "伴侣"]),
+        ("事业/工作", ["工作", "跳槽", "面试", "升职", "老板", "公司", "事业", "职业"]),
+        ("财务/投资", ["投资", "买", "卖", "钱", "收入", "财", "股票", "房", "资产"]),
+        ("学业/考试", ["考试", "申请", "学校", "学业", "录取", "论文", "证书"]),
+    ]
+    for label, words in topics:
+        if any(word in text for word in words):
+            return label
+    return "具体事项"
+
+
+def divination_contextual_reading(topic: str, question: str, background: str, verdict: str, relation: str, phase: str) -> tuple[str, list[str], list[str]]:
+    relation_hint = {
+        "用生体": "外部条件有助力，但助力是否能落地，取决于对方承诺是否具体。",
+        "体生用": "你会比较主动付出资源和精力，容易先投入、后等回报。",
+        "体克用": "你有主动掌控空间，但也容易因为控制太急而让对方退缩。",
+        "用克体": "外部压力压到自己身上，推进时要先判断成本是否已经超过收益。",
+        "同气": "双方节奏相近，成败更取决于细节、时机和执行纪律。",
+    }.get(relation, "卦象提示要把抽象判断落到具体条件。")
+    phase_hint = {
+        "初段": "事情还在起势阶段，先验证对方态度，不宜一上来绑定大承诺。",
+        "中段": "事情正在拉扯，最关键的是谈清条件和权责，不要靠默契推进。",
+        "后段": "事情已经接近见结果，重点是收口、验收、付款、期限和退出条件。",
+    }.get(phase, "当前要把节奏拆成可验证节点。")
+    if topic == "合作/副业":
+        reading = f"这卦要落回你问的合作/副业本身看：{relation_hint}{phase_hint} 所以不是简单问“能不能做”，而是要先看合同边界、分工、收款、交付和退出条件。若这些条件能写清，{verdict}可以转成可控推进；若对方只给资源想象、不肯给具体承诺，就算卦面不差，也容易变成你单方面消耗。"
+        advice = ["先要一版书面合作范围：谁负责什么、何时交付、如何分账。", "先做小单或试运行，不要一开始押长期排他或大额投入。", "把退出条件写在前面：对方逾期、付款不清、范围扩大时如何停止。"]
+        risks = ["最怕“资源很多但边界很虚”，最后变成你补交付、补沟通、补成本。", "如果对方回避合同、账期或责任人，说明卦里的阻力已经在现实中出现。", "涉及大额资金或股权时，必须用合同和专业意见复核。"]
+    elif topic == "感情/关系":
+        reading = f"这卦落在感情/关系上，核心不是只看对方有没有感觉，而是看关系能否进入稳定承诺。{relation_hint}{phase_hint} 若对方愿意把时间安排、关系名分、金钱边界和未来计划讲清楚，事情还有推进空间；若一直停在情绪拉扯，短期不要用牺牲自己来换确定性。"
+        advice = ["先问清一个现实问题：关系定位、见面频率或下一步安排。", "不要在情绪最满的时候逼承诺，给对方一个具体反馈期限。", "如果对方只给暧昧回应，不给行动，就按低投入处理。"]
+        risks = ["高情绪沟通容易让问题失焦。", "不要把金钱、同居、城市选择和关系承诺混在一起一次谈完。", "若涉及安全、控制或伤害，优先现实求助，不以卦象判断。"]
+    elif topic == "事业/工作":
+        reading = f"这卦落在事业/工作上，重点是机会背后的制度与成本。{relation_hint}{phase_hint} 如果岗位、汇报线、薪酬、绩效口径清楚，可以小步推进；如果只是口头机会很大，但权责不清，后期压力会落到你身上。"
+        advice = ["把薪酬、职责、考核和资源支持问清楚。", "先争取试用节点或阶段性目标，不要只凭热情接盘。", "保留现有现金流和备选方案。"]
+        risks = ["口头承诺和实际资源不匹配。", "上级或客户临时改需求，导致你承担额外成本。", "职业重大选择仍需结合现实 offer 和长期规划。"]
+    elif topic == "财务/投资":
+        reading = f"这卦落在财务/投资上，要先看风险暴露，而不是只看收益想象。{relation_hint}{phase_hint} 当前更适合小额验证、分批进入或先做尽调，不适合因为一时机会感而重仓。"
+        advice = ["先设最大亏损线，不到条件不加码。", "确认流动性、退出方式和最坏情况。", "任何高收益承诺都要反向验证风险。"]
+        risks = ["不要把卦象当投资建议或收益保证。", "高杠杆、借钱投入、短线追涨都应回避。", "重大金额必须做专业财务和法律核查。"]
+    else:
+        reading = f"这卦需要贴着你的问题看：{relation_hint}{phase_hint} 当前最重要的不是抽象判断吉凶，而是把问题拆成一个可验证动作，看对方/环境是否给出明确反馈。"
+        advice = ["把问题缩小成一个具体动作和一个明确期限。", "先验证信息，再扩大投入。", "保留退出条件，不要把所有选择押在一次判断上。"]
+        risks = ["问题越模糊，卦象可用度越低。", "现实反馈和卦象不一致时，以现实证据为先。", "重大事项需要专业意见和更多信息。"]
+    return reading, advice, risks
+
+
 def build_divination(data: dict) -> dict:
     question = data.get("question", "").strip()
     if not question:
@@ -479,21 +531,15 @@ def build_divination(data: dict) -> dict:
         "中段": "未来 3-14 天是关键拉扯期，适合谈条件、补材料、看对方态度。",
         "后段": "未来 7-30 天看落地结果，重点放在确认、收尾和防反复。",
     }[phase]
-    risk_points = [
-        "不要把卦象当作确定承诺，仍要以现实证据、合同、沟通记录和专业意见为准。",
-        "若对方回复含糊、条件不断变化，说明用卦压力在兑现，应降低投入。",
-        "若这件事涉及医疗、法律、投资或重大资金，不建议只凭自动起卦决策。",
-    ]
-    advice = [
-        "先把问题缩小到一个可验证动作：一次沟通、一个节点、一个明确条件。",
-        "能进则小步推进，不能进则先等信息，不要在不清楚的时候加码。",
-        "保留退出条件：时间、成本、对方承诺三项至少要有一项可量化。",
-    ]
+    background = data.get("background", "").strip()
+    topic = divination_topic(question, background)
+    question_reading, advice, risk_points = divination_contextual_reading(topic, question, background, verdict, relation, phase)
     return {
         "question": question,
         "time": divination_time.strftime("%Y-%m-%d %H:%M"),
         "location": data.get("location", "").strip() or "未填，按当前本地时间起卦",
-        "background": data.get("background", "").strip() or "未填",
+        "background": background or "未填",
+        "topic": topic,
         "omen": data.get("omen", "").strip() or "无",
         "baseHexagram": hexagram_name(upper_index, lower_index),
         "mutualHexagram": hexagram_name(mutual_upper, mutual_lower),
@@ -513,9 +559,10 @@ def build_divination(data: dict) -> dict:
         "risk": f"{risk}/10",
         "confidence": f"{confidence}%",
         "actionWindow": action_window,
+        "questionReading": question_reading,
         "advice": advice,
         "riskPoints": risk_points,
-        "summary": f"此卦判断为「{verdict}」，倾向是「{verdict_tone}」。核心原因是{relation}，再看动爻处于{phase}，所以短期不宜只凭情绪决定，应按节点、小步验证、留后手来处理。",
+        "summary": f"此卦判断为「{verdict}」，倾向是「{verdict_tone}」。对应你问的“{question}”，结论不是抽象吉凶，而是：{question_reading}",
     }
 
 
@@ -707,7 +754,41 @@ def branch_relation_rows(computed: dict) -> list[list[str]]:
     return rows
 
 
-def income_probabilities(strength: int, useful: list[str], data: dict) -> list[list[str]]:
+def wealth_tone(strength: int, useful: list[str], ec, profile: dict) -> dict[str, str]:
+    day_stem = ec.getDayGan()
+    day_element = STEM_ELEMENT.get(day_stem, "")
+    useful_text = "、".join(useful) or "节奏"
+    strong_element = max(profile, key=profile.get)
+    if "金" in useful or "水" in useful:
+        return {
+            "base": f"这张盘搞钱不适合靠一时热度硬冲，更适合把{useful_text}落成定价、合同、复盘、账期和客户筛选。金水到位时，钱往往来自专业判断、信息差、规则能力和长期客户。",
+            "million": f"百万级更像主线盘：日主{day_stem}{day_element}需要先把专业与交付标准稳住，靠客户复购、口碑、合同和现金流纪律逐步放大。",
+            "five": "500万级需要从个人能力升级为系统能力：报价模板、交付团队、渠道、产品化方案和财务风控要同时成型。",
+            "ten": "千万级不是完全没有机会，但不能靠单人状态和情绪冲刺，需要团队、资本、供应链或平台型资源共同承接。",
+        }
+    if "木" in useful or strong_element == "木":
+        return {
+            "base": f"这张盘的财运更依赖生长曲线：内容、教育、产品迭代、长期人脉和持续输出会比短线爆发更稳。喜用{useful_text}时，先种长期资产，再谈规模。",
+            "million": "百万级来自稳定作品、课程/咨询/产品线、长期客户池和个人品牌信任感。",
+            "five": "500万级要看内容或服务能否产品化，是否能从个人交付变成团队交付、渠道交付。",
+            "ten": "千万级需要更大市场、平台分发或资本化能力；若只靠个人表达，容易累但不一定放大。",
+        }
+    if "火" in useful:
+        return {
+            "base": f"这张盘的财运需要曝光、表达、销售和品牌势能，但火旺也容易带来冲动承诺。喜用{useful_text}时，要让热度服务于成交，而不是让情绪带着现金流跑。",
+            "million": "百万级来自可持续曝光、清晰定位、稳定销售漏斗和可交付的服务/产品。",
+            "five": "500万级需要品牌、渠道、团队销售和复购系统，否则容易高开低走。",
+            "ten": "千万级必须有强分发、强团队和强风控，不能只靠个人热度。",
+        }
+    return {
+        "base": f"这张盘的财运更看承接能力：流程、组织、库存、信用、账务和长期稳定。喜用{useful_text}时，越能把事情落到制度里，越容易把钱留住。",
+        "million": "百万级来自稳定客户、稳定项目、清楚账务和可靠交付，不宜靠高风险投机。",
+        "five": "500万级需要组织化和资产化，把人、货、钱、流程和责任边界全部稳住。",
+        "ten": "千万级需要平台、供应链、资本或重资产协同，同时对库存、债务和合规要求更高。",
+    }
+
+
+def income_probabilities(strength: int, useful: list[str], data: dict, ec, profile: dict) -> list[list[str]]:
     has_income = 1 if data.get("income") else 0
     useful_bonus = 1 if "金" in useful or "水" in useful else 0
     million = max(45, min(72, 55 + has_income * 5 + useful_bonus * 4 - max(0, strength - 70) // 4))
@@ -721,10 +802,11 @@ def income_probabilities(strength: int, useful: list[str], data: dict) -> list[l
         million -= overflow
     elif overflow < 0:
         million += abs(overflow)
+    tone = wealth_tone(strength, useful, ec, profile)
     return [
-        ["百万级", f"{million}%", "RMB 100万-500万/年", "需要把专业、客户、现金流和交付标准稳定连接，置信度约68%。"],
-        ["500万级", f"{five_million}%", "RMB 500万-1000万/年", "需要项目可复制、团队/渠道/产品成型，并有明确风控，置信度约58%。"],
-        ["千万级", f"{ten_million}%", "RMB 1000万以上/年", "需要规模化、资本/团队/供应链协同，且不能靠高杠杆硬冲，置信度约45%。"],
+        ["百万级", f"{million}%", "RMB 100万-500万/年", f"{tone['million']} 置信度约68%。"],
+        ["500万级", f"{five_million}%", "RMB 500万-1000万/年", f"{tone['five']} 置信度约58%。"],
+        ["千万级", f"{ten_million}%", "RMB 1000万以上/年", f"{tone['ten']} 置信度约45%。"],
     ]
 
 
@@ -746,12 +828,14 @@ def annual_rows(selected_ganzhi: str, useful: list[str]) -> list[list[str]]:
     return [[year, pillar, selected_ganzhi or "未识别", str(career), str(wealth), str(relation), str(stress), str(loss), str(family), str(compliance), trigger] for year, pillar, career, wealth, relation, stress, loss, family, compliance, trigger in years]
 
 
-def income_stage_rows() -> list[list[str]]:
+def income_stage_rows(useful: list[str], strength: int) -> list[list[str]]:
+    useful_text = "、".join(useful) or "节奏"
+    early_risk = "身弱盘先补资源、合同和现金流；身强盘先防扩张过快。" if strength < 58 else "能量偏足时容易动作太大，先把预算和退出条件锁住。"
     return [
-        ["2026-2027", "筑底与控风险", "先把现金流、合同、账期、库存和交付 SOP 建起来。", "火土压力偏重，最怕先承诺再核算。"],
-        ["2028-2029", "客户与财星被激活", "适合提价、收账、谈长期客户、做可复制产品。", "钱和关系同场，分成、股权、税务必须写清。"],
-        ["2030-2033", "资产化与系统化", "适合沉淀团队、产品、数据、证照、跨城/跨境资源。", "制度成本上升，不能靠个人状态硬扛。"],
-        ["2034-2036", "新方向再筛选", "适合学习、内容、教育、产品迭代和重新定位。", "回报延迟，不宜为新叙事提前重资产投入。"],
+        ["2026-2027", "筑底与控风险", f"先把{useful_text}落到现金流、合同、账期、库存和交付 SOP。", early_risk],
+        ["2028-2029", "客户与财星被激活", "适合提价、收账、谈长期客户、做可复制产品；金旺年份更利定价与合同。", "钱和关系同场，分成、股权、税务必须写清。"],
+        ["2030-2033", "资产化与系统化", "适合沉淀团队、产品、数据、证照、跨城/跨境资源，把个人能力变成系统资产。", "制度成本上升，不能靠个人状态硬扛。"],
+        ["2034-2036", "新方向再筛选", "适合学习、内容、教育、产品迭代和重新定位，先验证再投入。", "回报延迟，不宜为新叙事提前重资产投入。"],
     ]
 
 
@@ -892,8 +976,9 @@ def report_model(data: dict, computed: dict) -> dict:
         "shensha_balance": {label: shensha_balance_text(label, rows) for label, rows in shensha.items()},
         "cross_shensha_balance": cross_shensha_balance(shensha),
         "branch_relation_rows": branch_relation_rows(computed),
-        "income_rows": income_probabilities(strength, useful, data),
-        "income_stage_rows": income_stage_rows(),
+        "wealth_tone": wealth_tone(strength, useful, ec, profile),
+        "income_rows": income_probabilities(strength, useful, data, ec, profile),
+        "income_stage_rows": income_stage_rows(useful, strength),
         "annual_rows": annual_rows(selected.getGanZhi() if selected else "", useful),
         "monthly_rows": monthly_rows(),
         "relationship_rows": relationship_profile(data, useful),
@@ -1055,14 +1140,31 @@ def html_card_table(rows: list[list[str]], title_key: str = "主题") -> str:
     ) + "</div>"
 
 
-def report_plain_summary(data: dict, model: dict) -> str:
+def plain_summary_paragraphs(data: dict, model: dict) -> list[str]:
     useful = "、".join(model["useful_elements"]) or "节奏与边界"
-    return (
-        f"{data.get('name') or '这张盘'}的核心不是靠单点爆发取胜，而是要把{useful}这类能量用成稳定系统。"
-        f"性格上，日主强弱判断为{model['day_strength_label']}，行动时容易先凭直觉和压力反应，但真正能走远的方式是把判断写成规则，把机会拆成可验证的小步骤。"
-        "适合从事的方向以可沉淀专业、可复用方法、可管理现金流的行业为主，例如咨询、内容产品、品牌运营、金融/数据/法务/技术、供应链、教育训练或带有研究属性的服务业。"
-        "感情上，不适合高消耗、高情绪、承诺模糊的关系；越是能共同定规则、谈现实、稳节奏的人，越能让关系变成加分项。"
-    )
+    name = data.get("name") or "这张盘"
+    industry = data.get("industry") or "未填写行业"
+    role = data.get("role") or "未填写角色"
+    ten_gods = "、".join(unique([row[0] for row in model["ten_god_rows"] if row[0] != "日主"])[:4]) or "日主结构"
+    shensha = "、".join(unique([row[1] for rows in model["shensha_rows"].values() for row in rows if row[1] != "无明显主星"])[:4]) or "神煞辅助信号"
+    risk_years = [row for row in model["annual_rows"] if int(row[6]) >= 7 or int(row[7]) >= 6 or int(row[9]) >= 7]
+    money_years = [row for row in model["annual_rows"] if int(row[4]) >= 7]
+    relation_windows = next((row[1] for row in model["relationship_rows"] if row[0] == "适合恋爱窗口"), "2028-2033")
+    meet_window = next((row[1] for row in model["relationship_rows"] if row[0] == "最可能遇到时间"), "需结合大运流年细推")
+    risk_text = "、".join(f"{row[0]}{row[1]}" for row in risk_years[:3]) or "2026-2027"
+    money_text = "、".join(f"{row[0]}{row[1]}" for row in money_years[:5]) or "2028-2033"
+    career_fit = "匹配度偏高" if any(word in (industry + role) for word in ["咨询", "品牌", "运营", "产品", "金融", "数据", "法务", "技术", "教育", "供应链", "研究"]) else "可以做，但需要主动往可沉淀、可复盘、可定价的部分靠拢"
+    return [
+        f"{name}这张盘的主题，不是被命盘推着走，而是要学会读懂自己的节奏，再决定怎么行动、怎么取舍、怎么顺势。日主判断为{model['day_strength_label']} {model['day_strength']}%，喜用落在{useful}，所以人生里真正能托住你的，不是一次情绪很满的爆发，而是稳定的规则、稳定的专业、稳定的现金流，以及在关键时刻能让自己慢半拍的判断力。",
+        f"性格上，十神里比较值得看的信号包括{ten_gods}，神煞里可参考{shensha}。这类组合通常不是“轻松躺赢”的类型，而是对环境、承诺、关系和资源质量很敏感：别人一句话可能会让你想很多，一个机会也容易让你同时看到希望和风险。好处是你不适合粗糙地活，只要方法论建立起来，就能把敏感变成洞察，把压力变成执行力；难处是不要总把所有责任先扛到自己身上，尤其在合作、感情和金钱问题上，要先看边界，再谈投入。",
+        f"事业上，你现在填写的是“{industry} / {role}”，从命盘看当前方向{career_fit}。适合你的行业不是单纯热闹的赛道，而是能把经验沉淀为专业、流程、产品、咨询、运营、内容、数据、金融/法务/技术、供应链、教育训练或品牌方法论的路径。想增加机会，重点不是盲目扩大，而是把报价、合同、交付、复盘、客户筛选和现金流规则做出来；想规避风险，就要避开无账期、无退出、无责任人的合作，也不要为了证明自己能扛而接下过大的承诺。",
+        f"财运上，{model['wealth_tone']['base']} 未来十年里，比较适合努力搞钱的窗口集中在{money_text}，这些年份更适合谈客户、提价、收账、做产品化、做长期合作；风险较高的年份要重点看{risk_text}，尤其是火旺、关系承诺多、现金流压力大的阶段，容易先答应、后核算，或者因为情面、面子、兴奋感而扩大成本。你不是不能冲，而是每一次冲之前都要有预算、合同、复盘和止损线。",
+        f"感情上，适合恋爱或关系推进的窗口可优先看{relation_windows}；最可能遇到或明显推进的阶段，目前自动模型给到的是{meet_window}。这不是说其他时间没有缘分，而是这些窗口更容易出现能谈现实、谈规则、谈未来安排的人。比较适合你的关系，不是强刺激、强拉扯、强消耗，而是对方能尊重你的节奏，也愿意一起把钱、时间、城市、家庭责任讲清楚。若要看结婚，建议优先观察 2028-2033 之间能否出现稳定对象与现实条件同步成熟；如果关系长期只给情绪不给行动，就不要用等待消耗自己的运势。",
+    ]
+
+
+def report_plain_summary(data: dict, model: dict) -> str:
+    return "\n\n".join(plain_summary_paragraphs(data, model))
 
 
 def deep_report_pdf(data: dict, computed: dict, chart_png: Path, output: Path) -> None:
@@ -1102,10 +1204,31 @@ def deep_report_pdf(data: dict, computed: dict, chart_png: Path, output: Path) -
         paragraph(model["strength_reason"], styles["body"]),
         paragraph(model["useful_text"], styles["body"]),
         pdf_table([["喜用", "行为落地"]] + [[e, element_behavior(e)] for e in model["useful_elements"]], [28 * mm, 142 * mm], font),
-        paragraph("三、十神分析", styles["h1"]),
+        paragraph("三、事业发展", styles["h1"]),
+        pdf_table([["主题", "判断", "依据"]] + model["career_rows"], [30 * mm, 70 * mm, 70 * mm], font, 6.8),
+        paragraph("四、未来十年财运与收入层级", styles["h1"]),
+        paragraph(model["wealth_tone"]["base"], styles["body"]),
+        pdf_table([["层级", "概率", "金额", "条件"]] + model["income_rows"], [24 * mm, 18 * mm, 38 * mm, 90 * mm], font, 6.8),
+        pdf_table([["阶段", "收入判断", "关键条件", "风险"]] + model["income_stage_rows"], [26 * mm, 38 * mm, 58 * mm, 48 * mm], font, 6.6),
+        pdf_table([["年份", "流年", "大运", "事业", "财运", "感情", "健康/压力", "破财", "家宅", "合规", "触发与行动规则"]] + model["annual_rows"], [12 * mm, 14 * mm, 16 * mm, 8 * mm, 8 * mm, 8 * mm, 13 * mm, 8 * mm, 8 * mm, 8 * mm, 75 * mm], font, 5.2),
+        paragraph("五、感情运势", styles["h1"]),
+        pdf_table([["主题", "判断", "说明"]] + model["relationship_rows"], [35 * mm, 48 * mm, 87 * mm], font, 6.8),
+        paragraph("六、2026 年单独流月拆解", styles["h1"]),
+        paragraph(model["june_2026_detail"], styles["note"]),
+        pdf_table([["月份", "月柱", "节气", "事业", "财运", "关系", "风险", "行动建议"]] + model["monthly_rows"], [18 * mm, 16 * mm, 28 * mm, 13 * mm, 13 * mm, 13 * mm, 13 * mm, 56 * mm], font, 6.0),
+        paragraph("七、核心限制与潜在危机", styles["h1"]),
+        pdf_table([["风险", "表现", "控制方式"]] + model["crisis_rows"], [28 * mm, 72 * mm, 70 * mm], font, 6.8),
+        paragraph("八、大白话总结", styles["h1"]),
+    ])
+    for item in plain_summary_paragraphs(data, model):
+        story.append(paragraph(item, styles["body"]))
+    story.extend([
+        paragraph("九、十神分析", styles["h1"]),
         pdf_table([["十神", "柱(干/支)", "通用解释", "判断"]] + model["ten_god_rows"], [22 * mm, 34 * mm, 52 * mm, 62 * mm], font, 6.8),
         paragraph("十神制衡关系：外显天干决定可见行为，地支藏干决定暗线动机。判断时不能只看一个十神，要看它在年、月、日、时四个位置分别作用于圈层、事业、自我关系和长期项目。", styles["body"]),
-        paragraph("四、分析：神煞体系", styles["h1"]),
+        paragraph("地支关系制衡", styles["body"]),
+        pdf_table([["关系", "结构提示", "可能影响", "现实制化"]] + model["branch_relation_rows"], [34 * mm, 43 * mm, 48 * mm, 45 * mm], font, 6.8),
+        paragraph("十、神煞体系", styles["h1"]),
     ])
     for group, rows in model["shensha_rows"].items():
         story.append(paragraph(group, styles["body"]))
@@ -1114,30 +1237,6 @@ def deep_report_pdf(data: dict, computed: dict, chart_png: Path, output: Path) -
         story.append(Spacer(1, 5))
     story.extend([
         paragraph(model["cross_shensha_balance"], styles["body"]),
-        paragraph("地支关系制衡", styles["body"]),
-        pdf_table([["关系", "结构提示", "可能影响", "现实制化"]] + model["branch_relation_rows"], [34 * mm, 43 * mm, 48 * mm, 45 * mm], font, 6.8),
-        paragraph("五、专项剖析：事业发展、财运与感情", styles["h1"]),
-        pdf_table([["主题", "判断", "依据"]] + model["career_rows"], [30 * mm, 70 * mm, 70 * mm], font, 6.8),
-        paragraph("财运不宜只看机会大小，更要看承接系统。下面收入层级为模型概率，不代表保证结果。", styles["body"]),
-        pdf_table([["层级", "概率", "金额", "条件"]] + model["income_rows"], [24 * mm, 18 * mm, 38 * mm, 90 * mm], font, 6.8),
-        pdf_table([["阶段", "收入判断", "关键条件", "风险"]] + model["income_stage_rows"], [26 * mm, 38 * mm, 58 * mm, 48 * mm], font, 6.6),
-        pdf_table([["主题", "判断", "说明"]] + model["relationship_rows"], [35 * mm, 48 * mm, 87 * mm], font, 6.8),
-        paragraph("六、未来十年财运与风险", styles["h1"]),
-        pdf_table([["年份", "流年", "大运", "事业", "财运", "感情", "健康/压力", "破财", "家宅", "合规", "触发与行动规则"]] + model["annual_rows"], [12 * mm, 14 * mm, 16 * mm, 8 * mm, 8 * mm, 8 * mm, 13 * mm, 8 * mm, 8 * mm, 8 * mm, 75 * mm], font, 5.2),
-        paragraph("七、2026 年单独流月拆解", styles["h1"]),
-        paragraph(model["june_2026_detail"], styles["note"]),
-        pdf_table([["月份", "月柱", "节气", "事业", "财运", "关系", "风险", "行动建议"]] + model["monthly_rows"], [18 * mm, 16 * mm, 28 * mm, 13 * mm, 13 * mm, 13 * mm, 13 * mm, 56 * mm], font, 6.0),
-        paragraph(f"八、{model['calibration_title']}", styles["h1"]),
-    ])
-    for line in model["calibration_lines"]:
-        story.append(paragraph(line, styles["body"]))
-    if model["event_calibration_rows"]:
-        story.append(pdf_table([["年份", "事件", "盘面/运势信号", "校准影响"]] + model["event_calibration_rows"], [18 * mm, 48 * mm, 54 * mm, 50 * mm], font, 6.6))
-    story.extend([
-        paragraph("九、结论：核心限制与潜在危机", styles["h1"]),
-        pdf_table([["风险", "表现", "控制方式"]] + model["crisis_rows"], [28 * mm, 72 * mm, 70 * mm], font, 6.8),
-        paragraph("十、大白话总结", styles["h1"]),
-        paragraph(report_plain_summary(data, model), styles["body"]),
         paragraph("十一、喜用神与五行补足", styles["h1"]),
         Image(str(useful_img), width=170 * mm, height=96 * mm),
         paragraph("十二、适配水晶建议", styles["h1"]),
@@ -1160,15 +1259,14 @@ def deep_report_html(data: dict, computed: dict, chart_png: Path, output: Path) 
     sections = [
         ("raw", "原始盘信息"),
         ("pattern", "格局与用神"),
-        ("ten-god", "十神分析"),
-        ("shensha", "神煞体系"),
         ("career", "事业发展"),
         ("wealth", "未来十年财运"),
         ("relationship", "感情运势"),
         ("monthly", "2026流月"),
-        ("calibration", model["calibration_title"]),
         ("crisis", "核心危机"),
         ("summary", "大白话总结"),
+        ("ten-god", "十神分析"),
+        ("shensha", "神煞体系"),
         ("elements", "喜用神"),
         ("crystals", "适配水晶"),
     ]
@@ -1188,6 +1286,7 @@ def deep_report_html(data: dict, computed: dict, chart_png: Path, output: Path) 
         f"<p>{html.escape(row[7])}</p><small>事业 {row[3]} / 财运 {row[4]} / 关系 {row[5]} / 风险 {row[6]}</small></article>"
         for row in model["monthly_rows"]
     )
+    summary_html = "".join(f"<p>{html.escape(item)}</p>" for item in plain_summary_paragraphs(data, model))
     output.write_text(f"""<!doctype html>
 <html lang="zh-CN">
 <head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>{title}</title><link rel="stylesheet" href="/pages.css">
@@ -1199,15 +1298,14 @@ def deep_report_html(data: dict, computed: dict, chart_png: Path, output: Path) 
 	<section class="hero"><div class="shell fade"><p class="eyebrow">Ming Atelier · Eastern Destiny Readings</p><h1>{title}</h1><p class="lead">以八字四柱为底图，读性格、节奏、选择与关系。关于你如何行动、如何取舍、如何顺势。</p><div class="hero-actions"><button class="print-btn" onclick="window.print()">保存 PDF</button><a class="print-btn" href="/">回到主页</a></div></div></section><nav class="report-nav"><div class="shell">{nav}</div></nav>
 	<section class="panel fade" id="raw"><h2>原始盘信息</h2><div class="grid">{kpi_html}</div><div class="chart"><img src="{chart_url}" alt="命盘图"></div>{html_table(["项目","内容"], [["四柱", f"{ec.getYear()} 年｜{ec.getMonth()} 月｜{ec.getDay()} 日｜{ec.getTime()} 时"], ["五行估计", model["dominant"]], ["地支关系", relation_text]])}</section>
 	<section class="panel fade" id="pattern"><h2>格局与用神体系</h2><div class="card"><p>{html.escape(model["strength_reason"])}</p><p>{html.escape(model["useful_text"])}</p></div>{html_table(["喜用","行为落地"], [[e, element_behavior(e)] for e in model["useful_elements"]])}</section>
-	<section class="panel fade" id="ten-god"><h2>十神分析</h2>{html_table(["十神","柱(干/支)","通用解释","判断"], model["ten_god_rows"])}<div class="grid two"><article class="card"><b>十神制衡关系</b><p>外显天干决定可见行为，地支藏干决定暗线动机。判断时不能只看一个十神，要看它在年、月、日、时四个位置分别作用于圈层、事业、自我关系和长期项目。</p></article><article class="card"><b>地支合冲与大盘制化</b>{html_table(["关系","盘面含义","对大盘影响","制化/化解方式"], model["branch_relation_rows"])}</article></div></section>
-	<section class="panel fade" id="shensha"><h2>神煞体系</h2>{html_shensha_tables(model)}</section>
 	<section class="panel fade" id="career"><h2>事业发展</h2>{html_card_table(model["career_rows"])}</section>
-	<section class="panel fade" id="wealth"><h2>未来十年财运与收入层级</h2>{html_income_cards(model)}{html_table(["阶段","收入判断","关键条件","风险"], model["income_stage_rows"])}{html_table(["年份","流年","大运","事业","财运","感情","健康/压力","破财","家宅","合规","触发与行动规则"], model["annual_rows"])}</section>
+	<section class="panel fade" id="wealth"><h2>未来十年财运与收入层级</h2><div class="card"><p>{html.escape(model["wealth_tone"]["base"])}</p></div>{html_income_cards(model)}{html_table(["阶段","收入判断","关键条件","风险"], model["income_stage_rows"])}{html_table(["年份","流年","大运","事业","财运","感情","健康/压力","破财","家宅","合规","触发与行动规则"], model["annual_rows"])}</section>
 	<section class="panel fade" id="relationship"><h2>感情运势</h2>{html_table(["主题","判断","说明"], model["relationship_rows"])}</section>
 	<section class="panel fade" id="monthly"><h2>2026 年单独流月拆解</h2><div class="card warning"><b>6 月甲午重点提示</b><p>{html.escape(model["june_2026_detail"])}</p></div><div class="timeline">{monthly_html}</div></section>
-	<section class="panel fade" id="calibration"><h2>{html.escape(model["calibration_title"])}</h2><div class="card">{"".join(f"<p>{html.escape(line)}</p>" for line in model["calibration_lines"])}</div>{html_table(["年份","事件","盘面/运势信号","校准影响"], model["event_calibration_rows"]) if model["event_calibration_rows"] else ""}</section>
 	<section class="panel fade" id="crisis"><h2>核心限制与潜在危机</h2>{html_card_table(model["crisis_rows"])}</section>
-	<section class="panel fade" id="summary"><h2>大白话总结</h2><div class="card"><p>{html.escape(report_plain_summary(data, model))}</p></div></section>
+	<section class="panel fade" id="summary"><h2>大白话总结</h2><div class="card">{summary_html}</div></section>
+	<section class="panel fade" id="ten-god"><h2>十神分析</h2>{html_table(["十神","柱(干/支)","通用解释","判断"], model["ten_god_rows"])}<div class="grid two"><article class="card"><b>十神制衡关系</b><p>外显天干决定可见行为，地支藏干决定暗线动机。判断时不能只看一个十神，要看它在年、月、日、时四个位置分别作用于圈层、事业、自我关系和长期项目。</p></article><article class="card"><b>地支合冲与大盘制化</b>{html_table(["关系","盘面含义","对大盘影响","制化/化解方式"], model["branch_relation_rows"])}</article></div></section>
+	<section class="panel fade" id="shensha"><h2>神煞体系</h2>{html_shensha_tables(model)}</section>
 	<section class="panel fade elements" id="elements"><h2>喜用神</h2><div class="god-art"><img src="{useful_url}" alt="喜用神图"></div>{html_table(["喜用","行为落地"], [[e, element_behavior(e)] for e in model["useful_elements"]])}</section>
 	<section class="panel fade" id="crystals"><h2>适配水晶建议</h2><div class="god-art"><img src="{crystal_url}" alt="适配水晶图"></div>{html_table(["五行","建议","适配点","使用方式"], crystal_rows(model["useful_elements"]))}</section></main>
 	<footer class="shell">Ming Atelier｜命理工坊。自动标准版用于客测交付，关键人生决策建议叠加人工复核。</footer><script>const p=document.getElementById('scrollProgress');addEventListener('scroll',()=>{{const h=document.documentElement; p.style.width=((h.scrollTop)/(h.scrollHeight-h.clientHeight)*100)+'%';}});const io=new IntersectionObserver(es=>es.forEach(e=>e.isIntersecting&&e.target.classList.add('show')),{{threshold:.14}});document.querySelectorAll('.fade').forEach(el=>io.observe(el));</script></body></html>""", encoding="utf-8")
