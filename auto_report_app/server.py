@@ -471,7 +471,7 @@ def divination_contextual_reading(topic: str, question: str, background: str, ve
     elif topic == "事业/工作":
         reading = f"这卦落在事业/工作上，重点是机会背后的制度与成本。{relation_hint}{phase_hint} 如果岗位、汇报线、薪酬、绩效口径清楚，可以小步推进；如果只是口头机会很大，但权责不清，后期压力会落到你身上。"
         advice = ["把薪酬、职责、考核和资源支持问清楚。", "先争取试用节点或阶段性目标，不要只凭热情接盘。", "保留现有现金流和备选方案。"]
-        risks = ["口头承诺和实际资源不匹配。", "上级或客户临时改需求，导致你承担额外成本。", "职业重大选择仍需结合现实 offer 和长期规划。"]
+        risks = ["承诺内容和实际资源不匹配。", "上级或客户临时改需求，导致你承担额外成本。", "职业重大选择仍需结合现实 offer 和长期规划。"]
     elif topic == "财务/投资":
         reading = f"这卦落在财务/投资上，要先看风险暴露，而不是只看收益想象。{relation_hint}{phase_hint} 当前更适合小额验证、分批进入或先做尽调，不适合因为一时机会感而重仓。"
         advice = ["先设最大亏损线，不到条件不加码。", "确认流动性、退出方式和最坏情况。", "任何高收益承诺都要反向验证风险。"]
@@ -952,6 +952,7 @@ def income_probabilities(strength: int, useful: list[str], data: dict, ec, profi
 
 def annual_rows(selected_ganzhi: str, useful: list[str], context: dict | None = None) -> list[list[str]]:
     if context:
+        reset_luck_phrase_counts(context, "year")
         rows = []
         for offset, ganzhi in enumerate(GANZHI_2026_2036):
             year = str(2026 + offset)
@@ -1202,6 +1203,46 @@ def pick_variant(seed: str, options: list[str]) -> str:
     return options[sum(ord(ch) for ch in seed) % len(options)]
 
 
+def reset_luck_phrase_counts(context: dict | None, scope: str) -> None:
+    if context is not None:
+        context["_luck_phrase_scope"] = scope
+        context["_luck_phrase_counts"] = {}
+
+
+def scoped_luck_phrase(context: dict, scope: str, key: str, seed: str, first: list[str], later: list[str]) -> str:
+    counts = context.setdefault("_luck_phrase_counts", {})
+    count_key = f"{scope}:{key}"
+    counts[count_key] = counts.get(count_key, 0) + 1
+    if counts[count_key] == 1:
+        options = first
+        start = sum(ord(ch) for ch in f"{seed}{key}{scope}") % len(options) if options else 0
+    else:
+        options = later
+        start = (counts[count_key] - 2) % len(options) if options else 0
+    if not options:
+        return ""
+    used = context.setdefault("_used_luck_phrases", set())
+    for offset in range(len(options)):
+        phrase = options[(start + offset) % len(options)]
+        if phrase not in used:
+            used.add(phrase)
+            return phrase
+    return ""
+
+
+def pick_unused_luck_phrase(context: dict, seed: str, options: list[str]) -> str:
+    if not options:
+        return ""
+    used = context.setdefault("_used_luck_phrases", set())
+    start = sum(ord(ch) for ch in seed) % len(options)
+    for offset in range(len(options)):
+        phrase = options[(start + offset) % len(options)]
+        if phrase not in used:
+            used.add(phrase)
+            return phrase
+    return ""
+
+
 def group_luck_phrase(group: str, context: dict, scope: str, seed: str) -> str:
     useful_text = "、".join(context["useful"]) or "节奏"
     monthly = scope == "month"
@@ -1214,7 +1255,7 @@ def group_luck_phrase(group: str, context: dict, scope: str, seed: str) -> str:
         "wealth": [
             f"财星到场，客户、定价、账期和现金流会变成主线；{useful_text}要落到收款规则和客户筛选上。",
             f"财星被带动，不是单纯“有钱来”，而是交易条件变多；报价、回款、分成和税务要同步算清。",
-            f"财气被激活，适合谈客户、提价或收账；若账期过长或合作口头化，机会会变成压力。",
+            f"财气被激活，适合谈客户、提价或收账；若账期过长或合作条款模糊，机会会变成压力。",
         ],
         "officer": [
             "官杀被引动，外部规则、平台标准、上级/客户要求会变强；适合拿资质、定流程，也要防被责任压住。",
@@ -1227,40 +1268,118 @@ def group_luck_phrase(group: str, context: dict, scope: str, seed: str) -> str:
             "资源星上来，重点不是猛冲，而是把知识、流程、文档、合同模板和复盘机制建起来。",
         ],
         "peer": [
-            "比劫被引动，朋友、同业、合伙和竞争会变热；能带资源，也会带分利和边界问题。",
-            "同类力量上来，适合组队、社群和资源互换，但客户归属、账户、股权和退出要先写清。",
-            "比劫动时，人脉会更活跃，风险也在这里：别让情面替代合同，别让口头分成替代制度。",
+            "比劫被引动，朋友、同业、合伙和竞争会变热；能带资源，也会带分利和权限问题。",
+            "同类力量上来，适合组队、社群和资源互换，但客户、账户、股权和退出要有明确规则。",
+            "比劫动时，人脉会更活跃；适合借势，不适合把核心资源交给临时关系托管。",
         ],
     }
-    return pick_variant(seed + group + scope, bank.get(group, []))
+    return pick_unused_luck_phrase(context, seed + group + scope, bank.get(group, []))
 
 
 def special_luck_phrase(key: str, context: dict, scope: str, seed: str) -> str:
+    scoped_bank = {
+        "weak_finance": (
+            [
+                "身弱遇财官，表面是机会，背后是成本、责任和合规压力一起上升。",
+                "财官压身时，不宜硬接大单或大责任；先看资源、团队、合同能不能托住。",
+            ],
+            [
+                "先核交付能力和回款节点，再决定是否接下更大的责任。",
+                "把责任上限、交付范围和付款节奏确认完，再谈扩张。",
+                "大单可以看，但不能让账期、库存或人力先替客户垫底。",
+                "先做资源清单：人手、时间、现金流不够时，宁可缩小承诺。",
+                "客户条件越诱人，越要先拆成本结构和最坏回款周期。",
+                "不要用未来收入覆盖当下成本，先让项目自己跑通闭环。",
+                "适合谈条件，不适合先替别人垫资源、垫时间、垫信用。",
+                "把付款节点和验收节点配对，避免只交付、不回款。",
+            ],
+        ),
+        "weak_officer": (
+            [
+                "身弱官杀旺被触发，合同、平台规则、交付责任和法律口径要先审。",
+                "官杀压力重时，别用情绪硬扛规则；先补资质、证据链和专业支持。",
+            ],
+            [
+                "平台规则、宣传口径和验收标准先过一遍，避免后补漏洞。",
+                "遇到强势客户或机构要求，先确认责任边界和证据链。",
+                "适合请专业支持把关，不适合凭经验硬扛。",
+                "合同、税务、平台条款有疑点时，先停半步再推进。",
+                "权责越正式，越要保留过程记录和验收证据。",
+                "先把谁拍板、谁验收、谁承担延期责任讲清楚。",
+                "对外承诺要降温，内部审核和交付清单要升温。",
+                "规则压力上来时，专业背书比临场解释更有用。",
+            ],
+        ),
+        "strong_peer": (
+            [
+                "身强再逢比劫，行动力很足，但要防冲动扩张和人情账。",
+                "比劫过旺时，不缺胆子，缺的是边界；钱、账户和客户规则要冷处理。",
+            ],
+            [
+                "新增伙伴只给阶段权限，不要一开始开放核心账户。",
+                "可以组队试单，但先做短周期验收，不直接绑定长期分成。",
+                "社群、人脉和资源互换可用，核心资产不要外放。",
+            ],
+        ),
+        "peer_wealth": (
+            [
+                "财与比劫同场，钱能来，人也会来分；股权、税务、IP/数据归属要先定。",
+                "比劫与财星一起动，合作价值会放大，也会考验收款账户、客户归属和退出条款。",
+            ],
+            [
+                "本期合作先做小额试单，客户归属写进项目单。",
+                "报价和回款节点先定，再谈资源互换或长期分成。",
+                "新增渠道只给阶段权限，核心账户和数据不要混用。",
+                "分成口径按项目结算，不把人情关系带进总账。",
+            ],
+        ),
+        "wealth_peer": (
+            [
+                "客户与现金流被点亮时，同业/朋友也容易同场，不能让资源边界变糊。",
+                "这不是单纯财运好坏，而是钱一动，人际和权责也会跟着动。",
+            ],
+            [
+                "先收款、再交付，别让账期吞掉表面利润。",
+                "客户来源、介绍费和续费归属要在报价前讲清。",
+                "临时资源可以用，但核心客户池要单独管理。",
+            ],
+        ),
+        "collision": (
+            [
+                "合冲刑害被触发，节奏会变快也更容易出摩擦；重大决定要留书面确认。",
+                "盘面互动变强，适合做调整，不适合把所有筹码压在一次承诺上。",
+            ],
+            [
+                "把变更写进补充协议，别让新条件停在聊天记录里。",
+                "缩短账期和交付周期，先用小闭环验证对方稳定性。",
+                "当天情绪很满时，不做不可逆的付款、签约或分手决定。",
+                "保留付款、验收和变更记录，给后续复盘留证据。",
+                "计划变动时先重排优先级，不要同时追加预算和范围。",
+                "冲刑被点动时，最适合拆小步骤，不适合一次定终局。",
+                "遇到临时条件，先确认影响到的钱、时间和责任。",
+                "有摩擦时先暂停扩大投入，把已发生的事实对齐。",
+            ],
+        ),
+    }
+    if key in scoped_bank:
+        first, later = scoped_bank[key]
+        return scoped_luck_phrase(context, scope, key, seed, first, later)
     bank = {
         "useful": [
             "流年/月带到可用之气，机会更容易落到可执行的规则、产品或现金流里。",
             "这一步有喜用配合，适合把优势做实，不要停在感觉好或机会多。",
             "可用元素被引动，推进可以更主动，但仍要用预算、合同和复盘接住。",
         ],
-        "weak_finance": [
-            "身弱遇财官，表面是机会，背后是成本、责任和合规压力一起上升。",
-            "财官压身时，不宜硬接大单或大责任；先看资源、团队、合同能不能托住。",
-            "这类年份/月容易被机会推着走，越要先核交付、付款、责任边界。",
-        ],
-        "weak_officer": [
-            "身弱官杀旺被触发，合同、平台规则、交付责任和法律口径要先审。",
-            "官杀压力重时，别用情绪硬扛规则；先补资质、证据链和专业支持。",
-            "这不是不能做，而是不能裸奔做：责任边界、验收标准、违约条款必须前置。",
-        ],
         "output_officer": [
             "食伤可制杀，利线上表达和产品破局，但发布、营销和承诺不能越过规则。",
             "输出能打开局面，也会碰到规则审查；越高调，越要留合同和证据。",
             "可以靠内容/产品冲开压力，但交付范围、宣传话术和合规底线要收紧。",
         ],
-        "strong_peer": [
-            "身强再逢比劫，行动力很足，但最怕合伙分利、冲动扩张和人情账。",
-            "比劫过旺时，不缺胆子，缺的是边界；分钱、账户、客户归属要冷处理。",
-            "这类触发容易让你觉得“可以再冲一点”，但真正要防的是团队和分账失控。",
+        "resource_buffer": [
+            "印比到位，能补根、补专业和缓冲官杀压力。",
+            "资源与同类力量能托住压力，适合补方法、补文档、补支持系统。",
+            "这一步的关键不是硬冲，而是用学习、流程和可信伙伴把底盘垫厚。",
+            "有支撑信号出现，适合把专业证据、复盘资料和协作机制补齐。",
         ],
         "day_hit": [
             "日支被触发，关系、合作绑定、居住安排或贴身利益会被推到台前。",
@@ -1272,23 +1391,8 @@ def special_luck_phrase(key: str, context: dict, scope: str, seed: str) -> str:
             "触到事业宫时，工作方法要升级；旧流程容易不够用。",
             "月柱主题被带动，适合整理业务结构，也要防项目节奏被外部牵着走。",
         ],
-        "peer_wealth": [
-            "比劫夺财被引动，朋友合伙、分账退出、客户归属和账户主权必须写死。",
-            "财与比劫同场，钱能来，人也会来分；股权、税务、IP/数据归属要先定。",
-            "这类触发最怕前期讲义气、后期算不清；从第一天就要定分账和退出机制。",
-        ],
-        "wealth_peer": [
-            "财星出现但原局比劫有力，合作分账和客户归属要先写清。",
-            "客户与现金流被点亮时，同业/朋友也容易同场，不能让资源边界变糊。",
-            "这不是单纯财运好坏，而是钱一动，人际和权责也会跟着动。",
-        ],
-        "collision": [
-            "合冲刑害被触发，节奏会变快也更容易出摩擦；重大决定要留书面确认。",
-            "地支关系有动，容易出现变更、反复或临时条件；不要只靠口头默契。",
-            "盘面互动变强，适合做调整，不适合把所有筹码压在一次承诺上。",
-        ],
     }
-    return pick_variant(seed + key + scope, bank.get(key, []))
+    return pick_unused_luck_phrase(context, seed + key + scope, bank.get(key, []))
 
 
 def analyze_luck_pillar(context: dict, ganzhi: str, scope: str) -> dict:
@@ -1356,7 +1460,7 @@ def analyze_luck_pillar(context: dict, ganzhi: str, scope: str) -> dict:
     if weak_officer_alert and (stem_group in {"resource", "peer"} or branch_group in {"resource", "peer"}):
         career += 0.6
         stress -= 0.8
-        reasons.append("印比到位，能补根、补专业和缓冲官杀压力。")
+        reasons.append(special_luck_phrase("resource_buffer", context, scope, ganzhi))
     if weak_officer_alert and (stem_group in {"wealth", "officer"} or branch_group in {"wealth", "officer"}):
         compliance += 1.5
         loss += 0.8
@@ -1403,7 +1507,7 @@ def analyze_luck_pillar(context: dict, ganzhi: str, scope: str) -> dict:
         career -= 0.7
     if wealth >= 8 and loss >= 8:
         wealth -= 0.5
-    note_parts = [part.rstrip("。") for part in unique(priority_reasons + reasons)[:3]]
+    note_parts = [part.rstrip("。") for part in unique(priority_reasons + reasons) if part.strip()][:3]
     if not note_parts:
         note_parts = [f"{stem_tg}/{branch_main}被引动，先看其与月令、日支和大运是否形成承接"]
     note = f"{ganzhi}：{relation_note}{'；'.join(note_parts)}。"
@@ -1590,11 +1694,11 @@ def crisis_rows(context: dict) -> list[list[str]]:
         elif flag["key"] == "output_officer":
             rows.append([flag["title"], flag["text"], "可做线上表达和产品化破局，但发布、营销、合同承诺、交付边界要先过复核。"])
         elif flag["key"] == "legal_collision":
-            rows.append([flag["title"], flag["text"], "所有合作先走书面流程，避免口头承诺、模糊分成、代持和没有退出条款的项目。"])
+            rows.append([flag["title"], flag["text"], "所有合作先走书面流程，避免模糊分成、代持和没有退出条款的项目。"])
     if scores.get("peer", 0) >= 2.0 and scores.get("wealth", 0) >= 1.0:
         rows.append(["分利与现金流危机", "比劫与财星同时有力，机会容易和合伙、分账、客户归属绑在一起。", "报价、客户归属、账期、股权/分成、退出条件必须先写清。"])
     if scores.get("officer", 0) >= 2.0 and context["strength"] < 55:
-        rows.append(["压力与权责危机", "官杀较重而日主承压，容易遇到规则、上级、平台、合规或强势客户压力。", "先确认责任边界、交付标准和法务财务口径，避免口头承诺。"])
+        rows.append(["压力与权责危机", "官杀较重而日主承压，容易遇到规则、上级、平台、合规或强势客户压力。", "先确认责任边界、交付标准和法务财务口径，避免承诺先行、文件后补。"])
     if scores.get("output", 0) >= 1.6 and scores.get("officer", 0) >= 1.4:
         rows.append(["表达与规则冲突", "食伤与官杀并见，适合靠表达和产品突破，但也容易挑战规则或公开争执。", "公开发布、合同承诺、宣传文案、客户沟通要留复核机制。"])
     if "冲" in context["relation_text"] or "刑" in context["relation_text"] or "害" in context["relation_text"]:
@@ -1636,6 +1740,7 @@ def cross_shensha_balance(rows_by_group: dict[str, list[list[str]]]) -> str:
 def june_2026_detail(context: dict | None = None) -> str:
     if not context:
         return "2026 年 6 月甲午是全年高风险月：午火叠加全年丙午，容易把表达、投资、情绪承诺、业务扩张和现金流压力同时点燃。"
+    reset_luck_phrase_counts(context, "month_detail")
     read = analyze_luck_pillar(context, "甲午", "month")
     line = f"2026 年 6 月甲午：{read['note']}事业 {read['career']}/9，财运 {read['wealth']}/9，关系 {read['relationship']}/9，风险 {read['stress']}/9。"
     if read["stress"] >= 7 or read["loss"] >= 7:
@@ -1657,6 +1762,7 @@ def monthly_rows(context: dict | None = None) -> list[list[str]]:
             ("2026-06", "甲午", "芒种-小暑", 4, 3, 8, 9, "全年高风险月，禁高杠杆、重库存、冲动承诺和情绪摊牌。"),
         ]
         return [[m, gz, period, str(c), str(w), str(r), str(risk), note] for m, gz, period, c, w, r, risk, note in data]
+    reset_luck_phrase_counts(context, "month")
     rows = []
     for month, ganzhi, period in MONTHS_2026:
         read = analyze_luck_pillar(context, ganzhi, "month")
