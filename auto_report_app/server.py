@@ -1196,6 +1196,101 @@ def interaction_note(labels: list[str], context: dict) -> tuple[str, bool, bool]
     return note, day_hit, month_hit
 
 
+def pick_variant(seed: str, options: list[str]) -> str:
+    if not options:
+        return ""
+    return options[sum(ord(ch) for ch in seed) % len(options)]
+
+
+def group_luck_phrase(group: str, context: dict, scope: str, seed: str) -> str:
+    useful_text = "、".join(context["useful"]) or "节奏"
+    monthly = scope == "month"
+    bank = {
+        "output": [
+            f"食伤露头，适合把想法做成内容、产品、报价页或交付样板；{'这个月' if monthly else '这一年'}先看作品能不能换来真实询盘。",
+            f"食伤动起来时，优势在表达、销售、技术输出和方法论包装；别只追曝光，要把流量接到合同与收款节点。",
+            f"输出星被引动，利发布、讲清价值、做产品化试验；成败关键在交付边界，而不是一时热度。",
+        ],
+        "wealth": [
+            f"财星到场，客户、定价、账期和现金流会变成主线；{useful_text}要落到收款规则和客户筛选上。",
+            f"财星被带动，不是单纯“有钱来”，而是交易条件变多；报价、回款、分成和税务要同步算清。",
+            f"财气被激活，适合谈客户、提价或收账；若账期过长或合作口头化，机会会变成压力。",
+        ],
+        "officer": [
+            "官杀被引动，外部规则、平台标准、上级/客户要求会变强；适合拿资质、定流程，也要防被责任压住。",
+            "官杀到位时，事业会更像考试和验收：名分、合同、交付标准、合规口径都要摆到台面上。",
+            "规则星上来，利职位、责任、专业背书和正式合作；不利模糊承诺和先做后补合同。",
+        ],
+        "resource": [
+            "印星被引动，适合补方法论、证据链、资质和后台系统；先补底层能力，再承接更大的单。",
+            "印星到位像给系统加缓冲，利学习、复盘、贵人/机构支持；这类机会慢一点反而更稳。",
+            "资源星上来，重点不是猛冲，而是把知识、流程、文档、合同模板和复盘机制建起来。",
+        ],
+        "peer": [
+            "比劫被引动，朋友、同业、合伙和竞争会变热；能带资源，也会带分利和边界问题。",
+            "同类力量上来，适合组队、社群和资源互换，但客户归属、账户、股权和退出要先写清。",
+            "比劫动时，人脉会更活跃，风险也在这里：别让情面替代合同，别让口头分成替代制度。",
+        ],
+    }
+    return pick_variant(seed + group + scope, bank.get(group, []))
+
+
+def special_luck_phrase(key: str, context: dict, scope: str, seed: str) -> str:
+    bank = {
+        "useful": [
+            "流年/月带到可用之气，机会更容易落到可执行的规则、产品或现金流里。",
+            "这一步有喜用配合，适合把优势做实，不要停在感觉好或机会多。",
+            "可用元素被引动，推进可以更主动，但仍要用预算、合同和复盘接住。",
+        ],
+        "weak_finance": [
+            "身弱遇财官，表面是机会，背后是成本、责任和合规压力一起上升。",
+            "财官压身时，不宜硬接大单或大责任；先看资源、团队、合同能不能托住。",
+            "这类年份/月容易被机会推着走，越要先核交付、付款、责任边界。",
+        ],
+        "weak_officer": [
+            "身弱官杀旺被触发，合同、平台规则、交付责任和法律口径要先审。",
+            "官杀压力重时，别用情绪硬扛规则；先补资质、证据链和专业支持。",
+            "这不是不能做，而是不能裸奔做：责任边界、验收标准、违约条款必须前置。",
+        ],
+        "output_officer": [
+            "食伤可制杀，利线上表达和产品破局，但发布、营销和承诺不能越过规则。",
+            "输出能打开局面，也会碰到规则审查；越高调，越要留合同和证据。",
+            "可以靠内容/产品冲开压力，但交付范围、宣传话术和合规底线要收紧。",
+        ],
+        "strong_peer": [
+            "身强再逢比劫，行动力很足，但最怕合伙分利、冲动扩张和人情账。",
+            "比劫过旺时，不缺胆子，缺的是边界；分钱、账户、客户归属要冷处理。",
+            "这类触发容易让你觉得“可以再冲一点”，但真正要防的是团队和分账失控。",
+        ],
+        "day_hit": [
+            "日支被触发，关系、合作绑定、居住安排或贴身利益会被推到台前。",
+            "触到关系宫时，很多事不只是业务问题，也会变成信任、承诺和边界问题。",
+            "日支有动，适合把亲密关系与合作关系里的现实条件讲清楚。",
+        ],
+        "month_hit": [
+            "月令被触发，事业环境、客户要求、上级规则和执行节奏会更显眼。",
+            "触到事业宫时，工作方法要升级；旧流程容易不够用。",
+            "月柱主题被带动，适合整理业务结构，也要防项目节奏被外部牵着走。",
+        ],
+        "peer_wealth": [
+            "比劫夺财被引动，朋友合伙、分账退出、客户归属和账户主权必须写死。",
+            "财与比劫同场，钱能来，人也会来分；股权、税务、IP/数据归属要先定。",
+            "这类触发最怕前期讲义气、后期算不清；从第一天就要定分账和退出机制。",
+        ],
+        "wealth_peer": [
+            "财星出现但原局比劫有力，合作分账和客户归属要先写清。",
+            "客户与现金流被点亮时，同业/朋友也容易同场，不能让资源边界变糊。",
+            "这不是单纯财运好坏，而是钱一动，人际和权责也会跟着动。",
+        ],
+        "collision": [
+            "合冲刑害被触发，节奏会变快也更容易出摩擦；重大决定要留书面确认。",
+            "地支关系有动，容易出现变更、反复或临时条件；不要只靠口头默契。",
+            "盘面互动变强，适合做调整，不适合把所有筹码压在一次承诺上。",
+        ],
+    }
+    return pick_variant(seed + key + scope, bank.get(key, []))
+
+
 def analyze_luck_pillar(context: dict, ganzhi: str, scope: str) -> dict:
     stem, branch = split_ganzhi(ganzhi)
     stem_tg = ten_god_for(context["day_stem"], stem)
@@ -1210,114 +1305,121 @@ def analyze_luck_pillar(context: dict, ganzhi: str, scope: str) -> dict:
     output_officer_alert = any(flag["key"] == "output_officer" for flag in context.get("risk_flags", []))
     labels = relation_labels_with(context["branches"], branch)
     relation_note, day_hit, month_hit = interaction_note(labels, context)
-    career = 5
-    wealth = 5
-    relationship = 5
-    stress = 5
-    loss = 4
-    family = 4
-    compliance = 5
+    career = 5.0
+    wealth = 5.0
+    relationship = 5.0
+    stress = 5.0
+    loss = 4.0
+    family = 4.0
+    compliance = 5.0
     reasons = []
     priority_reasons = []
+    triggered_groups = unique([group for group in [stem_group, branch_group] + hidden_groups[:2] if group in GROUP_LABEL])
 
-    for group in [stem_group, branch_group] + hidden_groups[:2]:
+    for group in triggered_groups:
         if group == "output":
-            career += 1
-            wealth += 1
-            reasons.append("食伤被引动，利表达、产品、销售与作品输出")
+            career += 0.9
+            wealth += 1.0
+            reasons.append(group_luck_phrase(group, context, scope, ganzhi))
         elif group == "wealth":
-            wealth += 2
-            career += 1
-            relationship += 1 if context["spouse_group"] == "wealth" else 0
-            reasons.append("财星被引动，客户、现金流、定价和现实交易变重")
+            wealth += 1.6
+            career += 0.4
+            relationship += 0.7 if context["spouse_group"] == "wealth" else 0
+            reasons.append(group_luck_phrase(group, context, scope, ganzhi))
         elif group == "officer":
-            career += 1
-            stress += 1
-            compliance += 1
-            relationship += 1 if context["spouse_group"] == "officer" else 0
-            reasons.append("官杀被引动，责任、规则、岗位压力和名分议题上升")
+            career += 0.5
+            stress += 1.1
+            compliance += 1.0
+            relationship += 0.7 if context["spouse_group"] == "officer" else 0
+            reasons.append(group_luck_phrase(group, context, scope, ganzhi))
         elif group == "resource":
-            career += 1
-            stress -= 1
-            reasons.append("印星被引动，利学习、资质、方法论和系统支持")
+            career += 0.4
+            stress -= 0.6
+            reasons.append(group_luck_phrase(group, context, scope, ganzhi))
         elif group == "peer":
-            career += 1
-            loss += 1
-            reasons.append("比劫被引动，竞争、合伙、分利和现金流波动要先管住")
+            career -= 0.2 if context["strength"] >= 62 else 0
+            loss += 1.1
+            reasons.append(group_luck_phrase(group, context, scope, ganzhi))
 
     if useful_hit:
-        career += 1
-        wealth += 1
-        stress -= 1
-        reasons.append("流年/月带到本盘可用之气，机会更容易落地")
+        career += 0.5
+        wealth += 0.6
+        stress -= 0.4
+        reasons.append(special_luck_phrase("useful", context, scope, ganzhi))
     else:
-        stress += 1
+        stress += 0.6
     if context["strength"] < 46 and (stem_group in {"wealth", "officer"} or branch_group in {"wealth", "officer"}):
-        stress += 2
-        loss += 1
-        wealth -= 1
-        priority_reasons.append("身弱遇财官，机会背后成本、合规和承压同步上升")
+        stress += 1.6
+        loss += 0.9
+        wealth -= 0.8
+        priority_reasons.append(special_luck_phrase("weak_finance", context, scope, ganzhi))
     if weak_officer_alert and (stem_group in {"resource", "peer"} or branch_group in {"resource", "peer"}):
-        career += 1
-        stress -= 1
-        reasons.append("印比到位，能补根、补专业和缓冲官杀压力")
+        career += 0.6
+        stress -= 0.8
+        reasons.append("印比到位，能补根、补专业和缓冲官杀压力。")
     if weak_officer_alert and (stem_group in {"wealth", "officer"} or branch_group in {"wealth", "officer"}):
-        compliance += 2
-        loss += 1
-        priority_reasons.append("身弱官杀旺盘忌硬接财官，合同、平台规则和责任边界要先审")
+        compliance += 1.5
+        loss += 0.8
+        priority_reasons.append(special_luck_phrase("weak_officer", context, scope, ganzhi))
     if weak_officer_alert and (stem_group == "output" or branch_group == "output") and output_officer_alert:
-        career += 2
-        wealth += 1
-        stress += 1
-        compliance += 1
-        priority_reasons.append("食伤可制杀破局，利线上表达和产品化，但不能越过规则")
+        career += 1.1
+        wealth += 0.8
+        stress += 0.7
+        compliance += 0.8
+        priority_reasons.append(special_luck_phrase("output_officer", context, scope, ganzhi))
     if context["strength"] > 68 and stem_group == "peer":
-        loss += 2
-        reasons.append("身强再逢比劫，最怕合伙分利和冲动扩张")
+        loss += 1.7
+        career -= 0.4
+        reasons.append(special_luck_phrase("strong_peer", context, scope, ganzhi))
     if day_hit:
-        relationship += 2 if any("合" in label for label in labels) else -1
-        stress += 1
-        family += 2
-        reasons.append("日支被触发，亲密关系、合作绑定和居住安排需要明说")
+        relationship += 1.2 if any("合" in label for label in labels) else -0.8
+        stress += 0.8
+        family += 1.3
+        reasons.append(special_luck_phrase("day_hit", context, scope, ganzhi))
     if month_hit:
-        career += 1
-        compliance += 1
-        reasons.append("月令被触发，事业环境、上级客户和执行规则会更显眼")
+        career += 0.6
+        compliance += 0.6
+        reasons.append(special_luck_phrase("month_hit", context, scope, ganzhi))
     if any("冲" in label or "刑" in label or "害" in label or "破" in label for label in labels):
-        stress += 2
-        loss += 1
-        compliance += 1
+        stress += 1.4
+        loss += 0.8
+        compliance += 0.7
+        priority_reasons.append(special_luck_phrase("collision", context, scope, ganzhi))
     if stem_tg == "伤官" and context["group_scores"].get("officer", 0) >= 1.0:
-        compliance += 2
-        stress += 1
+        compliance += 1.4
+        stress += 0.8
         reasons.append("伤官碰到原局官杀，公开表达、规则冲突和合规风险要控")
     if stem_tg in context["spouse_stars"] or branch_main in context["spouse_stars"] or day_hit:
-        relationship += 1
+        relationship += 0.7
     if stem_tg in {"正财", "偏财"} and context["group_scores"].get("peer", 0) > 1.5:
-        loss += 1
-        priority_reasons.append("财星出现但原局比劫也有力，合作分账和客户归属要写清")
+        loss += 0.9
+        priority_reasons.append(special_luck_phrase("wealth_peer", context, scope, ganzhi))
     if peer_wealth_alert and (stem_group in {"peer", "wealth"} or branch_group in {"peer", "wealth"}):
-        loss += 2
-        compliance += 1
-        priority_reasons.append("比劫夺财被流年/月引动，朋友合伙、分账退出和客户归属必须死锁")
+        loss += 1.5
+        compliance += 0.8
+        priority_reasons.append(special_luck_phrase("peer_wealth", context, scope, ganzhi))
 
-    note_parts = unique(priority_reasons + reasons)[:4]
+    if stress >= 8 or loss >= 8 or compliance >= 8:
+        career -= 0.7
+    if wealth >= 8 and loss >= 8:
+        wealth -= 0.5
+    note_parts = [part.rstrip("。") for part in unique(priority_reasons + reasons)[:3]]
     if not note_parts:
         note_parts = [f"{stem_tg}/{branch_main}被引动，先看其与月令、日支和大运是否形成承接"]
-    note = f"{ganzhi}：{relation_note}{' '.join(note_parts)}。"
+    note = f"{ganzhi}：{relation_note}{'；'.join(note_parts)}。"
     if scope == "month":
-        note = f"{ganzhi}月：{relation_note}{' '.join(note_parts)}。"
+        note = f"{ganzhi}月：{relation_note}{'；'.join(note_parts)}。"
     return {
         "stem_tg": stem_tg,
         "branch_tg": branch_main,
         "relations": labels,
-        "career": max(2, min(9, career)),
-        "wealth": max(2, min(9, wealth)),
-        "relationship": max(2, min(9, relationship)),
-        "stress": max(2, min(9, stress)),
-        "loss": max(2, min(9, loss)),
-        "family": max(2, min(9, family)),
-        "compliance": max(2, min(9, compliance)),
+        "career": max(2, min(9, round(career))),
+        "wealth": max(2, min(9, round(wealth))),
+        "relationship": max(2, min(9, round(relationship))),
+        "stress": max(2, min(9, round(stress))),
+        "loss": max(2, min(9, round(loss))),
+        "family": max(2, min(9, round(family))),
+        "compliance": max(2, min(9, round(compliance))),
         "note": note,
     }
 
