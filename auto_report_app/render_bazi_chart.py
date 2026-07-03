@@ -15,16 +15,18 @@ TOP = 12
 BOTTOM = 28
 LABEL_W = 220
 COL_W = (WIDTH - 2 * MARGIN_X - LABEL_W) // 4
-BG = "#f6f3ec"
-LINE = "#eee9df"
-TEXT = "#333333"
-MUTED = "#80796d"
+BG = "#080604"
+PANEL = "#120d07"
+LINE = "#3c2c12"
+GOLD = "#d8b35f"
+TEXT = "#f7ead2"
+MUTED = "#cdbb98"
 COLORS = {
-    "木": "#2e9a78",
-    "火": "#df4747",
-    "土": "#8f806f",
+    "木": "#76b978",
+    "火": "#d96b4d",
+    "土": "#b89362",
     "金": "#e7a63c",
-    "水": "#2d7fbd",
+    "水": "#73a9d8",
     "default": TEXT,
 }
 STEM_ELEMENT = {
@@ -187,12 +189,14 @@ def render(data: dict[str, Any], output: Path) -> None:
     height = TOP + 80 + sum(h for _, h in row_specs) + BOTTOM
     image = Image.new("RGB", (WIDTH, height), BG)
     draw = ImageDraw.Draw(image)
+    draw.rectangle((MARGIN_X - 10, TOP - 6, WIDTH - MARGIN_X + 10, height - BOTTOM + 12), outline=GOLD, width=3)
+    draw.rectangle((MARGIN_X + 12, TOP + 12, WIDTH - MARGIN_X - 12, height - BOTTOM - 10), outline=LINE, width=2)
 
     headers = data.get("headers", ["年柱", "月柱", "日柱", "时柱"])
     y = TOP
     for i, header in enumerate(headers):
         x1 = MARGIN_X + LABEL_W + i * COL_W
-        draw_center(draw, (x1, y, x1 + COL_W, y + 70), header, FONTS["title"], TEXT)
+        draw_center(draw, (x1, y, x1 + COL_W, y + 70), header, FONTS["title"], GOLD)
     y += 80
 
     def col_box(i: int, y1: int, row_h: int) -> tuple[int, int, int, int]:
@@ -200,9 +204,9 @@ def render(data: dict[str, Any], output: Path) -> None:
         return (x1, y1, x1 + COL_W, y1 + row_h)
 
     for label, row_h in row_specs:
-        draw.rectangle((MARGIN_X, y, WIDTH - MARGIN_X, y + row_h), fill=BG)
+        draw.rectangle((MARGIN_X, y, WIDTH - MARGIN_X, y + row_h), fill=PANEL if label in {"天干", "地支", "神煞"} else BG)
         draw.line((MARGIN_X, y, WIDTH - MARGIN_X, y), fill=LINE, width=2)
-        draw_center(draw, (MARGIN_X, y, MARGIN_X + LABEL_W, y + row_h), label, FONTS["label"], TEXT)
+        draw_center(draw, (MARGIN_X, y, MARGIN_X + LABEL_W, y + row_h), label, FONTS["label"], GOLD)
 
         if label == "关系":
             text = "\n".join(combo_lines)

@@ -639,6 +639,47 @@ PILLAR_MEANING = {
     "日柱": "自我、伴侣宫、亲密关系、贴身资源和个人决策。",
     "时柱": "长期规划、子女/下属、副业、晚期发展和未来项目。",
 }
+TEN_GOD_GROUP = {
+    "比肩": "peer",
+    "劫财": "peer",
+    "食神": "output",
+    "伤官": "output",
+    "正财": "wealth",
+    "偏财": "wealth",
+    "正官": "officer",
+    "七杀": "officer",
+    "正印": "resource",
+    "偏印": "resource",
+}
+GROUP_LABEL = {
+    "peer": "比劫",
+    "output": "食伤",
+    "wealth": "财星",
+    "officer": "官杀",
+    "resource": "印星",
+}
+GROUP_BEHAVIOR = {
+    "peer": "自我、同辈、竞争、合伙与分利",
+    "output": "表达、作品、销售、技术输出与产品化",
+    "wealth": "客户、现金流、定价、资源整合与现实交易",
+    "officer": "规则、岗位、压力、合规、名分与责任",
+    "resource": "学习、资质、方法论、贵人、系统支持与恢复",
+}
+GANZHI_2026_2036 = ["丙午", "丁未", "戊申", "己酉", "庚戌", "辛亥", "壬子", "癸丑", "甲寅", "乙卯", "丙辰"]
+MONTHS_2026 = [
+    ("2026-02", "庚寅", "立春-惊蛰"),
+    ("2026-03", "辛卯", "惊蛰-清明"),
+    ("2026-04", "壬辰", "清明-立夏"),
+    ("2026-05", "癸巳", "立夏-芒种"),
+    ("2026-06", "甲午", "芒种-小暑"),
+    ("2026-07", "乙未", "小暑-立秋"),
+    ("2026-08", "丙申", "立秋-白露"),
+    ("2026-09", "丁酉", "白露-寒露"),
+    ("2026-10", "戊戌", "寒露-立冬"),
+    ("2026-11", "己亥", "立冬-大雪"),
+    ("2026-12", "庚子", "大雪-小寒"),
+    ("2027-01", "辛丑", "小寒-立春"),
+]
 
 
 def day_master_assessment(ec, profile: dict) -> tuple[str, int, str, str]:
@@ -789,12 +830,20 @@ def wealth_tone(strength: int, useful: list[str], ec, profile: dict) -> dict[str
     }
 
 
-def income_probabilities(strength: int, useful: list[str], data: dict, ec, profile: dict) -> list[list[str]]:
+def income_probabilities(strength: int, useful: list[str], data: dict, ec, profile: dict, context: dict | None = None) -> list[list[str]]:
+    if context is None:
+        context = {"group_scores": {key: 0 for key in GROUP_LABEL}}
     has_income = 1 if data.get("income") else 0
-    useful_bonus = 1 if "金" in useful or "水" in useful else 0
-    million = max(45, min(72, 55 + has_income * 5 + useful_bonus * 4 - max(0, strength - 70) // 4))
-    five_million = max(18, min(40, 30 + max(0, strength - 58) // 3 + useful_bonus * 2 - has_income))
-    ten_million = max(6, min(22, 100 - million - five_million))
+    wealth_force = context["group_scores"].get("wealth", 0)
+    output_force = context["group_scores"].get("output", 0)
+    officer_force = context["group_scores"].get("officer", 0)
+    peer_force = context["group_scores"].get("peer", 0)
+    capacity = 6 if 48 <= strength <= 68 else (3 if strength > 68 else -4)
+    structure_bonus = min(10, wealth_force * 2 + output_force + officer_force + capacity)
+    peer_penalty = max(0, peer_force - wealth_force) * 2
+    million = max(42, min(76, 52 + has_income * 5 + structure_bonus - peer_penalty))
+    five_million = max(16, min(42, 24 + wealth_force + output_force + max(0, strength - 55) // 4 - peer_penalty // 2))
+    ten_million = max(4, min(22, 100 - million - five_million))
     overflow = million + five_million + ten_million - 100
     if overflow > 0:
         reduce_five = min(overflow, five_million - 18)
@@ -811,7 +860,26 @@ def income_probabilities(strength: int, useful: list[str], data: dict, ec, profi
     ]
 
 
-def annual_rows(selected_ganzhi: str, useful: list[str]) -> list[list[str]]:
+def annual_rows(selected_ganzhi: str, useful: list[str], context: dict | None = None) -> list[list[str]]:
+    if context:
+        rows = []
+        for offset, ganzhi in enumerate(GANZHI_2026_2036):
+            year = str(2026 + offset)
+            read = analyze_luck_pillar(context, ganzhi, "year")
+            rows.append([
+                year,
+                ganzhi,
+                selected_ganzhi or "未识别",
+                str(read["career"]),
+                str(read["wealth"]),
+                str(read["relationship"]),
+                str(read["stress"]),
+                str(read["loss"]),
+                str(read["family"]),
+                str(read["compliance"]),
+                read["note"],
+            ])
+        return rows
     useful_text = "、".join(useful) or "规则与节奏"
     years = [
         ("2026", "丙午", 4, 3, 6, 8, 7, 4, 8, f"丙午火势很旺，容易把行动、表达和承诺一起点燃；本盘喜用{useful_text}，这一年要先控现金流、库存、杠杆和口头合伙。"),
@@ -848,6 +916,223 @@ def ten_god_for(day_stem: str, target_stem: str) -> str:
     return "未知"
 
 
+def group_for_ten_god(ten_god: str) -> str:
+    return TEN_GOD_GROUP.get(ten_god, "other")
+
+
+def primary_hidden_stem(branch: str) -> str:
+    hidden = HIDDEN_WEIGHT.get(branch, [])
+    return hidden[0][0] if hidden else ""
+
+
+def stem_for_element(element: str) -> str:
+    for stem, item in STEM_ELEMENT.items():
+        if item == element:
+            return stem
+    return ""
+
+
+def relationship_star_group(gender: str) -> str:
+    return "wealth" if gender == "男" else "officer"
+
+
+def relation_labels_with(branches: list[str], flow_branch: str) -> list[str]:
+    labels = []
+    for branch in branches:
+        if not flow_branch or not branch:
+            continue
+        if branch == flow_branch:
+            labels.append(f"{branch}{flow_branch}伏吟")
+        key = branch_pair_key(branch, flow_branch)
+        for mapping in (LIU_HE, LIU_CHONG, LIU_HAI, LIU_PO, PAIR_XING):
+            if key in mapping:
+                labels.append(mapping[key])
+    joined = set(branches + [flow_branch])
+    for combo, label in SAN_HE.items():
+        if combo.issubset(joined):
+            labels.append(label)
+    for raw, label in SAN_HE_HALVES.items():
+        if raw[0] in joined and raw[1] in joined:
+            labels.append(label)
+    return unique(labels)
+
+
+def analysis_context(data: dict, computed: dict, strength: int, useful: list[str]) -> dict:
+    ec = computed["ec"]
+    day_stem = ec.getDayGan()
+    day_branch = ec.getDayZhi()
+    pillars = computed.get("chart", {}).get("pillars", [])
+    branches = [pillar.get("branch", "") for pillar in pillars]
+    stems = [pillar.get("stem", "") for pillar in pillars]
+    group_scores = {key: 0.0 for key in GROUP_LABEL}
+    ten_god_counts = {}
+    visible_ten_gods = []
+    hidden_ten_gods = []
+    for pillar in pillars:
+        gan_shen = pillar.get("gan_shen") or "日主"
+        if gan_shen != "日主":
+            visible_ten_gods.append(gan_shen)
+            ten_god_counts[gan_shen] = ten_god_counts.get(gan_shen, 0) + 1
+            group = group_for_ten_god(gan_shen)
+            if group in group_scores:
+                group_scores[group] += 1.4
+        for shen in pillar.get("zhi_shen", []):
+            hidden_ten_gods.append(shen)
+            ten_god_counts[shen] = ten_god_counts.get(shen, 0) + 1
+            group = group_for_ten_god(shen)
+            if group in group_scores:
+                group_scores[group] += 0.65
+    month_branch = ec.getMonthZhi()
+    month_main_stem = primary_hidden_stem(month_branch)
+    month_structure = ten_god_for(day_stem, month_main_stem) if month_main_stem else "未识别"
+    spouse_group = relationship_star_group(data.get("gender", ""))
+    spouse_stars = ["正财", "偏财"] if spouse_group == "wealth" else ["正官", "七杀"]
+    spouse_visible = [tg for tg in visible_ten_gods if tg in spouse_stars]
+    spouse_hidden = [tg for tg in hidden_ten_gods if tg in spouse_stars]
+    relation_text = "；".join(computed.get("chart", {}).get("relations") or [])
+    return {
+        "data": data,
+        "ec": ec,
+        "day_stem": day_stem,
+        "day_element": STEM_ELEMENT.get(day_stem, ""),
+        "day_branch": day_branch,
+        "month_branch": month_branch,
+        "month_structure": month_structure,
+        "month_main_stem": month_main_stem,
+        "branches": branches,
+        "stems": stems,
+        "strength": strength,
+        "useful": useful,
+        "profile": computed.get("profile", {}),
+        "group_scores": group_scores,
+        "ten_god_counts": ten_god_counts,
+        "spouse_group": spouse_group,
+        "spouse_stars": spouse_stars,
+        "spouse_visible": spouse_visible,
+        "spouse_hidden": spouse_hidden,
+        "relation_text": relation_text,
+    }
+
+
+def interaction_note(labels: list[str], context: dict) -> tuple[str, bool, bool]:
+    if not labels:
+        return "未见强冲合，主要看十神和喜忌承接。", False, False
+    day_hit = any(context["day_branch"] in label for label in labels)
+    month_hit = any(context["month_branch"] in label for label in labels)
+    note = "、".join(labels[:3])
+    if day_hit:
+        note += "，触发日支/关系宫。"
+    elif month_hit:
+        note += "，触发月令/事业宫。"
+    else:
+        note += "，作为背景触发。"
+    return note, day_hit, month_hit
+
+
+def analyze_luck_pillar(context: dict, ganzhi: str, scope: str) -> dict:
+    stem, branch = split_ganzhi(ganzhi)
+    stem_tg = ten_god_for(context["day_stem"], stem)
+    branch_main = ten_god_for(context["day_stem"], primary_hidden_stem(branch))
+    hidden_groups = [group_for_ten_god(ten_god_for(context["day_stem"], item[0])) for item in HIDDEN_WEIGHT.get(branch, [])]
+    stem_group = group_for_ten_god(stem_tg)
+    branch_group = group_for_ten_god(branch_main)
+    element_hits = [STEM_ELEMENT.get(stem, ""), BRANCH_ELEMENT.get(branch, "")]
+    useful_hit = any(element in context["useful"] for element in element_hits)
+    labels = relation_labels_with(context["branches"], branch)
+    relation_note, day_hit, month_hit = interaction_note(labels, context)
+    career = 5
+    wealth = 5
+    relationship = 5
+    stress = 5
+    loss = 4
+    family = 4
+    compliance = 5
+    reasons = []
+
+    for group in [stem_group, branch_group] + hidden_groups[:2]:
+        if group == "output":
+            career += 1
+            wealth += 1
+            reasons.append("食伤被引动，利表达、产品、销售与作品输出")
+        elif group == "wealth":
+            wealth += 2
+            career += 1
+            relationship += 1 if context["spouse_group"] == "wealth" else 0
+            reasons.append("财星被引动，客户、现金流、定价和现实交易变重")
+        elif group == "officer":
+            career += 1
+            stress += 1
+            compliance += 1
+            relationship += 1 if context["spouse_group"] == "officer" else 0
+            reasons.append("官杀被引动，责任、规则、岗位压力和名分议题上升")
+        elif group == "resource":
+            career += 1
+            stress -= 1
+            reasons.append("印星被引动，利学习、资质、方法论和系统支持")
+        elif group == "peer":
+            career += 1
+            loss += 1
+            reasons.append("比劫被引动，竞争、合伙、分利和现金流波动要先管住")
+
+    if useful_hit:
+        career += 1
+        wealth += 1
+        stress -= 1
+        reasons.append("流年/月带到本盘可用之气，机会更容易落地")
+    else:
+        stress += 1
+    if context["strength"] < 46 and stem_group in {"wealth", "officer"}:
+        stress += 2
+        loss += 1
+        wealth -= 1
+        reasons.append("身弱遇财官，机会背后成本和压力同步上升")
+    if context["strength"] > 68 and stem_group == "peer":
+        loss += 2
+        reasons.append("身强再逢比劫，最怕合伙分利和冲动扩张")
+    if day_hit:
+        relationship += 2 if any("合" in label for label in labels) else -1
+        stress += 1
+        family += 2
+        reasons.append("日支被触发，亲密关系、合作绑定和居住安排需要明说")
+    if month_hit:
+        career += 1
+        compliance += 1
+        reasons.append("月令被触发，事业环境、上级客户和执行规则会更显眼")
+    if any("冲" in label or "刑" in label or "害" in label or "破" in label for label in labels):
+        stress += 2
+        loss += 1
+        compliance += 1
+    if stem_tg == "伤官" and context["group_scores"].get("officer", 0) >= 1.0:
+        compliance += 2
+        stress += 1
+        reasons.append("伤官碰到原局官杀，公开表达、规则冲突和合规风险要控")
+    if stem_tg in context["spouse_stars"] or branch_main in context["spouse_stars"] or day_hit:
+        relationship += 1
+    if stem_tg in {"正财", "偏财"} and context["group_scores"].get("peer", 0) > 1.5:
+        loss += 1
+        reasons.append("财星出现但原局比劫也有力，合作分账和客户归属要写清")
+
+    note_parts = unique(reasons)[:3]
+    if not note_parts:
+        note_parts = [f"{stem_tg}/{branch_main}被引动，先看其与月令、日支和大运是否形成承接"]
+    note = f"{ganzhi}：{relation_note}{' '.join(note_parts)}。"
+    if scope == "month":
+        note = f"{ganzhi}月：{relation_note}{' '.join(note_parts)}。"
+    return {
+        "stem_tg": stem_tg,
+        "branch_tg": branch_main,
+        "relations": labels,
+        "career": max(2, min(9, career)),
+        "wealth": max(2, min(9, wealth)),
+        "relationship": max(2, min(9, relationship)),
+        "stress": max(2, min(9, stress)),
+        "loss": max(2, min(9, loss)),
+        "family": max(2, min(9, family)),
+        "compliance": max(2, min(9, compliance)),
+        "note": note,
+    }
+
+
 def split_ganzhi(ganzhi: str) -> tuple[str, str]:
     text = str(ganzhi or "").strip()
     if len(text) < 2:
@@ -880,7 +1165,7 @@ def flow_pillar(day_stem: str, day_branch: str, ganzhi: str, label: str) -> dict
     }
 
 
-def flow_chart_model(computed: dict, gender: str, useful: list[str]) -> dict:
+def flow_chart_model(computed: dict, gender: str, useful: list[str], context: dict | None = None) -> dict:
     ec = computed["ec"]
     now = datetime.now()
     flow_ec = Solar.fromYmdHms(now.year, now.month, now.day, now.hour, now.minute, 0).getLunar().getEightChar()
@@ -915,9 +1200,9 @@ def flow_chart_model(computed: dict, gender: str, useful: list[str]) -> dict:
         status = "当前大运" if selected and dy.getStartYear() <= now.year <= dy.getEndYear() else ""
         dayun_strip.append([f"{dy.getStartAge()}-{dy.getEndAge()}岁", str(dy.getStartYear()), ganzhi, status])
     annual_strip = []
-    for row in annual_rows(selected.getGanZhi() if selected else "", useful):
+    for row in annual_rows(selected.getGanZhi() if selected else "", useful, context):
         annual_strip.append([row[0], row[1], row[3], row[4], row[5], row[6], row[10]])
-    month_strip = [[row[0], row[1], row[2], row[3], row[4], row[6], row[7]] for row in monthly_rows()]
+    month_strip = [[row[0], row[1], row[2], row[3], row[4], row[6], row[7]] for row in monthly_rows(context)]
     return {
         "reference": now.strftime("%Y-%m-%d %H:%M"),
         "selected_dayun": selected.getGanZhi() if selected else "未识别",
@@ -931,38 +1216,91 @@ def flow_chart_model(computed: dict, gender: str, useful: list[str]) -> dict:
     }
 
 
-def income_stage_rows(useful: list[str], strength: int) -> list[list[str]]:
+def income_stage_rows(useful: list[str], strength: int, annual: list[list[str]] | None = None) -> list[list[str]]:
     useful_text = "、".join(useful) or "节奏"
-    early_risk = "身弱盘先补资源、合同和现金流；身强盘先防扩张过快。" if strength < 58 else "能量偏足时容易动作太大，先把预算和退出条件锁住。"
-    return [
-        ["2026-2027", "筑底与控风险", f"先把{useful_text}落到现金流、合同、账期、库存和交付 SOP。", early_risk],
-        ["2028-2029", "客户与财星被激活", "适合提价、收账、谈长期客户、做可复制产品；金旺年份更利定价与合同。", "钱和关系同场，分成、股权、税务必须写清。"],
-        ["2030-2033", "资产化与系统化", "适合沉淀团队、产品、数据、证照、跨城/跨境资源，把个人能力变成系统资产。", "制度成本上升，不能靠个人状态硬扛。"],
-        ["2034-2036", "新方向再筛选", "适合学习、内容、教育、产品迭代和重新定位，先验证再投入。", "回报延迟，不宜为新叙事提前重资产投入。"],
-    ]
+    annual = annual or []
+    ranges = [("2026-2027", annual[:2]), ("2028-2029", annual[2:4]), ("2030-2033", annual[4:8]), ("2034-2036", annual[8:11])]
+    rows = []
+    for label, items in ranges:
+        if not items:
+            continue
+        avg_wealth = round(sum(int(row[4]) for row in items) / len(items), 1)
+        avg_risk = round(sum(int(row[6]) + int(row[7]) + int(row[9]) for row in items) / len(items), 1)
+        best = max(items, key=lambda row: int(row[4]))
+        risky = max(items, key=lambda row: int(row[6]) + int(row[7]) + int(row[9]))
+        if avg_wealth >= 7:
+            judgment = f"财务打开期，重点年份 {best[0]}{best[1]}"
+            condition = f"用{useful_text}把客户、定价、合同、复购和交付边界接住。"
+        elif avg_wealth >= 5.5:
+            judgment = f"稳步积累期，重点看 {best[0]}{best[1]}"
+            condition = "适合把个人能力沉淀为产品、内容、渠道或长期客户池。"
+        else:
+            judgment = "筛选与防守期"
+            condition = "不宜重资产押注，先守现金流、合同、库存和关键客户。"
+        if avg_risk >= 18:
+            risk = f"高风险点在 {risky[0]}{risky[1]}：{risky[10]}"
+        else:
+            risk = f"风险可控，但 {risky[0]}{risky[1]} 仍需按预算和退出条件推进。"
+        if strength < 48:
+            risk += " 身弱盘先补资源与支持系统，不宜硬扛。"
+        elif strength > 68:
+            risk += " 身强盘最怕动作过大，先定边界再放量。"
+        rows.append([label, judgment, condition, risk])
+    return rows
 
 
 def career_rows(data: dict, model: dict) -> list[list[str]]:
     industry = data.get("industry") or "未填写"
     role = data.get("role") or "未填写"
     useful_text = "、".join(model["useful_elements"]) or "节奏与边界"
+    context = model["analysis_context"]
+    scores = context["group_scores"]
+    top_group = max(scores, key=scores.get)
+    structure = context["month_structure"]
+    group_path = {
+        "wealth": "客户、定价、交易、资源整合、商业化和现金流管理",
+        "output": "内容、产品、表达、销售、技术输出、咨询交付和方法论沉淀",
+        "officer": "平台、制度、管理、合规、项目责任、专业资质和组织内上升",
+        "resource": "研究、教育、知识产品、资质、系统建设、咨询方法论和长期学习",
+        "peer": "创业、合伙、个人品牌、社群、竞争型赛道和资源置换",
+    }.get(top_group, "可沉淀、可复盘、可定价的专业路径")
+    fit = "匹配度偏高" if any(word in (industry + role) for word in ["咨询", "品牌", "运营", "产品", "金融", "数据", "法务", "技术", "教育", "供应链", "研究", "管理", "销售"]) else "需要主动改造成可沉淀、可定价、可复盘的部分"
+    risk = []
+    if scores.get("peer", 0) >= 2:
+        risk.append("合伙分利")
+    if scores.get("officer", 0) >= 2:
+        risk.append("权责合规")
+    if scores.get("output", 0) >= 2 and scores.get("officer", 0) >= 1:
+        risk.append("表达与规则冲突")
+    if scores.get("wealth", 0) >= 2:
+        risk.append("账期和现金流")
+    risk_text = "、".join(risk) or "节奏失控"
     return [
-        ["适合行业", "专业服务、咨询、内容产品、金融/数据/法务/技术、供应链、教育训练、品牌运营。", f"依据是日主{model['day_strength_label']}与喜用{useful_text}，更适合可标准化、可复盘、可管理现金流的路径。"],
-        ["当前基线", f"{industry} / {role}", "当前信息只作为现实基线，不覆盖命盘；行业越能沉淀方法论和长期客户，匹配度越高。"],
-        ["发展模式", "先做规则，再放大机会。", "适合把经验写成流程、报价、合同、交付标准和复盘机制，再考虑扩大团队或投入。"],
-        ["贵人路径", "制度型、专业型、合同型贵人更重要。", "贵人不等于别人来救场，更像平台、资质、专业人士、上级、客户规则带来的保护。"],
-        ["风险节点", "高波动赛道可以做，但不适合无账期、无退出、无复盘地重押。", "遇到火旺或关系冲动年份，先降杠杆、缩规模、延迟重大付款。"],
+        ["事业主轴", f"月令主气取{structure}，全盘较强的事业驱动力落在{GROUP_LABEL.get(top_group, '主轴')}。", f"按子平先看月令、再看十神成败；本盘适合围绕{group_path}建立职业路径。"],
+        ["适合行业", group_path, f"依据不是单看喜用神，而是月令{structure}、十神分布、日主{model['day_strength_label']}与喜用{useful_text}共同判断。"],
+        ["当前基线", f"{industry} / {role}", f"当前方向{fit}；如果行业不能积累客户、流程、合同、数据或作品，就要主动改造成可复用资产。"],
+        ["发展模式", "先定结构，再放大机会。", "先做报价、合同、SOP、复盘、客户筛选和交付边界；再考虑规模、团队或投放。"],
+        ["风险节点", risk_text, "这些风险来自本命十神与地支关系，不是泛泛提醒；遇到对应流年流月时，要先降杠杆、缩周期、留书面记录。"],
     ]
 
 
-def crisis_rows() -> list[list[str]]:
-    return [
-        ["核心限制", "机会、情绪、承诺和现金流同时出现时，容易先行动后核算。", "所有重大合作先写范围、账期、违约、退出，再谈情面。"],
-        ["事业风险", "为了速度跳过流程，导致交付、团队、客户预期失控。", "用 SOP、报价单、合同版本、周复盘把速度装进规则里。"],
-        ["财富风险", "高杠杆、重库存、模糊分成、冲动投资。", "重大支出延迟 24 小时，超过预算阈值必须二次审核。"],
-        ["关系风险", "把关系承诺和金钱承诺混在一起，后期消耗加倍。", "先谈现实责任、城市选择、消费观和时间安排，再谈长期承诺。"],
-        ["压力风险", "忙的时候忽略休息、体检和情绪调节。", "这是压力管理建议，不是医学诊断；若已有症状需找专业人士。"],
-    ]
+def crisis_rows(context: dict) -> list[list[str]]:
+    scores = context["group_scores"]
+    rows = []
+    if scores.get("peer", 0) >= 2.0 and scores.get("wealth", 0) >= 1.0:
+        rows.append(["分利与现金流危机", "比劫与财星同时有力，机会容易和合伙、分账、客户归属绑在一起。", "报价、客户归属、账期、股权/分成、退出条件必须先写清。"])
+    if scores.get("officer", 0) >= 2.0 and context["strength"] < 55:
+        rows.append(["压力与权责危机", "官杀较重而日主承压，容易遇到规则、上级、平台、合规或强势客户压力。", "先确认责任边界、交付标准和法务财务口径，避免口头承诺。"])
+    if scores.get("output", 0) >= 1.6 and scores.get("officer", 0) >= 1.4:
+        rows.append(["表达与规则冲突", "食伤与官杀并见，适合靠表达和产品突破，但也容易挑战规则或公开争执。", "公开发布、合同承诺、宣传文案、客户沟通要留复核机制。"])
+    if "冲" in context["relation_text"] or "刑" in context["relation_text"] or "害" in context["relation_text"]:
+        rows.append(["合冲刑害触发", f"原局地支关系为：{context['relation_text']}。这会让事业节奏、关系边界或居住/合作安排更容易被流年触发。", "遇到相关流年流月先降杠杆、缩周期、用书面确认替代情绪判断。"])
+    if context["spouse_visible"] or context["spouse_hidden"]:
+        rows.append(["关系与现实责任", f"伴侣星线索为：{'、'.join(unique(context['spouse_visible'] + context['spouse_hidden']))}。关系不会只停在感觉，容易牵涉现实责任、钱、时间和未来安排。", "谈关系时同步谈城市、消费观、工作节奏、家庭责任，不要只靠情绪维持。"])
+    if not rows:
+        rows.append(["核心限制", f"月令主气为{context['month_structure']}，盘面没有单一压倒性危机，重点是让{GROUP_BEHAVIOR.get(group_for_ten_god(context['month_structure']), '主要结构')}走清楚。", "不追求一次性定终局，先用阶段目标、预算、复盘和退出条件做控制。"])
+    rows.append(["压力管理", "命理只能提示压力形态，不能替代医疗、法律、投资意见。", "出现持续身体症状、法律/税务/投资重大事项时，必须找专业人士复核。"])
+    return rows[:5]
 
 
 def shensha_balance_text(label: str, rows: list[list[str]]) -> str:
@@ -991,29 +1329,65 @@ def cross_shensha_balance(rows_by_group: dict[str, list[list[str]]]) -> str:
     return "跨柱神煞制衡关系：无明显强制衡关系，神煞仅作辅助修正。"
 
 
-def june_2026_detail() -> str:
-    return "2026 年 6 月甲午是全年高风险月：午火叠加全年丙午，容易把表达、投资、情绪承诺、业务扩张和现金流压力同时点燃。业务上不宜签模糊分成、不宜重库存、不宜为了面子提前承诺交付；投资上避免高杠杆、追涨和短线冲动；关系上避免在情绪高点摊牌或绑定重大金钱承诺。行动规则是降仓位、缩周期、留书面记录、重大付款延迟 24 小时。"
+def june_2026_detail(context: dict | None = None) -> str:
+    if not context:
+        return "2026 年 6 月甲午是全年高风险月：午火叠加全年丙午，容易把表达、投资、情绪承诺、业务扩张和现金流压力同时点燃。"
+    read = analyze_luck_pillar(context, "甲午", "month")
+    line = f"2026 年 6 月甲午：{read['note']}事业 {read['career']}/9，财运 {read['wealth']}/9，关系 {read['relationship']}/9，风险 {read['stress']}/9。"
+    if read["stress"] >= 7 or read["loss"] >= 7:
+        line += " 这一月不宜重库存、高杠杆、模糊分成和情绪化承诺，重大付款和签约建议延迟复核。"
+    elif read["wealth"] >= 7:
+        line += " 这一月可以推进销售、发布和客户沟通，但要先设交付边界和收款节点。"
+    else:
+        line += " 这一月更适合试运行、收反馈和做复盘，不要把所有资源押在单点突破上。"
+    return line
 
 
-def monthly_rows() -> list[list[str]]:
-    data = [
-        ("2026-02", "庚寅", "立春-惊蛰", 6, 6, 5, 6, "寅木启动计划，适合小样本验证。"),
-        ("2026-03", "辛卯", "惊蛰-清明", 6, 6, 7, 7, "卯木带来关系和合作波动，签约要慢。"),
-        ("2026-04", "壬辰", "清明-立夏", 7, 7, 5, 5, "辰土收束，适合谈规则、账期和合同。"),
-        ("2026-05", "癸巳", "立夏-芒种", 6, 5, 6, 7, "巳火加热，推进快但压力上升。"),
-        ("2026-06", "甲午", "芒种-小暑", 4, 3, 8, 9, "全年高风险月，禁高杠杆、重库存、冲动承诺和情绪摊牌。"),
-        ("2026-07", "乙未", "小暑-立秋", 5, 4, 6, 7, "适合复盘止损、清库存和整理现金流。"),
-        ("2026-08", "丙申", "立秋-白露", 7, 7, 5, 5, "申金出现，商务和客户机会回升。"),
-        ("2026-09", "丁酉", "白露-寒露", 7, 7, 8, 7, "钱与关系同时被激活，分成、股权、承诺要写清楚。"),
-        ("2026-10", "戊戌", "寒露-立冬", 6, 5, 6, 7, "适合销售表达，忌挑战规则和公开冲突。"),
-        ("2026-11", "己亥", "立冬-大雪", 6, 6, 6, 6, "变动月，适合调整供应商、策略和合作结构。"),
-        ("2026-12", "庚子", "大雪-小寒", 8, 8, 5, 4, "金水到位，适合收账、定合同、谈长期资源。"),
-        ("2027-01", "辛丑", "小寒-立春", 8, 8, 5, 4, "财务收束窗口，适合预算、复盘和资源整合。"),
-    ]
-    return [[m, gz, period, str(c), str(w), str(r), str(risk), note] for m, gz, period, c, w, r, risk, note in data]
+def monthly_rows(context: dict | None = None) -> list[list[str]]:
+    if not context:
+        data = [
+            ("2026-02", "庚寅", "立春-惊蛰", 6, 6, 5, 6, "寅木启动计划，适合小样本验证。"),
+            ("2026-03", "辛卯", "惊蛰-清明", 6, 6, 7, 7, "卯木带来关系和合作波动，签约要慢。"),
+            ("2026-04", "壬辰", "清明-立夏", 7, 7, 5, 5, "辰土收束，适合谈规则、账期和合同。"),
+            ("2026-05", "癸巳", "立夏-芒种", 6, 5, 6, 7, "巳火加热，推进快但压力上升。"),
+            ("2026-06", "甲午", "芒种-小暑", 4, 3, 8, 9, "全年高风险月，禁高杠杆、重库存、冲动承诺和情绪摊牌。"),
+        ]
+        return [[m, gz, period, str(c), str(w), str(r), str(risk), note] for m, gz, period, c, w, r, risk, note in data]
+    rows = []
+    for month, ganzhi, period in MONTHS_2026:
+        read = analyze_luck_pillar(context, ganzhi, "month")
+        rows.append([month, ganzhi, period, str(read["career"]), str(read["wealth"]), str(read["relationship"]), str(max(read["stress"], read["loss"])), read["note"]])
+    return rows
 
 
-def relationship_profile(data: dict, useful: list[str]) -> list[list[str]]:
+def relationship_profile(data: dict, useful: list[str], context: dict | None = None, annual: list[list[str]] | None = None) -> list[list[str]]:
+    if context:
+        annual = annual or []
+        good_years = [row for row in annual if int(row[5]) >= 7 and int(row[6]) <= 7]
+        risk_years = [row for row in annual if int(row[5]) >= 7 and int(row[6]) >= 8]
+        window = "、".join(f"{row[0]}{row[1]}" for row in good_years[:4]) or "需人工结合事件校准"
+        meet = f"{good_years[0][0]}{good_years[0][1]}" if good_years else "无法提供判断"
+        star_text = "、".join(unique(context["spouse_visible"] + context["spouse_hidden"])) or "未明显透出"
+        spouse_element = BRANCH_ELEMENT.get(context["day_branch"], "")
+        trait = {
+            "金": "边界感强、专业、重规则或金融/数据/法务/技术气质",
+            "水": "沟通强、流动性高、跨城/跨境/内容信息气质",
+            "木": "成长型、教育/内容/设计/咨询气质，重长期发展",
+            "火": "表达强、外向、品牌/销售/传播气质，节奏较快",
+            "土": "稳定务实、运营/管理/地产/供应链气质，重现实承接",
+        }.get(spouse_element, "偏稳定和专业感")
+        relation_level = "中等偏高" if good_years else "需谨慎观察"
+        risk_note = "；".join(f"{row[0]}{row[1]}压力高" for row in risk_years[:2]) or "主要风险来自现实责任没有谈清"
+        return [
+            ["未来关系波动", relation_level, f"伴侣星线索：{star_text}；夫妻宫为{context['day_branch']}，流年若合冲日支会明显触发关系。"],
+            ["适合恋爱窗口", window, "按流年与日支、伴侣星、压力分数综合筛选，不是固定年份。"],
+            ["最可能遇到时间", meet, "这是自动模型窗口；若客户提供恋爱/分手/结婚节点，可进一步校准。"],
+            ["身高/体型", "无法提供判断", "自动版不硬编外貌；这类细节需人工结合全盘与事件复核。"],
+            ["外貌气质", trait, f"由日支五行、伴侣星和喜用{''.join(useful)}综合取象，置信度中低。"],
+            ["从事行业/角色", trait, "这是象意推断，不是硬性条件。"],
+            ["不适配对象", "承诺模糊、财务边界混乱、强情绪控制或长期不给行动的人", risk_note],
+            ["结婚成熟窗口", window if meet != "无法提供判断" else "无法提供判断", "重点不是单一年份，而是对象、城市、钱、家庭责任是否同步成熟。"],
+        ]
     return [
         ["未来关系波动", "中等偏高", "事业节奏、现金流和现实承诺会直接影响关系稳定，置信度约62%。"],
         ["适合恋爱窗口", "2026-12 至 2027-01、2028-2029、2031-2033", "优先选金水较足、规则感更强的月份/年份。"],
@@ -1062,10 +1436,14 @@ def report_model(data: dict, computed: dict) -> dict:
     calibration_title = "事件校准" if events else "置信度校准"
     dominant = "、".join(f"{k}{v}%" for k, v in sorted(profile.items(), key=lambda item: item[1], reverse=True))
     shensha = shensha_rows(computed)
+    context = analysis_context(data, computed, strength, useful)
+    annual = annual_rows(selected.getGanZhi() if selected else "", useful, context)
+    monthly = monthly_rows(context)
     model = {
         "ec": ec,
         "chart": chart,
         "profile": profile,
+        "analysis_context": context,
         "day_strength_label": label,
         "day_strength": strength,
         "useful_text": useful_text,
@@ -1080,12 +1458,12 @@ def report_model(data: dict, computed: dict) -> dict:
         "cross_shensha_balance": cross_shensha_balance(shensha),
         "branch_relation_rows": branch_relation_rows(computed),
         "wealth_tone": wealth_tone(strength, useful, ec, profile),
-        "income_rows": income_probabilities(strength, useful, data, ec, profile),
-        "income_stage_rows": income_stage_rows(useful, strength),
-        "annual_rows": annual_rows(selected.getGanZhi() if selected else "", useful),
-        "monthly_rows": monthly_rows(),
-        "flow_chart": flow_chart_model(computed, data.get("gender", "男"), useful),
-        "relationship_rows": relationship_profile(data, useful),
+        "income_rows": income_probabilities(strength, useful, data, ec, profile, context),
+        "income_stage_rows": income_stage_rows(useful, strength, annual),
+        "annual_rows": annual,
+        "monthly_rows": monthly,
+        "flow_chart": flow_chart_model(computed, data.get("gender", "男"), useful, context),
+        "relationship_rows": relationship_profile(data, useful, context, annual),
         "calibration_title": calibration_title,
         "calibration_lines": [
             f"出生时间来源：{data.get('timeSource') or '未填写'}；准确度：{data.get('timeAccuracy') or '未填写'}；真太阳时：{data.get('trueSolarTime') or '未填写'}。",
@@ -1095,8 +1473,8 @@ def report_model(data: dict, computed: dict) -> dict:
         ],
     }
     model["career_rows"] = career_rows(data, model)
-    model["crisis_rows"] = crisis_rows()
-    model["june_2026_detail"] = june_2026_detail()
+    model["crisis_rows"] = crisis_rows(context)
+    model["june_2026_detail"] = june_2026_detail(context)
     model["event_calibration_rows"] = event_calibration_rows(events, model)
     return model
 
@@ -1259,6 +1637,26 @@ def html_flow_chart(model: dict) -> str:
     )
 
 
+def html_chart_console(model: dict, chart_url: str) -> str:
+    flow = model["flow_chart"]
+    return (
+        "<div class='chart-console'>"
+        "<div class='chart-tabs' role='tablist'>"
+        "<button class='active' data-chart-tab='natal'>本命排盘</button>"
+        "<button data-chart-tab='flow'>流盘叠加</button>"
+        "<button data-chart-tab='dayun'>大运</button>"
+        "<button data-chart-tab='annual'>流年</button>"
+        "<button data-chart-tab='monthly'>2026流月</button>"
+        "</div>"
+        f"<div class='chart-panel active' data-chart-panel='natal'><div class='chart'><img src='{chart_url}' alt='黑金命盘图'></div></div>"
+        f"<div class='chart-panel' data-chart-panel='flow'><div class='card liupan-note'><b>流盘参照</b><p>生成时间：{html.escape(flow['reference'])}。当前大运 {html.escape(flow['selected_dayun'])}，流年 {html.escape(flow['flow_year'])}，流月 {html.escape(flow['flow_month'])}。此处把本命盘与当前运势叠在同一排盘控制台里看。</p></div>{html_table(flow['headers'], flow['rows'])}</div>"
+        f"<div class='chart-panel' data-chart-panel='dayun'>{html_table(['年龄段', '起始年', '大运', '状态'], flow['dayun_strip'])}</div>"
+        f"<div class='chart-panel' data-chart-panel='annual'>{html_table(['年份', '流年', '事业', '财运', '关系', '压力', '触发提示'], flow['annual_strip'])}</div>"
+        f"<div class='chart-panel' data-chart-panel='monthly'>{html_table(['月份', '流月', '节气', '事业', '财运', '风险', '提示'], flow['month_strip'])}</div>"
+        "</div>"
+    )
+
+
 def html_card_table(rows: list[list[str]], title_key: str = "主题") -> str:
     return "<div class='grid two'>" + "".join(
         f"<article class='card'><b>{html.escape(row[0])}</b><p>{html.escape(row[1])}</p><small>{html.escape(row[2])}</small></article>"
@@ -1384,7 +1782,6 @@ def deep_report_html(data: dict, computed: dict, chart_png: Path, output: Path) 
     crystal_url = f"/generated/{crystal_img.name}"
     sections = [
         ("raw", "原始盘信息"),
-        ("liupan", "流盘"),
         ("pattern", "格局与用神"),
         ("career", "事业发展"),
         ("wealth", "未来十年财运"),
@@ -1413,18 +1810,18 @@ def deep_report_html(data: dict, computed: dict, chart_png: Path, output: Path) 
         f"<p>{html.escape(row[7])}</p><small>事业 {row[3]} / 财运 {row[4]} / 关系 {row[5]} / 风险 {row[6]}</small></article>"
         for row in model["monthly_rows"]
     )
+    chart_console = html_chart_console(model, chart_url)
     summary_html = "".join(f"<p>{html.escape(item)}</p>" for item in plain_summary_paragraphs(data, model))
     output.write_text(f"""<!doctype html>
 <html lang="zh-CN">
 <head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>{title}</title><link rel="stylesheet" href="/pages.css">
 <style>
-	body{{background:#080604;color:#f7ead2}}.scroll-progress{{position:fixed;top:0;left:0;height:3px;background:#d8b35f;z-index:80;width:0}}.report-nav{{position:sticky;top:70px;z-index:20;background:rgba(8,6,4,.9);backdrop-filter:blur(12px);border-block:1px solid rgba(216,179,95,.22);overflow:auto;white-space:nowrap}}.report-nav .shell{{display:flex;gap:18px;padding:12px 20px}}.report-nav a{{color:#e8d7b4;text-decoration:none;font-size:13px}}.hero{{min-height:82vh;display:grid;align-items:center;padding:98px 0 56px;background:radial-gradient(circle at 50% 18%,rgba(216,179,95,.24),transparent 34%),linear-gradient(180deg,#0d0905,#080604);position:relative;overflow:hidden}}.hero:before{{content:"命";position:absolute;right:7vw;top:10vh;font-size:34vw;line-height:1;color:rgba(216,179,95,.07);animation:breathe 6s ease-in-out infinite}}.hero h1{{font-size:56px;line-height:1.08;max-width:760px;color:#f7ead2}}.lead{{max-width:760px;color:#e8d7b4}}.hero-actions{{display:flex;gap:12px;flex-wrap:wrap;margin-top:26px}}.print-btn{{border:1px solid rgba(216,179,95,.5);background:#d8b35f;color:#090604;border-radius:6px;padding:12px 18px;text-decoration:none;font-weight:700;cursor:pointer}}.panel{{max-width:1160px;margin:0 auto;padding:46px 20px;border-top:1px solid rgba(216,179,95,.2)}}.panel h2{{color:#f0c47a;font-size:28px}}.grid{{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px}}.grid.two{{grid-template-columns:repeat(2,minmax(0,1fr))}}.grid.three{{grid-template-columns:repeat(3,minmax(0,1fr))}}.card,.kpi{{border:1px solid rgba(216,179,95,.28);background:rgba(20,15,8,.72);border-radius:8px;padding:18px;box-shadow:0 18px 44px rgba(0,0,0,.18);transition:transform .25s ease,border-color .25s ease}}.card:hover,.kpi:hover{{transform:translateY(-3px);border-color:rgba(240,196,122,.58)}}.kpi b{{display:block;color:#f0c47a;font-size:25px;line-height:1.2;margin:8px 0}}.kpi p,.card small{{color:#cdbb98}}.table-wrap{{overflow:auto;border:1px solid rgba(216,179,95,.22);border-radius:8px;margin-top:14px}}table{{border-collapse:collapse;width:100%;min-width:850px}}th,td{{border-bottom:1px solid rgba(216,179,95,.16);padding:11px 12px;text-align:left;vertical-align:top}}th{{color:#f0c47a;background:rgba(216,179,95,.08)}}td{{color:#ead9b7}}tr:hover td{{background:rgba(216,179,95,.05)}}.chart{{max-width:520px;margin:22px auto;animation:softGlow 4s ease-in-out infinite}}.chart img,.god-art img{{width:100%;height:auto;object-fit:contain;border:1px solid rgba(216,179,95,.35);border-radius:8px}}.god-art{{animation:lineDrift 5s ease-in-out infinite}}.bar-track{{height:10px;border-radius:99px;background:rgba(216,179,95,.13);overflow:hidden;margin:12px 0}}.bar{{display:block;height:100%;width:var(--w);border-radius:99px;background:linear-gradient(90deg,#d8b35f,#8f6a2a);animation:barGrow 1.2s ease both}}.income-band b,.warning b{{color:#f0c47a}}.income-band strong{{display:block;font-size:28px;color:#f7ead2;margin-top:8px}}.balance{{color:#dcc796}}details.star-detail{{border-top:1px solid rgba(216,179,95,.18);padding:10px 0}}details.star-detail summary{{cursor:pointer;color:#f0c47a}}details.star-detail summary span{{float:right;color:#d8b35f}}.timeline{{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px}}.month{{position:relative;border:1px solid rgba(216,179,95,.22);border-radius:8px;padding:16px 16px 16px 42px;background:rgba(20,15,8,.65)}}.month i{{position:absolute;left:16px;top:22px;width:10px;height:10px;border-radius:50%;background:#d8b35f;box-shadow:0 0 0 0 rgba(216,179,95,.5);animation:pulse 2.2s infinite}}.month b,.month em{{display:block;color:#f0c47a;font-style:normal}}.fade{{opacity:0;transform:translateY(18px);transition:opacity .7s ease,transform .7s ease}}.fade.show{{opacity:1;transform:none}}footer{{padding:34px 20px;color:#9f8d6b}}@keyframes breathe{{50%{{transform:scale(1.04);opacity:.8}}}}@keyframes softGlow{{50%{{filter:drop-shadow(0 0 22px rgba(216,179,95,.26))}}}}@keyframes barGrow{{from{{width:0}}to{{width:var(--w)}}}}@keyframes pulse{{70%{{box-shadow:0 0 0 12px rgba(216,179,95,0)}}100%{{box-shadow:0 0 0 0 rgba(216,179,95,0)}}}}@keyframes lineDrift{{50%{{transform:translateY(-7px)}}}}@media(max-width:760px){{.hero h1{{font-size:38px}}.grid,.grid.two,.grid.three,.timeline{{grid-template-columns:1fr}}.report-nav{{top:64px}}table{{min-width:760px}}}}
+	body{{background:#080604;color:#f7ead2}}.scroll-progress{{position:fixed;top:0;left:0;height:3px;background:#d8b35f;z-index:80;width:0}}.report-nav{{position:sticky;top:70px;z-index:20;background:rgba(8,6,4,.9);backdrop-filter:blur(12px);border-block:1px solid rgba(216,179,95,.22);overflow:auto;white-space:nowrap}}.report-nav .shell{{display:flex;gap:18px;padding:12px 20px}}.report-nav a{{color:#e8d7b4;text-decoration:none;font-size:13px}}.hero{{min-height:82vh;display:grid;align-items:center;padding:98px 0 56px;background:radial-gradient(circle at 50% 18%,rgba(216,179,95,.24),transparent 34%),linear-gradient(180deg,#0d0905,#080604);position:relative;overflow:hidden}}.hero:before{{content:"命";position:absolute;right:7vw;top:10vh;font-size:34vw;line-height:1;color:rgba(216,179,95,.07);animation:breathe 6s ease-in-out infinite}}.hero h1{{font-size:56px;line-height:1.08;max-width:760px;color:#f7ead2}}.lead{{max-width:760px;color:#e8d7b4}}.hero-actions{{display:flex;gap:12px;flex-wrap:wrap;margin-top:26px}}.print-btn{{border:1px solid rgba(216,179,95,.5);background:#d8b35f;color:#090604;border-radius:6px;padding:12px 18px;text-decoration:none;font-weight:700;cursor:pointer}}.panel{{max-width:1160px;margin:0 auto;padding:46px 20px;border-top:1px solid rgba(216,179,95,.2)}}.panel h2{{color:#f0c47a;font-size:28px}}.grid{{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px}}.grid.two{{grid-template-columns:repeat(2,minmax(0,1fr))}}.grid.three{{grid-template-columns:repeat(3,minmax(0,1fr))}}.card,.kpi{{border:1px solid rgba(216,179,95,.28);background:rgba(20,15,8,.72);border-radius:8px;padding:18px;box-shadow:0 18px 44px rgba(0,0,0,.18);transition:transform .25s ease,border-color .25s ease}}.card:hover,.kpi:hover{{transform:translateY(-3px);border-color:rgba(240,196,122,.58)}}.kpi b{{display:block;color:#f0c47a;font-size:25px;line-height:1.2;margin:8px 0}}.kpi p,.card small{{color:#cdbb98}}.chart-console{{margin-top:22px;border:1px solid rgba(216,179,95,.3);border-radius:8px;background:rgba(12,9,5,.82);padding:14px}}.chart-tabs{{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px}}.chart-tabs button{{border:1px solid rgba(216,179,95,.35);background:rgba(216,179,95,.08);color:#e8d7b4;border-radius:6px;padding:9px 12px;cursor:pointer;font:inherit;white-space:nowrap}}.chart-tabs button.active{{background:#d8b35f;color:#090604}}.chart-panel{{display:none}}.chart-panel.active{{display:block}}.table-wrap{{overflow:auto;border:1px solid rgba(216,179,95,.22);border-radius:8px;margin-top:14px}}table{{border-collapse:collapse;width:100%;min-width:850px}}th,td{{border-bottom:1px solid rgba(216,179,95,.16);padding:11px 12px;text-align:left;vertical-align:top}}th{{color:#f0c47a;background:rgba(216,179,95,.08)}}td{{color:#ead9b7}}tr:hover td{{background:rgba(216,179,95,.05)}}.chart{{max-width:620px;margin:22px auto;animation:softGlow 4s ease-in-out infinite}}.chart img,.god-art img{{width:100%;height:auto;object-fit:contain;border:1px solid rgba(216,179,95,.35);border-radius:8px}}.god-art{{animation:lineDrift 5s ease-in-out infinite}}.bar-track{{height:10px;border-radius:99px;background:rgba(216,179,95,.13);overflow:hidden;margin:12px 0}}.bar{{display:block;height:100%;width:var(--w);border-radius:99px;background:linear-gradient(90deg,#d8b35f,#8f6a2a);animation:barGrow 1.2s ease both}}.income-band b,.warning b{{color:#f0c47a}}.income-band strong{{display:block;font-size:28px;color:#f7ead2;margin-top:8px}}.balance{{color:#dcc796}}details.star-detail{{border-top:1px solid rgba(216,179,95,.18);padding:10px 0}}details.star-detail summary{{cursor:pointer;color:#f0c47a}}details.star-detail summary span{{float:right;color:#d8b35f}}.timeline{{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px}}.month{{position:relative;border:1px solid rgba(216,179,95,.22);border-radius:8px;padding:16px 16px 16px 42px;background:rgba(20,15,8,.65)}}.month i{{position:absolute;left:16px;top:22px;width:10px;height:10px;border-radius:50%;background:#d8b35f;box-shadow:0 0 0 0 rgba(216,179,95,.5);animation:pulse 2.2s infinite}}.month b,.month em{{display:block;color:#f0c47a;font-style:normal}}.fade{{opacity:0;transform:translateY(18px);transition:opacity .7s ease,transform .7s ease}}.fade.show{{opacity:1;transform:none}}footer{{padding:34px 20px;color:#9f8d6b}}@keyframes breathe{{50%{{transform:scale(1.04);opacity:.8}}}}@keyframes softGlow{{50%{{filter:drop-shadow(0 0 22px rgba(216,179,95,.26))}}}}@keyframes barGrow{{from{{width:0}}to{{width:var(--w)}}}}@keyframes pulse{{70%{{box-shadow:0 0 0 12px rgba(216,179,95,0)}}100%{{box-shadow:0 0 0 0 rgba(216,179,95,0)}}}}@keyframes lineDrift{{50%{{transform:translateY(-7px)}}}}@media(max-width:760px){{.hero h1{{font-size:38px}}.grid,.grid.two,.grid.three,.timeline{{grid-template-columns:1fr}}.report-nav{{top:64px}}table{{min-width:760px}}.chart-tabs button{{flex:1 1 31%;font-size:13px}}}}
 	</style></head>
 		<body><header class="top"><nav class="shell nav"><a class="brand" href="/"><img src="/assets/ming-four-pillars-mark.png"><span>Ming Atelier<small>命理工坊</small></span></a><div class="links"><a href="/">首页</a><a href="/questionnaire.html">问卷</a><a href="/divination.html">起卦</a></div></nav></header>
 		<div class="scroll-progress" id="scrollProgress"></div><main>
 	<section class="hero"><div class="shell fade"><p class="eyebrow">Ming Atelier · Eastern Destiny Readings</p><h1>{title}</h1><p class="lead">以八字四柱为底图，读性格、节奏、选择与关系。关于你如何行动、如何取舍、如何顺势。</p><div class="hero-actions"><button class="print-btn" onclick="window.print()">保存 PDF</button><a class="print-btn" href="/">回到主页</a></div></div></section><nav class="report-nav"><div class="shell">{nav}</div></nav>
-	<section class="panel fade" id="raw"><h2>原始盘信息</h2><div class="grid">{kpi_html}</div><div class="chart"><img src="{chart_url}" alt="命盘图"></div>{html_table(["项目","内容"], [["四柱", f"{ec.getYear()} 年｜{ec.getMonth()} 月｜{ec.getDay()} 日｜{ec.getTime()} 时"], ["五行估计", model["dominant"]], ["地支关系", relation_text]])}</section>
-	<section class="panel fade" id="liupan"><h2>流盘</h2>{html_flow_chart(model)}</section>
+	<section class="panel fade" id="raw"><h2>原始盘信息</h2><div class="grid">{kpi_html}</div>{chart_console}{html_table(["项目","内容"], [["四柱", f"{ec.getYear()} 年｜{ec.getMonth()} 月｜{ec.getDay()} 日｜{ec.getTime()} 时"], ["五行估计", model["dominant"]], ["地支关系", relation_text]])}</section>
 	<section class="panel fade" id="pattern"><h2>格局与用神体系</h2><div class="card"><p>{html.escape(model["strength_reason"])}</p><p>{html.escape(model["useful_text"])}</p></div>{html_table(["喜用","行为落地"], [[e, element_behavior(e)] for e in model["useful_elements"]])}</section>
 	<section class="panel fade" id="career"><h2>事业发展</h2>{html_card_table(model["career_rows"])}</section>
 	<section class="panel fade" id="wealth"><h2>未来十年财运与收入层级</h2><div class="card"><p>{html.escape(model["wealth_tone"]["base"])}</p></div>{html_income_cards(model)}{html_table(["阶段","收入判断","关键条件","风险"], model["income_stage_rows"])}{html_table(["年份","流年","大运","事业","财运","感情","健康/压力","破财","家宅","合规","触发与行动规则"], model["annual_rows"])}</section>
@@ -1436,7 +1833,7 @@ def deep_report_html(data: dict, computed: dict, chart_png: Path, output: Path) 
 	<section class="panel fade" id="shensha"><h2>神煞体系</h2>{html_shensha_tables(model)}</section>
 	<section class="panel fade elements" id="elements"><h2>喜用神</h2><div class="god-art"><img src="{useful_url}" alt="喜用神图"></div>{html_table(["喜用","行为落地"], [[e, element_behavior(e)] for e in model["useful_elements"]])}</section>
 	<section class="panel fade" id="crystals"><h2>适配水晶建议</h2><div class="god-art"><img src="{crystal_url}" alt="适配水晶图"></div>{html_table(["五行","建议","适配点","使用方式"], crystal_rows(model["useful_elements"]))}</section></main>
-	<footer class="shell">Ming Atelier｜命理工坊。自动标准版用于客测交付，关键人生决策建议叠加人工复核。</footer><script>const p=document.getElementById('scrollProgress');addEventListener('scroll',()=>{{const h=document.documentElement; p.style.width=((h.scrollTop)/(h.scrollHeight-h.clientHeight)*100)+'%';}});const io=new IntersectionObserver(es=>es.forEach(e=>e.isIntersecting&&e.target.classList.add('show')),{{threshold:.14}});document.querySelectorAll('.fade').forEach(el=>io.observe(el));</script></body></html>""", encoding="utf-8")
+	<footer class="shell">Ming Atelier｜命理工坊。自动标准版用于客测交付，关键人生决策建议叠加人工复核。</footer><script>const p=document.getElementById('scrollProgress');addEventListener('scroll',()=>{{const h=document.documentElement; p.style.width=((h.scrollTop)/(h.scrollHeight-h.clientHeight)*100)+'%';}});const io=new IntersectionObserver(es=>es.forEach(e=>e.isIntersecting&&e.target.classList.add('show')),{{threshold:.14}});document.querySelectorAll('.fade').forEach(el=>io.observe(el));document.querySelectorAll('[data-chart-tab]').forEach(btn=>btn.addEventListener('click',()=>{{const target=btn.dataset.chartTab;document.querySelectorAll('[data-chart-tab]').forEach(b=>b.classList.toggle('active',b===btn));document.querySelectorAll('[data-chart-panel]').forEach(panel=>panel.classList.toggle('active',panel.dataset.chartPanel===target));}}));</script></body></html>""", encoding="utf-8")
 
 
 class Handler(BaseHTTPRequestHandler):
