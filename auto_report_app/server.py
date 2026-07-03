@@ -43,9 +43,11 @@ if DEPS.exists():
     sys.path.insert(0, str(DEPS))
 
 from lunar_python import Solar  # noqa: E402
+from lunar_python.util import LunarUtil  # noqa: E402
 
 
 STEM_ELEMENT = {"甲": "木", "乙": "木", "丙": "火", "丁": "火", "戊": "土", "己": "土", "庚": "金", "辛": "金", "壬": "水", "癸": "水"}
+STEM_POLARITY = {"甲": "阳", "乙": "阴", "丙": "阳", "丁": "阴", "戊": "阳", "己": "阴", "庚": "阳", "辛": "阴", "壬": "阳", "癸": "阴"}
 BRANCH_ELEMENT = {"寅": "木", "卯": "木", "巳": "火", "午": "火", "辰": "土", "戌": "土", "丑": "土", "未": "土", "申": "金", "酉": "金", "亥": "水", "子": "水"}
 HIDDEN_WEIGHT = {"巳": [("丙", 0.55), ("庚", 0.25), ("戊", 0.20)], "午": [("丁", 0.7), ("己", 0.3)], "申": [("庚", 0.55), ("壬", 0.25), ("戊", 0.20)], "酉": [("辛", 1.0)], "寅": [("甲", 0.55), ("丙", 0.25), ("戊", 0.20)], "卯": [("乙", 1.0)], "亥": [("壬", 0.7), ("甲", 0.3)], "子": [("癸", 1.0)], "辰": [("戊", 0.5), ("乙", 0.25), ("癸", 0.25)], "戌": [("戊", 0.5), ("辛", 0.25), ("丁", 0.25)], "丑": [("己", 0.5), ("癸", 0.25), ("辛", 0.25)], "未": [("己", 0.5), ("丁", 0.25), ("乙", 0.25)]}
 BRANCH_NUMBER = {"子": 1, "丑": 2, "寅": 3, "卯": 4, "辰": 5, "巳": 6, "午": 7, "未": 8, "申": 9, "酉": 10, "戌": 11, "亥": 12}
@@ -151,9 +153,8 @@ def now_text() -> str:
 
 
 def append_record(record: dict) -> None:
-    GENERATED.mkdir(parents=True, exist_ok=True)
-    with RECORDS.open("a", encoding="utf-8") as fh:
-        fh.write(json.dumps(record, ensure_ascii=False) + "\n")
+    # MVP privacy: do not persist tester report/divination history.
+    return
 
 
 def read_records(limit: int = 50) -> list[dict]:
@@ -828,6 +829,108 @@ def annual_rows(selected_ganzhi: str, useful: list[str]) -> list[list[str]]:
     return [[year, pillar, selected_ganzhi or "未识别", str(career), str(wealth), str(relation), str(stress), str(loss), str(family), str(compliance), trigger] for year, pillar, career, wealth, relation, stress, loss, family, compliance, trigger in years]
 
 
+def ten_god_for(day_stem: str, target_stem: str) -> str:
+    day_element = STEM_ELEMENT.get(day_stem)
+    target_element = STEM_ELEMENT.get(target_stem)
+    if not day_element or not target_element:
+        return "未知"
+    same_polarity = STEM_POLARITY.get(day_stem) == STEM_POLARITY.get(target_stem)
+    if day_element == target_element:
+        return "比肩" if same_polarity else "劫财"
+    if GENERATES.get(day_element) == target_element:
+        return "食神" if same_polarity else "伤官"
+    if CONTROLS.get(day_element) == target_element:
+        return "偏财" if same_polarity else "正财"
+    if CONTROLS.get(target_element) == day_element:
+        return "七杀" if same_polarity else "正官"
+    if GENERATES.get(target_element) == day_element:
+        return "偏印" if same_polarity else "正印"
+    return "未知"
+
+
+def split_ganzhi(ganzhi: str) -> tuple[str, str]:
+    text = str(ganzhi or "").strip()
+    if len(text) < 2:
+        return "", ""
+    return text[0], text[1]
+
+
+def hidden_texts(branch: str) -> list[str]:
+    return [f"{stem}·{STEM_ELEMENT.get(stem, '')}" for stem, _ in HIDDEN_WEIGHT.get(branch, [])]
+
+
+def hidden_ten_gods(day_stem: str, branch: str) -> list[str]:
+    return [ten_god_for(day_stem, stem) for stem, _ in HIDDEN_WEIGHT.get(branch, [])]
+
+
+def flow_pillar(day_stem: str, day_branch: str, ganzhi: str, label: str) -> dict:
+    stem, branch = split_ganzhi(ganzhi)
+    xunkong = LunarUtil.getXunKong(ganzhi) if stem and branch else ""
+    return {
+        "label": label,
+        "gan_shen": ten_god_for(day_stem, stem) if stem else "未识别",
+        "stem": stem or "未识别",
+        "branch": branch or "未识别",
+        "hidden": hidden_texts(branch),
+        "zhi_shen": hidden_ten_gods(day_stem, branch),
+        "nayin": LunarUtil.NAYIN.get(ganzhi, "未识别") if stem and branch else "未识别",
+        "kongwang": xunkong,
+        "dishi": "随流盘触发",
+        "shen_sha": calculate_shensha(day_stem, day_branch, branch, xunkong) if branch else [],
+    }
+
+
+def flow_chart_model(computed: dict, gender: str, useful: list[str]) -> dict:
+    ec = computed["ec"]
+    now = datetime.now()
+    flow_ec = Solar.fromYmdHms(now.year, now.month, now.day, now.hour, now.minute, 0).getLunar().getEightChar()
+    yun, selected, dayun_rows = current_dayun(ec, gender, now.year)
+    day_stem = ec.getDayGan()
+    day_branch = ec.getDayZhi()
+    natal = [dict(pillar, label=label) for label, pillar in zip(PILLAR_LABELS, computed["chart"]["pillars"])]
+    flow_columns = natal + [
+        flow_pillar(day_stem, day_branch, selected.getGanZhi() if selected else "", "大运"),
+        flow_pillar(day_stem, day_branch, flow_ec.getYear(), "流年"),
+        flow_pillar(day_stem, day_branch, flow_ec.getMonth(), "流月"),
+    ]
+    rows = []
+    row_specs = [
+        ("主星/干神", lambda p: p.get("gan_shen") or "日主"),
+        ("天干", lambda p: p.get("stem", "")),
+        ("地支", lambda p: p.get("branch", "")),
+        ("藏干", lambda p: " / ".join(p.get("hidden") or ["无"])),
+        ("支神", lambda p: " / ".join(p.get("zhi_shen") or ["无"])),
+        ("纳音", lambda p: p.get("nayin", "未识别")),
+        ("空亡", lambda p: p.get("kongwang", "未识别")),
+        ("地势", lambda p: p.get("dishi", "随流盘触发")),
+        ("神煞", lambda p: "、".join(p.get("shen_sha") or ["无明显主星"])),
+    ]
+    for name, getter in row_specs:
+        rows.append([name] + [getter(pillar) for pillar in flow_columns])
+    dayun_strip = []
+    for dy in yun.getDaYun():
+        ganzhi = dy.getGanZhi()
+        if not ganzhi:
+            continue
+        status = "当前大运" if selected and dy.getStartYear() <= now.year <= dy.getEndYear() else ""
+        dayun_strip.append([f"{dy.getStartAge()}-{dy.getEndAge()}岁", str(dy.getStartYear()), ganzhi, status])
+    annual_strip = []
+    for row in annual_rows(selected.getGanZhi() if selected else "", useful):
+        annual_strip.append([row[0], row[1], row[3], row[4], row[5], row[6], row[10]])
+    month_strip = [[row[0], row[1], row[2], row[3], row[4], row[6], row[7]] for row in monthly_rows()]
+    return {
+        "reference": now.strftime("%Y-%m-%d %H:%M"),
+        "selected_dayun": selected.getGanZhi() if selected else "未识别",
+        "flow_year": flow_ec.getYear(),
+        "flow_month": flow_ec.getMonth(),
+        "headers": ["项目", "年柱", "月柱", "日柱", "时柱", "大运", "流年", "流月"],
+        "rows": rows,
+        "dayun_strip": dayun_strip[:10],
+        "annual_strip": annual_strip,
+        "month_strip": month_strip,
+    }
+
+
 def income_stage_rows(useful: list[str], strength: int) -> list[list[str]]:
     useful_text = "、".join(useful) or "节奏"
     early_risk = "身弱盘先补资源、合同和现金流；身强盘先防扩张过快。" if strength < 58 else "能量偏足时容易动作太大，先把预算和退出条件锁住。"
@@ -981,6 +1084,7 @@ def report_model(data: dict, computed: dict) -> dict:
         "income_stage_rows": income_stage_rows(useful, strength),
         "annual_rows": annual_rows(selected.getGanZhi() if selected else "", useful),
         "monthly_rows": monthly_rows(),
+        "flow_chart": flow_chart_model(computed, data.get("gender", "男"), useful),
         "relationship_rows": relationship_profile(data, useful),
         "calibration_title": calibration_title,
         "calibration_lines": [
@@ -1133,6 +1237,28 @@ def html_income_cards(model: dict) -> str:
     return "<div class='grid three'>" + "".join(cards) + "</div>"
 
 
+def html_flow_chart(model: dict) -> str:
+    flow = model["flow_chart"]
+    intro = (
+        f"<div class='card liupan-note'><b>流盘参照</b>"
+        f"<p>生成时间：{html.escape(flow['reference'])}。当前大运为 {html.escape(flow['selected_dayun'])}，"
+        f"流年为 {html.escape(flow['flow_year'])}，流月为 {html.escape(flow['flow_month'])}。"
+        "MVP 版先用来观察本命四柱与大运、流年、流月的叠加关系；后续可继续扩展为可切换年份、月份的完整流盘。</p></div>"
+    )
+    return (
+        intro
+        + html_table(flow["headers"], flow["rows"])
+        + "<div class='grid two'><article class='card'><h3>大运轨道</h3>"
+        + html_table(["年龄段", "起始年", "大运", "状态"], flow["dayun_strip"])
+        + "</article><article class='card'><h3>流年轨道</h3>"
+        + html_table(["年份", "流年", "事业", "财运", "关系", "压力", "触发提示"], flow["annual_strip"])
+        + "</article></div>"
+        + "<article class='card'><h3>2026 流月轨道</h3>"
+        + html_table(["月份", "流月", "节气", "事业", "财运", "风险", "提示"], flow["month_strip"])
+        + "</article>"
+    )
+
+
 def html_card_table(rows: list[list[str]], title_key: str = "主题") -> str:
     return "<div class='grid two'>" + "".join(
         f"<article class='card'><b>{html.escape(row[0])}</b><p>{html.escape(row[1])}</p><small>{html.escape(row[2])}</small></article>"
@@ -1258,6 +1384,7 @@ def deep_report_html(data: dict, computed: dict, chart_png: Path, output: Path) 
     crystal_url = f"/generated/{crystal_img.name}"
     sections = [
         ("raw", "原始盘信息"),
+        ("liupan", "流盘"),
         ("pattern", "格局与用神"),
         ("career", "事业发展"),
         ("wealth", "未来十年财运"),
@@ -1297,6 +1424,7 @@ def deep_report_html(data: dict, computed: dict, chart_png: Path, output: Path) 
 		<div class="scroll-progress" id="scrollProgress"></div><main>
 	<section class="hero"><div class="shell fade"><p class="eyebrow">Ming Atelier · Eastern Destiny Readings</p><h1>{title}</h1><p class="lead">以八字四柱为底图，读性格、节奏、选择与关系。关于你如何行动、如何取舍、如何顺势。</p><div class="hero-actions"><button class="print-btn" onclick="window.print()">保存 PDF</button><a class="print-btn" href="/">回到主页</a></div></div></section><nav class="report-nav"><div class="shell">{nav}</div></nav>
 	<section class="panel fade" id="raw"><h2>原始盘信息</h2><div class="grid">{kpi_html}</div><div class="chart"><img src="{chart_url}" alt="命盘图"></div>{html_table(["项目","内容"], [["四柱", f"{ec.getYear()} 年｜{ec.getMonth()} 月｜{ec.getDay()} 日｜{ec.getTime()} 时"], ["五行估计", model["dominant"]], ["地支关系", relation_text]])}</section>
+	<section class="panel fade" id="liupan"><h2>流盘</h2>{html_flow_chart(model)}</section>
 	<section class="panel fade" id="pattern"><h2>格局与用神体系</h2><div class="card"><p>{html.escape(model["strength_reason"])}</p><p>{html.escape(model["useful_text"])}</p></div>{html_table(["喜用","行为落地"], [[e, element_behavior(e)] for e in model["useful_elements"]])}</section>
 	<section class="panel fade" id="career"><h2>事业发展</h2>{html_card_table(model["career_rows"])}</section>
 	<section class="panel fade" id="wealth"><h2>未来十年财运与收入层级</h2><div class="card"><p>{html.escape(model["wealth_tone"]["base"])}</p></div>{html_income_cards(model)}{html_table(["阶段","收入判断","关键条件","风险"], model["income_stage_rows"])}{html_table(["年份","流年","大运","事业","财运","感情","健康/压力","破财","家宅","合规","触发与行动规则"], model["annual_rows"])}</section>
@@ -1340,7 +1468,7 @@ class Handler(BaseHTTPRequestHandler):
             self.send_json({"ok": True, "service": "ming-atelier-mvp"})
             return
         if path == "/api/history":
-            self.send_json({"ok": True, "records": read_records()})
+            self.send_error(404)
             return
         if path == "/":
             target = STATIC / "index.html"
