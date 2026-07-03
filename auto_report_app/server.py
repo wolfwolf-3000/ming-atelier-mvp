@@ -90,6 +90,7 @@ TRIGRAMS = {
 }
 GENERATES = {"木": "火", "火": "土", "土": "金", "金": "水", "水": "木"}
 CONTROLS = {"木": "土", "土": "水", "水": "火", "火": "金", "金": "木"}
+GAN_HE = {"甲己": "甲己合土", "乙庚": "乙庚合金", "丙辛": "丙辛合水", "丁壬": "丁壬合木", "戊癸": "戊癸合火"}
 HEXAGRAM_NAMES = {
     ("乾", "乾"): "乾为天", ("乾", "兑"): "天泽履", ("乾", "离"): "天火同人", ("乾", "震"): "天雷无妄", ("乾", "巽"): "天风姤", ("乾", "坎"): "天水讼", ("乾", "艮"): "天山遁", ("乾", "坤"): "天地否",
     ("兑", "乾"): "泽天夬", ("兑", "兑"): "兑为泽", ("兑", "离"): "泽火革", ("兑", "震"): "泽雷随", ("兑", "巽"): "泽风大过", ("兑", "坎"): "泽水困", ("兑", "艮"): "泽山咸", ("兑", "坤"): "泽地萃",
@@ -680,42 +681,110 @@ MONTHS_2026 = [
     ("2026-12", "庚子", "大雪-小寒"),
     ("2027-01", "辛丑", "小寒-立春"),
 ]
+SEASON_STRENGTH = {
+    "木": {"寅": 30, "卯": 30, "亥": 16, "子": 12, "辰": 5, "未": 3, "巳": -14, "午": -18, "申": -32, "酉": -34, "戌": -12, "丑": -10},
+    "火": {"巳": 30, "午": 30, "寅": 16, "卯": 12, "未": 8, "戌": 5, "申": -12, "酉": -14, "亥": -32, "子": -34, "辰": -8, "丑": -12},
+    "土": {"辰": 24, "戌": 24, "丑": 20, "未": 24, "巳": 16, "午": 18, "申": 4, "酉": 2, "寅": -18, "卯": -20, "亥": -14, "子": -16},
+    "金": {"申": 32, "酉": 34, "辰": 14, "戌": 16, "丑": 12, "未": 10, "亥": 6, "子": 4, "寅": -18, "卯": -20, "巳": -16, "午": -20},
+    "水": {"亥": 32, "子": 34, "申": 18, "酉": 14, "辰": 10, "丑": 8, "寅": -10, "卯": -12, "巳": -28, "午": -30, "未": -12, "戌": -10},
+}
+
+
+def element_for_group(day_element: str, group: str) -> str:
+    parent = next((k for k, v in GENERATES.items() if v == day_element), "")
+    return {
+        "peer": day_element,
+        "resource": parent,
+        "output": GENERATES.get(day_element, ""),
+        "wealth": CONTROLS.get(day_element, ""),
+        "officer": next((k for k, v in CONTROLS.items() if v == day_element), ""),
+    }.get(group, "")
+
+
+def group_for_element(day_element: str, element: str) -> str:
+    for group in ("peer", "resource", "output", "wealth", "officer"):
+        if element_for_group(day_element, group) == element:
+            return group
+    return "other"
+
+
+def day_master_diagnostics(ec, profile: dict | None = None) -> dict:
+    day_stem = ec.getDayGan()
+    day_element = STEM_ELEMENT.get(day_stem, "")
+    month_branch = ec.getMonthZhi()
+    score = 50.0 + SEASON_STRENGTH.get(day_element, {}).get(month_branch, 0)
+    support = 0.0
+    pressure = 0.0
+    sources = []
+    branches = [ec.getYearZhi(), ec.getMonthZhi(), ec.getDayZhi(), ec.getTimeZhi()]
+    stems = [ec.getYearGan(), ec.getMonthGan(), ec.getTimeGan()]
+    stem_weight = {"peer": 8, "resource": 8, "output": -4, "wealth": -6, "officer": -8}
+    hidden_weight = {"peer": 16, "resource": 12, "output": -5, "wealth": -7, "officer": -9}
+
+    for stem in stems:
+        group = group_for_ten_god(ten_god_for(day_stem, stem))
+        delta = stem_weight.get(group, 0)
+        score += delta
+        if delta > 0:
+            support += delta
+        elif delta < 0:
+            pressure += abs(delta)
+        if group in GROUP_LABEL:
+            sources.append(f"天干{stem}{GROUP_LABEL[group]}{'扶身' if delta > 0 else '耗压' if delta < 0 else '中性'}")
+
+    for index, branch in enumerate(branches):
+        multiplier = 1.75 if index == 1 else (1.15 if index == 2 else 1.0)
+        for hidden, weight in HIDDEN_WEIGHT.get(branch, []):
+            group = group_for_ten_god(ten_god_for(day_stem, hidden))
+            delta = hidden_weight.get(group, 0) * weight * multiplier
+            score += delta
+            if delta > 0:
+                support += delta
+            elif delta < 0:
+                pressure += abs(delta)
+
+    score = round(max(18, min(82, score)))
+    if score >= 62:
+        label = "身强"
+        useful_groups = ["output", "wealth"]
+    elif score <= 45:
+        label = "身弱"
+        useful_groups = ["resource", "peer"]
+    else:
+        label = "中和"
+        useful_groups = ["output", "wealth"] if pressure < support else ["resource", "output"]
+
+    useful = unique([element_for_group(day_element, group) for group in useful_groups if element_for_group(day_element, group)])[:2]
+    season_note = f"月令{month_branch}{BRANCH_ELEMENT.get(month_branch, '')}对{day_stem}{day_element}的季节分为{SEASON_STRENGTH.get(day_element, {}).get(month_branch, 0)}"
+    return {
+        "label": label,
+        "strength": score,
+        "useful": useful,
+        "useful_groups": useful_groups,
+        "support": round(support),
+        "pressure": round(pressure),
+        "season_note": season_note,
+        "source_note": "；".join(sources[:4]) or "以月令、藏干和透干综合评估",
+    }
 
 
 def day_master_assessment(ec, profile: dict) -> tuple[str, int, str, str]:
-    day_element = STEM_ELEMENT.get(ec.getDayGan(), "")
-    parent = {"木": "水", "火": "木", "土": "火", "金": "土", "水": "金"}.get(day_element, "")
-    child = GENERATES.get(day_element, "")
-    wealth = CONTROLS.get(day_element, "")
-    officer = next((k for k, v in CONTROLS.items() if v == day_element), "")
-    support = profile.get(day_element, 0) + profile.get(parent, 0)
-    drain = profile.get(child, 0) + profile.get(wealth, 0) + profile.get(officer, 0)
-    strength = max(28, min(82, 50 + support - drain // 2))
-    if strength >= 62:
-        label = "身强"
-        useful = f"宜用{child or '泄秀'}、{wealth or '财星'}来疏导能量，把行动力转成产品、现金流和规则。"
-    elif strength <= 44:
-        label = "身弱"
-        useful = f"宜补{parent or '印星'}、{day_element or '比劫'}，先稳资源、专业和支持系统，再谈扩张。"
+    diag = day_master_diagnostics(ec, profile)
+    day_stem = ec.getDayGan()
+    day_element = STEM_ELEMENT.get(day_stem, "")
+    useful_text = "、".join(diag["useful"]) or "节奏"
+    if diag["label"] == "身弱":
+        useful = f"宜先取{useful_text}，以印比补根、稳专业、稳支持系统；不能按五行缺失机械补财官食伤。"
+    elif diag["label"] == "身强":
+        useful = f"宜用{useful_text}泄化承接，把行动力转成产品、现金流和规则；仍要看大运流年是否触发合冲刑害。"
     else:
-        label = "中和"
-        useful = "不宜一味补或泄，关键是随流年调节：旺时收束，弱时补资源，机会来时先算风险。"
-    reason = f"日主{ec.getDayGan()}{day_element}，同类与生扶约{support}%，输出、财星与压力约{drain}%。"
-    return label, strength, useful, reason
+        useful = f"宜围绕{useful_text}做调候、通关和节奏控制；旺时泄化，弱时补资源。"
+    reason = f"日主{day_stem}{day_element}，{diag['season_note']}；扶身约{diag['support']}点，耗压约{diag['pressure']}点。{diag['source_note']}。"
+    return diag["label"], diag["strength"], useful, reason
 
 
 def useful_elements(ec, profile: dict) -> list[str]:
-    label, _, _, _ = day_master_assessment(ec, profile)
-    day_element = STEM_ELEMENT.get(ec.getDayGan(), "")
-    parent = {"木": "水", "火": "木", "土": "火", "金": "土", "水": "金"}.get(day_element, "")
-    child = GENERATES.get(day_element, "")
-    wealth = CONTROLS.get(day_element, "")
-    if label == "身强":
-        return [e for e in [child, wealth] if e][:2]
-    if label == "身弱":
-        return [e for e in [parent, day_element] if e][:2]
-    ordered = sorted(profile.items(), key=lambda item: item[1])
-    return [item[0] for item in ordered[:2]]
+    return day_master_diagnostics(ec, profile)["useful"]
 
 
 def element_behavior(element: str) -> str:
@@ -796,11 +865,26 @@ def branch_relation_rows(computed: dict) -> list[list[str]]:
     return rows
 
 
-def wealth_tone(strength: int, useful: list[str], ec, profile: dict) -> dict[str, str]:
+def wealth_tone(strength: int, useful: list[str], ec, profile: dict, context: dict | None = None) -> dict[str, str]:
     day_stem = ec.getDayGan()
     day_element = STEM_ELEMENT.get(day_stem, "")
     useful_text = "、".join(useful) or "节奏"
     strong_element = max(profile, key=profile.get)
+    flags = {flag["key"] for flag in (context or {}).get("risk_flags", [])}
+    if "weak_officer" in flags:
+        return {
+            "base": f"这张盘的财运不能按“缺什么补什么”处理。日主{day_stem}{day_element}承压时，钱不是越刺激越来，先要用{useful_text}稳住专业、信息、规则和支持系统；真正能赚钱的窗口，是先用输出破局，再用合同和现金流纪律收口。",
+            "million": f"百万级来自轻资产、技术/认知/内容/咨询/产品化变现，先用{useful_text}把专业壁垒和交付边界立住。",
+            "five": "500万级必须有法务、账期、交付团队和客户归属规则，不能靠朋友情怀或口头分成放大。",
+            "ten": "千万级只适合在平台、渠道、合同、财务隔离都成熟后尝试；未做主权和资产隔离前不宜重资产押注。",
+        }
+    if "peer_wealth" in flags or "peer_wealth_combo" in flags:
+        return {
+            "base": f"这张盘的钱有机会做出来，但败点也常在“朋友、合伙、分利、退出”。喜用{useful_text}要落成冷静风控、契约主权和现金隔离，而不是只谈增长故事。",
+            "million": "百万级可以靠项目、客户、产品化和高客单价打开，但一开始就要写清客户归属、收款账户、分账比例和退出条款。",
+            "five": "500万级看组织和制度，不看单人冲劲；没有股权、税务、财务和交付主权时，规模越大纠纷越大。",
+            "ten": "千万级不是不能看，但必须先做到资产隔离、合同死锁、团队分权和现金流审计。",
+        }
     if "金" in useful or "水" in useful:
         return {
             "base": f"这张盘搞钱不适合靠一时热度硬冲，更适合把{useful_text}落成定价、合同、复盘、账期和客户筛选。金水到位时，钱往往来自专业判断、信息差、规则能力和长期客户。",
@@ -852,11 +936,17 @@ def income_probabilities(strength: int, useful: list[str], data: dict, ec, profi
         million -= overflow
     elif overflow < 0:
         million += abs(overflow)
-    tone = wealth_tone(strength, useful, ec, profile)
+    million = int(round(million))
+    five_million = int(round(five_million))
+    ten_million = max(0, 100 - million - five_million)
+
+    def pct(value: int) -> str:
+        return f"{value}%"
+    tone = wealth_tone(strength, useful, ec, profile, context)
     return [
-        ["百万级", f"{million}%", "RMB 100万-500万/年", f"{tone['million']} 置信度约68%。"],
-        ["500万级", f"{five_million}%", "RMB 500万-1000万/年", f"{tone['five']} 置信度约58%。"],
-        ["千万级", f"{ten_million}%", "RMB 1000万以上/年", f"{tone['ten']} 置信度约45%。"],
+        ["百万级", pct(million), "RMB 100万-500万/年", f"{tone['million']} 置信度约68%。"],
+        ["500万级", pct(five_million), "RMB 500万-1000万/年", f"{tone['five']} 置信度约58%。"],
+        ["千万级", pct(ten_million), "RMB 1000万以上/年", f"{tone['ten']} 置信度约45%。"],
     ]
 
 
@@ -957,8 +1047,80 @@ def relation_labels_with(branches: list[str], flow_branch: str) -> list[str]:
     return unique(labels)
 
 
+def risk_flags_for_context(context: dict) -> list[dict[str, str]]:
+    flags = []
+    scores = context["group_scores"]
+    relation_text = context["relation_text"]
+    stems = context["stems"]
+    day_element = context["day_element"]
+    useful_text = "、".join(context["useful"]) or "资源"
+    officer_heavy = scores.get("officer", 0) >= 1.8
+    wealth_visible = scores.get("wealth", 0) >= 1.2
+    peer_visible = scores.get("peer", 0) >= 1.2
+    output_visible = scores.get("output", 0) >= 1.0
+
+    if context["strength"] <= 45 and officer_heavy:
+        flags.append({
+            "key": "weak_officer",
+            "title": "身弱官杀旺",
+            "severity": "high",
+            "text": f"日主偏弱而官杀压力重，优先取{useful_text}补根与通关；财星、官杀、火土类动作不能只因缺失就加码。",
+        })
+    if peer_visible and wealth_visible:
+        flags.append({
+            "key": "peer_wealth",
+            "title": "比劫夺财/合伙分利",
+            "severity": "high",
+            "text": "比劫与财星同场，赚钱机会容易和朋友、合伙、分账、客户归属、股权退出绑定；合同和主权边界必须前置。",
+        })
+    for i, stem_a in enumerate(stems):
+        for stem_b in stems[i + 1:]:
+            combo = GAN_HE.get(stem_a + stem_b) or GAN_HE.get(stem_b + stem_a)
+            if not combo:
+                continue
+            group_a = group_for_ten_god(ten_god_for(context["day_stem"], stem_a))
+            group_b = group_for_ten_god(ten_god_for(context["day_stem"], stem_b))
+            if {group_a, group_b} == {"peer", "wealth"}:
+                flags.append({
+                    "key": "peer_wealth_combo",
+                    "title": f"{combo}引动分利",
+                    "severity": "high",
+                    "text": f"天干见{combo}且落在比劫/财星关系上，钱越做大，越要防后端分钱、股权、所有权和客户归属争议。",
+                })
+    if output_visible and officer_heavy:
+        flags.append({
+            "key": "output_officer",
+            "title": "食伤制杀/伤官见官双面结构",
+            "severity": "medium",
+            "text": "食伤能破局、做表达和产品化，但碰到官杀也会带来规则、合同、平台、法务和公开沟通压力。",
+        })
+    if any(word in relation_text for word in ["刑", "破", "冲", "害"]) and officer_heavy:
+        flags.append({
+            "key": "legal_collision",
+            "title": "刑冲官杀合规风险",
+            "severity": "high",
+            "text": f"原局有{relation_text or '合冲刑害'}且官杀较重，事业推进必须把合同、交付、宣传、税务和平台规则先写清。",
+        })
+    if context["strength"] >= 70 and peer_visible:
+        flags.append({
+            "key": "strong_peer",
+            "title": "身强比劫过旺",
+            "severity": "medium",
+            "text": "主观能量和竞争心较强，越到机会放大时越要防冲动扩张、过度承诺和合伙边界混乱。",
+        })
+    if not flags:
+        flags.append({
+            "key": "standard",
+            "title": "标准风险",
+            "severity": "normal",
+            "text": f"当前未触发重型报警，仍需按月令{context['month_structure']}、大运流年和喜用{useful_text}做节奏管理。",
+        })
+    return flags
+
+
 def analysis_context(data: dict, computed: dict, strength: int, useful: list[str]) -> dict:
     ec = computed["ec"]
+    diagnostic = day_master_diagnostics(ec, computed.get("profile", {}))
     day_stem = ec.getDayGan()
     day_branch = ec.getDayZhi()
     pillars = computed.get("chart", {}).get("pillars", [])
@@ -990,7 +1152,7 @@ def analysis_context(data: dict, computed: dict, strength: int, useful: list[str
     spouse_visible = [tg for tg in visible_ten_gods if tg in spouse_stars]
     spouse_hidden = [tg for tg in hidden_ten_gods if tg in spouse_stars]
     relation_text = "；".join(computed.get("chart", {}).get("relations") or [])
-    return {
+    context = {
         "data": data,
         "ec": ec,
         "day_stem": day_stem,
@@ -1003,6 +1165,8 @@ def analysis_context(data: dict, computed: dict, strength: int, useful: list[str
         "stems": stems,
         "strength": strength,
         "useful": useful,
+        "diagnostic": diagnostic,
+        "useful_groups": diagnostic["useful_groups"],
         "profile": computed.get("profile", {}),
         "group_scores": group_scores,
         "ten_god_counts": ten_god_counts,
@@ -1012,6 +1176,9 @@ def analysis_context(data: dict, computed: dict, strength: int, useful: list[str
         "spouse_hidden": spouse_hidden,
         "relation_text": relation_text,
     }
+    context["risk_flags"] = risk_flags_for_context(context)
+    context["review_required"] = any(flag["severity"] == "high" for flag in context["risk_flags"])
+    return context
 
 
 def interaction_note(labels: list[str], context: dict) -> tuple[str, bool, bool]:
@@ -1038,6 +1205,9 @@ def analyze_luck_pillar(context: dict, ganzhi: str, scope: str) -> dict:
     branch_group = group_for_ten_god(branch_main)
     element_hits = [STEM_ELEMENT.get(stem, ""), BRANCH_ELEMENT.get(branch, "")]
     useful_hit = any(element in context["useful"] for element in element_hits)
+    weak_officer_alert = any(flag["key"] == "weak_officer" for flag in context.get("risk_flags", []))
+    peer_wealth_alert = any(flag["key"] in {"peer_wealth", "peer_wealth_combo"} for flag in context.get("risk_flags", []))
+    output_officer_alert = any(flag["key"] == "output_officer" for flag in context.get("risk_flags", []))
     labels = relation_labels_with(context["branches"], branch)
     relation_note, day_hit, month_hit = interaction_note(labels, context)
     career = 5
@@ -1048,6 +1218,7 @@ def analyze_luck_pillar(context: dict, ganzhi: str, scope: str) -> dict:
     family = 4
     compliance = 5
     reasons = []
+    priority_reasons = []
 
     for group in [stem_group, branch_group] + hidden_groups[:2]:
         if group == "output":
@@ -1081,11 +1252,25 @@ def analyze_luck_pillar(context: dict, ganzhi: str, scope: str) -> dict:
         reasons.append("流年/月带到本盘可用之气，机会更容易落地")
     else:
         stress += 1
-    if context["strength"] < 46 and stem_group in {"wealth", "officer"}:
+    if context["strength"] < 46 and (stem_group in {"wealth", "officer"} or branch_group in {"wealth", "officer"}):
         stress += 2
         loss += 1
         wealth -= 1
-        reasons.append("身弱遇财官，机会背后成本和压力同步上升")
+        priority_reasons.append("身弱遇财官，机会背后成本、合规和承压同步上升")
+    if weak_officer_alert and (stem_group in {"resource", "peer"} or branch_group in {"resource", "peer"}):
+        career += 1
+        stress -= 1
+        reasons.append("印比到位，能补根、补专业和缓冲官杀压力")
+    if weak_officer_alert and (stem_group in {"wealth", "officer"} or branch_group in {"wealth", "officer"}):
+        compliance += 2
+        loss += 1
+        priority_reasons.append("身弱官杀旺盘忌硬接财官，合同、平台规则和责任边界要先审")
+    if weak_officer_alert and (stem_group == "output" or branch_group == "output") and output_officer_alert:
+        career += 2
+        wealth += 1
+        stress += 1
+        compliance += 1
+        priority_reasons.append("食伤可制杀破局，利线上表达和产品化，但不能越过规则")
     if context["strength"] > 68 and stem_group == "peer":
         loss += 2
         reasons.append("身强再逢比劫，最怕合伙分利和冲动扩张")
@@ -1110,9 +1295,13 @@ def analyze_luck_pillar(context: dict, ganzhi: str, scope: str) -> dict:
         relationship += 1
     if stem_tg in {"正财", "偏财"} and context["group_scores"].get("peer", 0) > 1.5:
         loss += 1
-        reasons.append("财星出现但原局比劫也有力，合作分账和客户归属要写清")
+        priority_reasons.append("财星出现但原局比劫也有力，合作分账和客户归属要写清")
+    if peer_wealth_alert and (stem_group in {"peer", "wealth"} or branch_group in {"peer", "wealth"}):
+        loss += 2
+        compliance += 1
+        priority_reasons.append("比劫夺财被流年/月引动，朋友合伙、分账退出和客户归属必须死锁")
 
-    note_parts = unique(reasons)[:3]
+    note_parts = unique(priority_reasons + reasons)[:4]
     if not note_parts:
         note_parts = [f"{stem_tg}/{branch_main}被引动，先看其与月令、日支和大运是否形成承接"]
     note = f"{ganzhi}：{relation_note}{' '.join(note_parts)}。"
@@ -1275,18 +1464,31 @@ def career_rows(data: dict, model: dict) -> list[list[str]]:
     if scores.get("wealth", 0) >= 2:
         risk.append("账期和现金流")
     risk_text = "、".join(risk) or "节奏失控"
+    flags = [flag for flag in context.get("risk_flags", []) if flag["key"] != "standard"]
+    review = "；".join(flag["title"] for flag in flags[:3]) or "未触发重型报警"
+    review_action = "此盘建议进入 Atelier Review 人工复核队列，先核喜用神、合伙结构和法务/财务红线。" if context.get("review_required") else "自动版可交付，但关键合作和资金动作仍建议人工复核。"
     return [
         ["事业主轴", f"月令主气取{structure}，全盘较强的事业驱动力落在{GROUP_LABEL.get(top_group, '主轴')}。", f"按子平先看月令、再看十神成败；本盘适合围绕{group_path}建立职业路径。"],
         ["适合行业", group_path, f"依据不是单看喜用神，而是月令{structure}、十神分布、日主{model['day_strength_label']}与喜用{useful_text}共同判断。"],
         ["当前基线", f"{industry} / {role}", f"当前方向{fit}；如果行业不能积累客户、流程、合同、数据或作品，就要主动改造成可复用资产。"],
         ["发展模式", "先定结构，再放大机会。", "先做报价、合同、SOP、复盘、客户筛选和交付边界；再考虑规模、团队或投放。"],
         ["风险节点", risk_text, "这些风险来自本命十神与地支关系，不是泛泛提醒；遇到对应流年流月时，要先降杠杆、缩周期、留书面记录。"],
+        ["复核等级", review, review_action],
     ]
 
 
 def crisis_rows(context: dict) -> list[list[str]]:
     scores = context["group_scores"]
     rows = []
+    for flag in context.get("risk_flags", []):
+        if flag["key"] == "weak_officer":
+            rows.append([flag["title"], flag["text"], "先补专业/信息/资质/支持系统，再谈财务放大；重大合同、平台规则和法律责任必须人工复核。"])
+        elif flag["key"] in {"peer_wealth", "peer_wealth_combo"}:
+            rows.append([flag["title"], flag["text"], "从第一天写清股权、收款账户、客户归属、IP/代码/数据所有权、退出条款和违约责任。"])
+        elif flag["key"] == "output_officer":
+            rows.append([flag["title"], flag["text"], "可做线上表达和产品化破局，但发布、营销、合同承诺、交付边界要先过复核。"])
+        elif flag["key"] == "legal_collision":
+            rows.append([flag["title"], flag["text"], "所有合作先走书面流程，避免口头承诺、模糊分成、代持和没有退出条款的项目。"])
     if scores.get("peer", 0) >= 2.0 and scores.get("wealth", 0) >= 1.0:
         rows.append(["分利与现金流危机", "比劫与财星同时有力，机会容易和合伙、分账、客户归属绑在一起。", "报价、客户归属、账期、股权/分成、退出条件必须先写清。"])
     if scores.get("officer", 0) >= 2.0 and context["strength"] < 55:
@@ -1457,7 +1659,7 @@ def report_model(data: dict, computed: dict) -> dict:
         "shensha_balance": {label: shensha_balance_text(label, rows) for label, rows in shensha.items()},
         "cross_shensha_balance": cross_shensha_balance(shensha),
         "branch_relation_rows": branch_relation_rows(computed),
-        "wealth_tone": wealth_tone(strength, useful, ec, profile),
+        "wealth_tone": wealth_tone(strength, useful, ec, profile, context),
         "income_rows": income_probabilities(strength, useful, data, ec, profile, context),
         "income_stage_rows": income_stage_rows(useful, strength, annual),
         "annual_rows": annual,
@@ -1678,11 +1880,15 @@ def plain_summary_paragraphs(data: dict, model: dict) -> list[str]:
     risk_text = "、".join(f"{row[0]}{row[1]}" for row in risk_years[:3]) or "2026-2027"
     money_text = "、".join(f"{row[0]}{row[1]}" for row in money_years[:5]) or "2028-2033"
     career_fit = "匹配度偏高" if any(word in (industry + role) for word in ["咨询", "品牌", "运营", "产品", "金融", "数据", "法务", "技术", "教育", "供应链", "研究"]) else "可以做，但需要主动往可沉淀、可复盘、可定价的部分靠拢"
+    flags = [flag for flag in model["analysis_context"].get("risk_flags", []) if flag["key"] != "standard"]
+    flag_text = "；".join(flag["text"] for flag in flags[:2])
+    if flag_text:
+        flag_text = f" 这张盘还触发了关键风控：{flag_text}"
     return [
-        f"{name}这张盘的主题，不是被命盘推着走，而是要学会读懂自己的节奏，再决定怎么行动、怎么取舍、怎么顺势。日主判断为{model['day_strength_label']} {model['day_strength']}%，喜用落在{useful}，所以人生里真正能托住你的，不是一次情绪很满的爆发，而是稳定的规则、稳定的专业、稳定的现金流，以及在关键时刻能让自己慢半拍的判断力。",
+        f"{name}这张盘的主题，不是被命盘推着走，而是要学会读懂自己的节奏，再决定怎么行动、怎么取舍、怎么顺势。日主判断为{model['day_strength_label']} {model['day_strength']}%，喜用落在{useful}。这里的喜用不是看五行缺什么就补什么，而是按月令、根气、透干、藏干、十神压力和大运触发共同判断。{flag_text} 所以人生里真正能托住你的，不是一次情绪很满的爆发，而是稳定的规则、稳定的专业、稳定的现金流，以及在关键时刻能让自己慢半拍的判断力。",
         f"性格上，十神里比较值得看的信号包括{ten_gods}，神煞里可参考{shensha}。这类组合通常不是“轻松躺赢”的类型，而是对环境、承诺、关系和资源质量很敏感：别人一句话可能会让你想很多，一个机会也容易让你同时看到希望和风险。好处是你不适合粗糙地活，只要方法论建立起来，就能把敏感变成洞察，把压力变成执行力；难处是不要总把所有责任先扛到自己身上，尤其在合作、感情和金钱问题上，要先看边界，再谈投入。",
         f"事业上，你现在填写的是“{industry} / {role}”，从命盘看当前方向{career_fit}。适合你的行业不是单纯热闹的赛道，而是能把经验沉淀为专业、流程、产品、咨询、运营、内容、数据、金融/法务/技术、供应链、教育训练或品牌方法论的路径。想增加机会，重点不是盲目扩大，而是把报价、合同、交付、复盘、客户筛选和现金流规则做出来；想规避风险，就要避开无账期、无退出、无责任人的合作，也不要为了证明自己能扛而接下过大的承诺。",
-        f"财运上，{model['wealth_tone']['base']} 未来十年里，比较适合努力搞钱的窗口集中在{money_text}，这些年份更适合谈客户、提价、收账、做产品化、做长期合作；风险较高的年份要重点看{risk_text}，尤其是火旺、关系承诺多、现金流压力大的阶段，容易先答应、后核算，或者因为情面、面子、兴奋感而扩大成本。你不是不能冲，而是每一次冲之前都要有预算、合同、复盘和止损线。",
+        f"财运上，{model['wealth_tone']['base']} 未来十年里，比较适合努力搞钱的窗口集中在{money_text}，这些年份更适合谈客户、提价、收账、做产品化、做长期合作；风险较高的年份要重点看{risk_text}，尤其是合冲刑害、财官压力、比劫分利或现金流压力被引动的阶段，容易先答应、后核算，或者因为情面、面子、兴奋感而扩大成本。你不是不能冲，而是每一次冲之前都要有预算、合同、复盘和止损线。",
         f"感情上，适合恋爱或关系推进的窗口可优先看{relation_windows}；最可能遇到或明显推进的阶段，目前自动模型给到的是{meet_window}。这不是说其他时间没有缘分，而是这些窗口更容易出现能谈现实、谈规则、谈未来安排的人。比较适合你的关系，不是强刺激、强拉扯、强消耗，而是对方能尊重你的节奏，也愿意一起把钱、时间、城市、家庭责任讲清楚。若要看结婚，建议优先观察 2028-2033 之间能否出现稳定对象与现实条件同步成熟；如果关系长期只给情绪不给行动，就不要用等待消耗自己的运势。",
     ]
 
