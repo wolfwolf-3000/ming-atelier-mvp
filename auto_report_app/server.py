@@ -1846,8 +1846,22 @@ def event_calibration_rows(events: str, model: dict) -> list[list[str]]:
     return rows
 
 
+def llm_provider() -> str:
+    provider = os.environ.get("MING_ATELIER_LLM_PROVIDER", "").strip().lower()
+    if provider:
+        return provider
+    if os.environ.get("GEMINI_API_KEY") or os.environ.get("GOOGLE_API_KEY"):
+        return "gemini"
+    return "openai"
+
+
 def llm_report_enabled() -> bool:
-    return os.environ.get("MING_ATELIER_LLM", "1").lower() not in {"0", "false", "off"} and bool(os.environ.get("OPENAI_API_KEY"))
+    if os.environ.get("MING_ATELIER_LLM", "1").lower() in {"0", "false", "off"}:
+        return False
+    provider = llm_provider()
+    if provider in {"gemini", "google"}:
+        return bool(os.environ.get("GEMINI_API_KEY") or os.environ.get("GOOGLE_API_KEY"))
+    return bool(os.environ.get("OPENAI_API_KEY"))
 
 
 def compact_rows(rows: list[list[str]], limit: int | None = None) -> list[list[str]]:
@@ -1943,6 +1957,26 @@ def llm_report_prompt(packet: dict) -> list[dict[str, str]]:
     return [{"role": "system", "content": system}, {"role": "user", "content": user}]
 
 
+def parse_llm_json_text(content: str) -> dict | None:
+    if not content:
+        return None
+    text = content.strip()
+    if text.startswith("```"):
+        text = re.sub(r"^```(?:json)?\s*", "", text)
+        text = re.sub(r"\s*```$", "", text)
+    try:
+        return json.loads(text)
+    except json.JSONDecodeError:
+        start = text.find("{")
+        end = text.rfind("}")
+        if start >= 0 and end > start:
+            try:
+                return json.loads(text[start : end + 1])
+            except json.JSONDecodeError:
+                return None
+    return None
+
+
 def call_openai_json(messages: list[dict[str, str]]) -> dict | None:
     api_key = os.environ.get("OPENAI_API_KEY")
     if not api_key:
@@ -1964,9 +1998,50 @@ def call_openai_json(messages: list[dict[str, str]]) -> dict | None:
         with urlrequest.urlopen(req, timeout=int(os.environ.get("MING_ATELIER_LLM_TIMEOUT", "45"))) as resp:
             result = json.loads(resp.read().decode("utf-8"))
         content = result["choices"][0]["message"]["content"]
-        return json.loads(content)
+        return parse_llm_json_text(content)
     except (KeyError, json.JSONDecodeError, TimeoutError, urlerror.URLError, urlerror.HTTPError):
         return None
+
+
+def call_gemini_json(messages: list[dict[str, str]]) -> dict | None:
+    api_key = os.environ.get("GEMINI_API_KEY") or os.environ.get("GOOGLE_API_KEY")
+    if not api_key:
+        return None
+    model = os.environ.get("GEMINI_MODEL", "gemini-3.5-flash").replace("models/", "")
+    system_text = "\n".join(item["content"] for item in messages if item.get("role") == "system")
+    user_text = "\n\n".join(item["content"] for item in messages if item.get("role") != "system")
+    payload = {
+        "systemInstruction": {"parts": [{"text": system_text}]},
+        "contents": [{"role": "user", "parts": [{"text": user_text}]}],
+        "generationConfig": {
+            "temperature": float(os.environ.get("MING_ATELIER_LLM_TEMPERATURE", "0.45")),
+            "responseMimeType": "application/json",
+        },
+    }
+    req = urlrequest.Request(
+        os.environ.get(
+            "GEMINI_GENERATE_CONTENT_URL",
+            f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent?key={api_key}",
+        ),
+        data=json.dumps(payload, ensure_ascii=False).encode("utf-8"),
+        headers={"Content-Type": "application/json"},
+        method="POST",
+    )
+    try:
+        with urlrequest.urlopen(req, timeout=int(os.environ.get("MING_ATELIER_LLM_TIMEOUT", "60"))) as resp:
+            result = json.loads(resp.read().decode("utf-8"))
+        parts = result["candidates"][0]["content"]["parts"]
+        content = "\n".join(part.get("text", "") for part in parts)
+        return parse_llm_json_text(content)
+    except (KeyError, json.JSONDecodeError, TimeoutError, urlerror.URLError, urlerror.HTTPError):
+        return None
+
+
+def call_llm_json(messages: list[dict[str, str]]) -> dict | None:
+    provider = llm_provider()
+    if provider in {"gemini", "google"}:
+        return call_gemini_json(messages)
+    return call_openai_json(messages)
 
 
 def valid_text(value, min_len: int = 2) -> bool:
@@ -2047,7 +2122,7 @@ def enrich_model_with_llm(data: dict, computed: dict, model: dict) -> None:
     if not llm_report_enabled():
         return
     packet = llm_fact_packet(data, computed, model)
-    llm = call_openai_json(llm_report_prompt(packet))
+    llm = call_llm_json(llm_report_prompt(packet))
     if apply_llm_sections(model, llm):
         model["llm_status"] = "applied"
     else:
