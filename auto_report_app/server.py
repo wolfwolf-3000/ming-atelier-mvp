@@ -1560,6 +1560,13 @@ def flow_pillar(day_stem: str, day_branch: str, ganzhi: str, label: str) -> dict
     }
 
 
+def compact_flow_note(note: str) -> str:
+    if not note:
+        return ""
+    first = note.split("。", 1)[0].strip()
+    return f"{first}。" if first else note
+
+
 def flow_chart_model(computed: dict, gender: str, useful: list[str], context: dict | None = None) -> dict:
     ec = computed["ec"]
     now = datetime.now()
@@ -1596,8 +1603,8 @@ def flow_chart_model(computed: dict, gender: str, useful: list[str], context: di
         dayun_strip.append([f"{dy.getStartAge()}-{dy.getEndAge()}岁", str(dy.getStartYear()), ganzhi, status])
     annual_strip = []
     for row in annual_rows(selected.getGanZhi() if selected else "", useful, context):
-        annual_strip.append([row[0], row[1], row[3], row[4], row[5], row[6], row[10]])
-    month_strip = [[row[0], row[1], row[2], row[3], row[4], row[6], row[7]] for row in monthly_rows(context)]
+        annual_strip.append([row[0], row[1], row[3], row[4], row[5], row[6], compact_flow_note(row[10])])
+    month_strip = [[row[0], row[1], row[2], row[3], row[4], row[6], compact_flow_note(row[7])] for row in monthly_rows(context)]
     return {
         "reference": now.strftime("%Y-%m-%d %H:%M"),
         "selected_dayun": selected.getGanZhi() if selected else "未识别",
@@ -1633,7 +1640,7 @@ def income_stage_rows(useful: list[str], strength: int, annual: list[list[str]] 
             judgment = "筛选与防守期"
             condition = "不宜重资产押注，先守现金流、合同、库存和关键客户。"
         if avg_risk >= 18:
-            risk = f"高风险点在 {risky[0]}{risky[1]}：{risky[10]}"
+            risk = f"高风险点在 {risky[0]}{risky[1]}：{compact_flow_note(risky[10])}"
         else:
             risk = f"风险可控，但 {risky[0]}{risky[1]} 仍需按预算和退出条件推进。"
         if strength < 48:
@@ -1689,8 +1696,10 @@ def crisis_rows(context: dict) -> list[list[str]]:
     for flag in context.get("risk_flags", []):
         if flag["key"] == "weak_officer":
             rows.append([flag["title"], flag["text"], "先补专业/信息/资质/支持系统，再谈财务放大；重大合同、平台规则和法律责任必须人工复核。"])
-        elif flag["key"] in {"peer_wealth", "peer_wealth_combo"}:
+        elif flag["key"] == "peer_wealth":
             rows.append([flag["title"], flag["text"], "从第一天写清股权、收款账户、客户归属、IP/代码/数据所有权、退出条款和违约责任。"])
+        elif flag["key"] == "peer_wealth_combo":
+            rows.append([flag["title"], flag["text"], "项目做大前先定所有权、分账口径、客户池归属和退出估值方式。"])
         elif flag["key"] == "output_officer":
             rows.append([flag["title"], flag["text"], "可做线上表达和产品化破局，但发布、营销、合同承诺、交付边界要先过复核。"])
         elif flag["key"] == "legal_collision":
@@ -2089,14 +2098,14 @@ def plain_summary_paragraphs(data: dict, model: dict) -> list[str]:
     money_text = "、".join(f"{row[0]}{row[1]}" for row in money_years[:5]) or "2028-2033"
     career_fit = "匹配度偏高" if any(word in (industry + role) for word in ["咨询", "品牌", "运营", "产品", "金融", "数据", "法务", "技术", "教育", "供应链", "研究"]) else "可以做，但需要主动往可沉淀、可复盘、可定价的部分靠拢"
     flags = [flag for flag in model["analysis_context"].get("risk_flags", []) if flag["key"] != "standard"]
-    flag_text = "；".join(flag["text"] for flag in flags[:2])
+    flag_text = "、".join(flag["title"] for flag in flags[:3])
     if flag_text:
-        flag_text = f" 这张盘还触发了关键风控：{flag_text}"
+        flag_text = f" 这张盘还触发了关键风控：{flag_text}。具体动作已经放在“核心危机”板块，这里不重复堆术语。"
     return [
         f"{name}这张盘的主题，不是被命盘推着走，而是要学会读懂自己的节奏，再决定怎么行动、怎么取舍、怎么顺势。日主判断为{model['day_strength_label']} {model['day_strength']}%，喜用落在{useful}。这里的喜用不是看五行缺什么就补什么，而是按月令、根气、透干、藏干、十神压力和大运触发共同判断。{flag_text} 所以人生里真正能托住你的，不是一次情绪很满的爆发，而是稳定的规则、稳定的专业、稳定的现金流，以及在关键时刻能让自己慢半拍的判断力。",
         f"性格上，十神里比较值得看的信号包括{ten_gods}，神煞里可参考{shensha}。这类组合通常不是“轻松躺赢”的类型，而是对环境、承诺、关系和资源质量很敏感：别人一句话可能会让你想很多，一个机会也容易让你同时看到希望和风险。好处是你不适合粗糙地活，只要方法论建立起来，就能把敏感变成洞察，把压力变成执行力；难处是不要总把所有责任先扛到自己身上，尤其在合作、感情和金钱问题上，要先看边界，再谈投入。",
         f"事业上，你现在填写的是“{industry} / {role}”，从命盘看当前方向{career_fit}。适合你的行业不是单纯热闹的赛道，而是能把经验沉淀为专业、流程、产品、咨询、运营、内容、数据、金融/法务/技术、供应链、教育训练或品牌方法论的路径。想增加机会，重点不是盲目扩大，而是把报价、合同、交付、复盘、客户筛选和现金流规则做出来；想规避风险，就要避开无账期、无退出、无责任人的合作，也不要为了证明自己能扛而接下过大的承诺。",
-        f"财运上，{model['wealth_tone']['base']} 未来十年里，比较适合努力搞钱的窗口集中在{money_text}，这些年份更适合谈客户、提价、收账、做产品化、做长期合作；风险较高的年份要重点看{risk_text}，尤其是合冲刑害、财官压力、比劫分利或现金流压力被引动的阶段，容易先答应、后核算，或者因为情面、面子、兴奋感而扩大成本。你不是不能冲，而是每一次冲之前都要有预算、合同、复盘和止损线。",
+        f"财运上，这张盘不是靠刺激和硬冲取财，而是靠专业可信度、规则意识和现金流纪律把机会接住。未来十年里，比较适合努力搞钱的窗口集中在{money_text}，这些年份更适合谈客户、提价、收账、做产品化、做长期合作；风险较高的年份要重点看{risk_text}，尤其是合冲刑害、财官压力、比劫分利或现金流压力被引动的阶段，容易先答应、后核算，或者因为情面、面子、兴奋感而扩大成本。你不是不能冲，而是每一次冲之前都要有预算、合同、复盘和止损线。",
         f"感情上，适合恋爱或关系推进的窗口可优先看{relation_windows}；最可能遇到或明显推进的阶段，目前自动模型给到的是{meet_window}。这不是说其他时间没有缘分，而是这些窗口更容易出现能谈现实、谈规则、谈未来安排的人。比较适合你的关系，不是强刺激、强拉扯、强消耗，而是对方能尊重你的节奏，也愿意一起把钱、时间、城市、家庭责任讲清楚。若要看结婚，建议优先观察 2028-2033 之间能否出现稳定对象与现实条件同步成熟；如果关系长期只给情绪不给行动，就不要用等待消耗自己的运势。",
     ]
 
@@ -2216,7 +2225,7 @@ def deep_report_html(data: dict, computed: dict, chart_png: Path, output: Path) 
         ["身强估计", f"{model['day_strength_label']} {model['day_strength']}%", model["strength_reason"]],
         ["核心喜用", useful_text, model["useful_text"]],
         ["当前大运", model["selected_dayun"], "以 2026 所在大运为基准，所有流年判断均需与大运叠加。"],
-        ["风险最高年", f"{risk_year[0]} {risk_year[1]}", risk_year[10]],
+        ["风险最高年", f"{risk_year[0]} {risk_year[1]}", compact_flow_note(risk_year[10])],
     ]
     kpi_html = "".join(f"<div class='kpi'><span>{html.escape(k[0])}</span><b>{html.escape(k[1])}</b><p>{html.escape(k[2])}</p></div>" for k in kpis)
     monthly_html = "".join(
