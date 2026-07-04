@@ -1820,7 +1820,6 @@ def relationship_profile(data: dict, useful: list[str], context: dict | None = N
             ["未来关系波动", relation_level, f"伴侣星线索：{star_text}；夫妻宫为{context['day_branch']}，流年若合冲日支会明显触发关系。"],
             ["适合恋爱窗口", window, "按流年与日支、伴侣星、压力分数综合筛选，不是固定年份。"],
             ["最可能遇到时间", meet, "这是自动模型窗口；若客户提供恋爱/分手/结婚节点，可进一步校准。"],
-            ["身高/体型", "无法提供判断", "自动版不硬编外貌；这类细节需人工结合全盘与事件复核。"],
             ["外貌气质", trait, f"由日支五行、伴侣星和喜用{''.join(useful)}综合取象，置信度中低。"],
             ["从事行业/角色", trait, "这是象意推断，不是硬性条件。"],
             ["不适配对象", "承诺模糊、财务边界混乱、强情绪控制或长期不给行动的人", risk_note],
@@ -1830,7 +1829,6 @@ def relationship_profile(data: dict, useful: list[str], context: dict | None = N
         ["未来关系波动", "中等偏高", "事业节奏、现金流和现实承诺会直接影响关系稳定，置信度约62%。"],
         ["适合恋爱窗口", "2026-12 至 2027-01、2028-2029、2031-2033", "优先选金水较足、规则感更强的月份/年份。"],
         ["最可能遇到时间", "需结合大运流年细推；当前模型以 2028-2033 为较优窗口", "若问卷事件不足，年份细节置信度降低。"],
-        ["身高/体型", "无法提供判断", "自动版不硬编外貌；需人工结合财官、日支与流年复核。"],
         ["外貌气质", "偏清爽、有边界、稳定或专业感更适配", f"与喜用{''.join(useful)}的气质相近，低到中置信度。"],
         ["从事行业/角色", "金融、数据、法务、运营、咨询、技术、供应链等规则型角色更适配", "这是象意推断，不是硬性条件。"],
         ["不适配对象", "高情绪、高消费、高控制、无边界或承诺模糊的人", "会放大财务、时间和情绪消耗。"],
@@ -1932,9 +1930,9 @@ def llm_fact_packet(data: dict, computed: dict, model: dict) -> dict:
             "wealthIntro": model.get("wealth_tone", {}).get("base", ""),
             "incomeRows": model.get("income_rows", []),
             "incomeStageRows": model.get("income_stage_rows", []),
-            "annualRows": model.get("annual_rows", []),
-            "relationshipRows": model.get("relationship_rows", []),
-            "monthlyRows": model.get("monthly_rows", []),
+            "annualRows": [row[:10] for row in model.get("annual_rows", [])],
+            "relationshipRows": [row for row in model.get("relationship_rows", []) if row[0] != "身高/体型"],
+            "monthlyRows": [row[:7] for row in model.get("monthly_rows", [])],
             "crisisRows": model.get("crisis_rows", []),
             "summaryParagraphs": plain_summary_paragraphs(data, model),
         },
@@ -1954,7 +1952,6 @@ def llm_report_prompt(packet: dict) -> list[dict[str, str]]:
             ["未来关系波动", "Gemini 对亲密关系整体走势的判断", "必须引用伴侣星、日支/夫妻宫、合冲刑害、大运或流年触发"],
             ["适合恋爱窗口", "年份或阶段", "说明为什么这些年份或阶段更适合建立关系"],
             ["最可能遇到时间", "年份或阶段", "不能写固定模板；依据流年、大运、日支触发写"],
-            ["身高/体型", "无法提供判断或低分辨率象意", "不能硬编；能判断才写，不能就写无法提供判断"],
             ["外貌气质", "气质取象", "只能写外貌/气质，不要和行业角色重复"],
             ["从事行业/角色", "行业或角色取象", "必须写职业/行业/角色，不得复用外貌气质原句"],
             ["不适配对象", "不适配类型", "结合盘面风险写关系边界"],
@@ -1973,7 +1970,9 @@ def llm_report_prompt(packet: dict) -> list[dict[str, str]]:
         "必须遵守：四柱、十神、神煞、地支关系、大运、流年和分数以输入 JSON 为准；"
         "不得引用输入里不存在的十神、神煞或年份；不得恐吓、不得保证发财/结婚/灾祸；"
         "你必须完整覆盖事业发展、未来十年财运、感情运势、2026流月、核心危机、大白话总结；"
-        "感情运势必须返回 8 行 relationship_rows，且“外貌气质”和“从事行业/角色”不能使用同一句话；"
+        "未来十年财运必须为 2026-2036 每一年返回 annual_notes，2027 以后不能套用 2026 的句式，必须逐年引用该年的流年、大运和触发差异；"
+        "感情运势必须返回 7 行 relationship_rows，不要返回“身高/体型”，且“外貌气质”和“从事行业/角色”不能使用同一句话；"
+        "喜用神体系也必须由你复核，返回 useful_elements 与 useful_text；可以和引擎一致，也可以修正，但必须说明月令、强弱、十神压力、地支关系和大运依据；"
         "不得用固定话术，不得只按五行百分比或缺啥补啥判断喜用。"
         "语言风格：东方命理、克制、直接、有同理心，像高端私人报告，不像模板。"
         "输出必须是合法 JSON，不要 Markdown，不要解释 JSON 之外的内容。"
@@ -1981,7 +1980,9 @@ def llm_report_prompt(packet: dict) -> list[dict[str, str]]:
     user = (
         "请基于以下结构化命盘，为六个客户可见板块生成个性化文本：事业发展、未来十年财运、感情运势、2026流月、核心危机、大白话总结。"
         "注意：原始盘信息、格局与用神、十神分析、神煞体系、喜用神、适配水晶由本地引擎负责；你只负责上述六个私人订制板块。"
+        "但喜用神体系请由你复核后返回 useful_elements/useful_text，本地引擎会按你的复核结果更新喜用神和水晶。"
         "六个板块请以你的 Gemini Pro 结论为主，避免沿用 computedSections 里的模板话术。"
+        "annual_notes 必须覆盖 2026、2027、2028、2029、2030、2031、2032、2033、2034、2035、2036 共 11 年。"
         "保留页面现有架构和表格维度，返回字段按这个样例："
         f"{json.dumps(schema_note, ensure_ascii=False)}\n\n"
         "结构化命盘如下：\n"
@@ -2364,13 +2365,8 @@ def html_flow_chart(model: dict) -> str:
     return (
         intro
         + html_table(flow["headers"], flow["rows"])
-        + "<div class='grid two'><article class='card'><h3>大运轨道</h3>"
+        + "<article class='card'><h3>大运轨道</h3>"
         + html_table(["年龄段", "起始年", "大运", "状态"], flow["dayun_strip"])
-        + "</article><article class='card'><h3>流年轨道</h3>"
-        + html_table(["年份", "流年", "事业", "财运", "关系", "压力", "触发提示"], flow["annual_strip"])
-        + "</article></div>"
-        + "<article class='card'><h3>2026 流月轨道</h3>"
-        + html_table(["月份", "流月", "节气", "事业", "财运", "风险", "提示"], flow["month_strip"])
         + "</article>"
     )
 
@@ -2383,14 +2379,10 @@ def html_chart_console(model: dict, chart_url: str) -> str:
         "<button class='active' data-chart-tab='natal'>本命排盘</button>"
         "<button data-chart-tab='flow'>流盘叠加</button>"
         "<button data-chart-tab='dayun'>大运</button>"
-        "<button data-chart-tab='annual'>流年</button>"
-        "<button data-chart-tab='monthly'>2026流月</button>"
         "</div>"
         f"<div class='chart-panel active' data-chart-panel='natal'><div class='chart'><img src='{chart_url}' alt='黑金命盘图'></div></div>"
         f"<div class='chart-panel' data-chart-panel='flow'><div class='card liupan-note'><b>流盘参照</b><p>生成时间：{html.escape(flow['reference'])}。当前大运 {html.escape(flow['selected_dayun'])}，流年 {html.escape(flow['flow_year'])}，流月 {html.escape(flow['flow_month'])}。此处把本命盘与当前运势叠在同一排盘控制台里看。</p></div>{html_table(flow['headers'], flow['rows'])}</div>"
         f"<div class='chart-panel' data-chart-panel='dayun'>{html_table(['年龄段', '起始年', '大运', '状态'], flow['dayun_strip'])}</div>"
-        f"<div class='chart-panel' data-chart-panel='annual'>{html_table(['年份', '流年', '事业', '财运', '关系', '压力', '触发提示'], flow['annual_strip'])}</div>"
-        f"<div class='chart-panel' data-chart-panel='monthly'>{html_table(['月份', '流月', '节气', '事业', '财运', '风险', '提示'], flow['month_strip'])}</div>"
         "</div>"
     )
 
