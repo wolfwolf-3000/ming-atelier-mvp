@@ -1793,10 +1793,10 @@ def shensha_balance_text(label: str, rows: list[list[str]]) -> str:
     if support and risk:
         return f"{label}神煞制衡关系：{ '、'.join(support) }能提供制度、学习、贵人或专业缓冲，但{ '、'.join(risk) }提示兑现不稳或冲突压力；必须用规则、合同和复盘承接。"
     if support:
-        return f"{label}神煞制衡关系：{ '、'.join(support) }偏向支持学习、资质、制度和专业表达；它能加分，但仍需大运流年触发。"
+        return f"{label}神煞制衡关系：{ '、'.join(support) }偏向支持学习、资质、制度和专业表达；适合把贵人、文书、规则和专业能力变成现实支点。"
     if risk:
-        return f"{label}神煞制衡关系：{ '、'.join(risk) }提示该柱主题有延迟、冲突或不稳定，不能单独断凶，应回到十神、地支关系和现实行为控制。"
-    return f"{label}神煞制衡关系：未见强神煞制衡，不硬凑，以月令、十神、大运流年为主。"
+        return f"{label}神煞制衡关系：{ '、'.join(risk) }提示该柱主题容易有延迟、冲突或不稳定；需要提前用合同、节奏、复盘和现实边界承接。"
+    return f"{label}神煞制衡关系：该柱神煞力量较轻，重点看月令、十神、大运流年如何把事情推到现实层面。"
 
 
 def cross_shensha_balance(rows_by_group: dict[str, list[list[str]]]) -> str:
@@ -1808,8 +1808,8 @@ def cross_shensha_balance(rows_by_group: dict[str, list[list[str]]]) -> str:
     if helpers:
         return f"跨柱神煞制衡关系：{ '、'.join(unique(helpers)) }重复出现时，说明学习、文书、制度和贵人资源可作为长期支点。"
     if risks:
-        return f"跨柱神煞制衡关系：{ '、'.join(unique(risks)) }偏风险提示，需用地支关系、大运流年和现实风险控制复核，不能单凭神煞定凶。"
-    return "跨柱神煞制衡关系：无明显强制衡关系，神煞仅作辅助修正。"
+        return f"跨柱神煞制衡关系：{ '、'.join(unique(risks)) }偏风险提示，适合用地支关系、大运流年和现实风险控制一起复核。"
+    return "跨柱神煞制衡关系：无明显强制衡关系，重点回到月令、十神、地支关系和现实选择。"
 
 
 def june_2026_detail(context: dict | None = None) -> str:
@@ -1995,15 +1995,6 @@ def llm_report_prompt(packet: dict) -> list[dict[str, str]]:
         "income_notes": {"百万级": "替换收入卡条件文案", "500万级": "替换收入卡条件文案", "千万级": "替换收入卡条件文案"},
         "income_stage_rows": [["阶段", "收入判断", "关键条件", "风险"]],
         "annual_notes": [{"year": "2026", "note": "覆盖该年的年度大白话分析，不改分数"}],
-        "relationship_rows": [
-            ["未来关系波动", "Gemini 对亲密关系整体走势的判断", "必须引用伴侣星、日支/夫妻宫、合冲刑害、大运或流年触发"],
-            ["适合恋爱窗口", "年份或阶段", "说明为什么这些年份或阶段更适合建立关系"],
-            ["最可能遇到时间", "年份或阶段", "不能写固定模板；依据流年、大运、日支触发写"],
-            ["外貌气质", "气质取象", "只能写外貌/气质，不要和行业角色重复"],
-            ["从事行业/角色", "行业或角色取象", "必须写职业/行业/角色，不得复用外貌气质原句"],
-            ["不适配对象", "不适配类型", "结合盘面风险写关系边界"],
-            ["结婚成熟窗口", "年份或阶段", "写关系成熟条件，不保证结婚"],
-        ],
         "monthly_notes": [{"month": "2026-02", "note": "覆盖该月提示，不改分数"}],
         "june_2026_detail": "2026年6月甲午重点提示。",
         "crisis_rows": [["主题", "盘面依据", "现实动作"]],
@@ -2011,24 +2002,23 @@ def llm_report_prompt(packet: dict) -> list[dict[str, str]]:
     }
     system = (
         "你是 Ming Atelier 的八字命理解读层。你只写解释，不重新排盘。"
-        "对事业发展、未来十年财运、感情运势、2026流月、核心危机、大白话总结这六个私人订制板块，"
+        "对事业发展、未来十年财运、2026流月、核心危机、大白话总结这些私人订制板块，"
         "你的独立判断与语言结论占 90%；输入中的本地命理 skill、书籍规则和表格只占 10%，用于事实锚点、术语依据和校验。"
         "不要被 computedSections 的旧文案牵着走；可以重写旧结论，但不能改动命盘事实和分数。"
         "必须遵守：四柱、十神、神煞、地支关系、大运、流年和分数以输入 JSON 为准；"
         "不得引用输入里不存在的十神、神煞或年份；不得恐吓、不得保证发财/结婚/灾祸；"
-        "你必须完整覆盖事业发展、未来十年财运、感情运势、2026流月、核心危机、大白话总结；"
+        "你必须完整覆盖事业发展、未来十年财运、2026流月、核心危机、大白话总结；"
         "未来十年财运必须为 2026-2036 每一年返回 annual_notes，字段 note 必须是一段大白话分析，按照现有报告 2026 年那种语言和逻辑讲清这一年的机会、风险、钱、人、合同、现金流和行动边界；2027 以后不能套用 2026 的句式，必须逐年引用该年的流年、大运和触发差异；"
-        "感情运势必须返回 7 行 relationship_rows，不要返回“身高/体型”，且“外貌气质”和“从事行业/角色”不能使用同一句话；"
         "喜用神体系也必须由你复核，返回 useful_elements 与 useful_text；可以和引擎一致，也可以修正，但必须说明月令、强弱、十神压力、地支关系和大运依据；"
         "不得用固定话术，不得只按五行百分比或缺啥补啥判断喜用。"
         "语言风格：东方命理、克制、直接、有同理心，像高端私人报告，不像模板。"
         "输出必须是合法 JSON，不要 Markdown，不要解释 JSON 之外的内容。"
     )
     user = (
-        "请基于以下结构化命盘，为六个客户可见板块生成个性化文本：事业发展、未来十年财运、感情运势、2026流月、核心危机、大白话总结。"
-        "注意：原始盘信息、格局与用神、十神分析、神煞体系、喜用神、适配水晶由本地引擎负责；你只负责上述六个私人订制板块。"
+        "请基于以下结构化命盘，为客户可见板块生成个性化文本：事业发展、未来十年财运、2026流月、核心危机、大白话总结。"
+        "注意：原始盘信息、格局与用神、十神分析、神煞体系、喜用神、适配水晶由本地引擎负责；你只负责上述私人订制板块。"
         "但喜用神体系请由你复核后返回 useful_elements/useful_text，本地引擎会按你的复核结果更新喜用神和水晶。"
-        "六个板块请以你的 Gemini Pro 结论为主，避免沿用 computedSections 里的模板话术。"
+        "这些板块请以你的 Gemini Pro 结论为主，避免沿用 computedSections 里的模板话术。"
         "annual_notes 必须覆盖 2026、2027、2028、2029、2030、2031、2032、2033、2034、2035、2036 共 11 年。"
         "保留页面现有架构和表格维度，返回字段按这个样例："
         f"{json.dumps(schema_note, ensure_ascii=False)}\n\n"
@@ -2055,6 +2045,35 @@ def llm_detail_prompt(packet: dict) -> list[dict[str, str]]:
         f"{json.dumps(schema_note, ensure_ascii=False)}\n\n"
         "ten_god_judgments 的 index 从 1 开始，对应 tenGods.rows 的顺序，尽量覆盖全部十神行。"
         "shensha_notes 请覆盖输入 shensha 中的主要神煞，pillar 必须使用 年柱/月柱/日柱/时柱，star 必须使用输入里出现的神煞名。\n\n"
+        "结构化命盘如下：\n"
+        f"{json.dumps(packet, ensure_ascii=False)}"
+    )
+    return [{"role": "system", "content": system}, {"role": "user", "content": user}]
+
+
+def llm_relationship_prompt(packet: dict) -> list[dict[str, str]]:
+    schema_note = {
+        "relationship_rows": [
+            ["未来关系波动", "对亲密关系整体走势的判断", "引用伴侣星、夫妻宫、合冲刑害、大运或流年触发"],
+            ["适合恋爱窗口", "年份或阶段", "说明为什么这些年份或阶段更适合建立关系"],
+            ["最可能遇到时间", "年份或阶段", "依据流年、大运、日支或伴侣星触发写"],
+            ["外貌气质", "气质取象", "只写外貌/气质，不写行业角色"],
+            ["从事行业/角色", "行业或角色取象", "必须写职业、行业或角色，不复用外貌气质原句"],
+            ["不适配对象", "不适配类型", "结合盘面风险写关系边界"],
+            ["结婚成熟窗口", "年份或阶段", "写关系成熟条件，不保证结婚"],
+        ]
+    }
+    system = (
+        "你是 Ming Atelier 的八字感情运势解释层。只输出 relationship_rows。"
+        "必须基于输入里的伴侣星、夫妻宫、十神分布、地支合冲刑害、大运和 2026-2036 流年，不重新排盘。"
+        "不要返回“身高/体型”。外貌气质与从事行业/角色必须是两种不同内容，不能同句复用。"
+        "语言要给付费客户看得懂：20% 命理依据，80% 关系模式、择偶标准、风险边界和现实窗口。"
+        "不得保证结婚或遇到正缘，不得恐吓。输出必须是合法 JSON，不要 Markdown。"
+    )
+    user = (
+        "请按以下 JSON schema 返回："
+        f"{json.dumps(schema_note, ensure_ascii=False)}\n\n"
+        "七行主题必须完整保留，顺序也必须一致。不要沿用 computedSections 里的默认文案。\n\n"
         "结构化命盘如下：\n"
         f"{json.dumps(packet, ensure_ascii=False)}"
     )
@@ -2266,6 +2285,8 @@ def enrich_model_with_llm(data: dict, computed: dict, model: dict) -> None:
     changed = False
     llm = call_llm_json(llm_report_prompt(packet))
     changed = apply_llm_sections(model, llm) or changed
+    relationship_llm = call_llm_json(llm_relationship_prompt(packet))
+    changed = apply_llm_sections(model, relationship_llm) or changed
     detail_llm = call_llm_json(llm_detail_prompt(packet))
     changed = apply_llm_sections(model, detail_llm) or changed
     model["llm_status"] = "applied" if changed else "fallback"
