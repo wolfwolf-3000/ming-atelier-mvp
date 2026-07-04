@@ -36,14 +36,14 @@
     .intro-panel,.window,.card,.record-panel{background:var(--panel);border:1px solid var(--line);border-radius:8px;box-shadow:var(--shadow)}
     .intro-panel{padding:24px}.intro-panel p{color:#e3d0aa;font-size:17px}.principles{display:grid;gap:10px}.principles div{padding:14px;border:1px solid var(--line);border-radius:8px;background:linear-gradient(145deg,#17120d,#0b0906);color:#f7ead2;transition:transform .24s ease,border-color .24s ease}.principles div:hover{transform:translateY(-3px);border-color:var(--gold)}
     .experience{background:#14110e;color:#fff;position:relative;overflow:hidden}.experience:before{content:"";position:absolute;inset:0;background:url('/assets/bazi-standalone-site-concept.png') center/cover;opacity:.18}.experience>.shell{position:relative;z-index:1}.experience .section-head p{color:#d8c9b4}
-    .windows{display:grid;grid-template-columns:1.08fr .92fr;gap:18px;align-items:start}.window{padding:20px;color:var(--ink);transition:transform .24s ease,border-color .24s ease}.window:hover{transform:translateY(-4px);border-color:var(--gold)}.window h3{font-size:24px;margin:0 0 6px;color:var(--gold2)}.hint{margin:0 0 14px;color:var(--muted);font-size:14px}
+    .deep-spotlight{display:grid;grid-template-columns:1.15fr .85fr;gap:18px;align-items:stretch;margin-bottom:18px}.deep-main{padding:24px;border:1px solid rgba(242,210,139,.54);border-radius:8px;background:linear-gradient(145deg,rgba(31,22,10,.96),rgba(10,8,5,.96));box-shadow:0 24px 70px rgba(0,0,0,.42),0 0 34px rgba(199,150,63,.16)}.deep-main h3{margin:0 0 10px;color:#f2d28b;font-size:30px}.deep-main p{margin:0;color:#e6d1a8}.deep-list{display:grid;gap:10px}.deep-list div{padding:14px;border:1px solid rgba(199,150,63,.36);border-radius:8px;background:rgba(9,8,7,.72);color:#f1dfbd}.deep-list b{color:#f2d28b}.windows{display:grid;grid-template-columns:.9fr 1.1fr;gap:18px;align-items:start}.window{padding:20px;color:var(--ink);transition:transform .24s ease,border-color .24s ease}.window:hover{transform:translateY(-4px);border-color:var(--gold)}.window h3{font-size:24px;margin:0 0 6px;color:var(--gold2)}.hint{margin:0 0 14px;color:var(--muted);font-size:14px}
     .fields{display:grid;grid-template-columns:1fr 1fr;gap:12px}.full{grid-column:1/-1}label{display:block;font-weight:780;margin:0 0 5px;font-size:14px;color:#e9cf91}input,select,textarea{width:100%;border:1px solid #5c4322;border-radius:7px;padding:10px 11px;background:#090807;color:#f7ead2;font:inherit;font-size:15px}input::placeholder,textarea::placeholder{color:#8d7855}textarea{min-height:92px;resize:vertical}
     .result,.error{display:none;margin-top:12px;border-radius:8px;padding:12px;font-size:14px}.result{background:#151209;border:1px solid #8b6b34;color:#f2d28b}.error{background:#25100b;border:1px solid #8b4c36;color:#e9b19c}.oracle-output{display:grid;gap:7px}
     .support{display:grid;grid-template-columns:repeat(4,1fr);gap:14px}.card{padding:18px;transition:transform .24s ease,border-color .24s ease}.card:hover{transform:translateY(-4px);border-color:var(--gold)}.tag{display:inline-flex;padding:4px 8px;border-radius:999px;background:#251b0e;color:#f2d28b;border:1px solid rgba(199,150,63,.45);font-weight:800;font-size:12px;margin-bottom:10px}.card h3{margin:0 0 8px;color:#f2d28b}.card p{margin:0;color:var(--muted)}
     .records{display:grid;gap:8px}.record{padding:10px;border:1px solid var(--line);border-radius:7px;background:#0c0906;font-size:14px}.record small{display:block;color:var(--muted)}
     footer{padding:28px 0 42px;color:#9d8356;border-top:1px solid var(--line);font-size:13px}
     @keyframes slowVision{from{transform:scale(1)}to{transform:scale(1.06) translate3d(-1%,0,0)}}@keyframes floatSigil{0%,100%{transform:translateY(0)}50%{transform:translateY(-8px)}}@keyframes riseIn{from{opacity:0;transform:translateY(18px)}to{opacity:1;transform:translateY(0)}}
-    @media(max-width:980px){.links{display:none}h1{font-size:48px}.hero,.hero-inner{min-height:620px}.intro-grid,.windows,.support{grid-template-columns:1fr}.fields{grid-template-columns:1fr}.section-head{display:block}.section-head p{margin-top:8px}}
+    @media(max-width:980px){.links{display:none}h1{font-size:48px}.hero,.hero-inner{min-height:620px}.intro-grid,.deep-spotlight,.windows,.support{grid-template-columns:1fr}.fields{grid-template-columns:1fr}.section-head{display:block}.section-head p{margin-top:8px}}
     @media(max-width:620px){.shell{width:calc(100% - 24px)}.hero,.hero-inner{min-height:560px}.brand{font-size:16px}.brand img{width:44px;height:44px}.mark{width:72px;height:72px}h1{font-size:39px}.cn-title{font-size:22px}.lead{font-size:16px}.hero:after{font-size:180px;right:-10%;top:10%}}
   </style>
 </head>
@@ -76,8 +76,8 @@
           <div class="cn-title">命理工坊｜读懂你的人生剧本</div>
           <p class="lead">以八字四柱为底图，读性格、节奏、选择与关系。关于你如何行动、如何取舍、如何顺势</p>
           <div class="actions">
-            <a class="btn primary" href="#bazi">进入命盘</a>
-            <a class="btn secondary" href="/design-lock.html">查看视觉定稿</a>
+            <a class="btn primary" href="/questionnaire.html">生成深度报告</a>
+            <a class="btn secondary" href="#oracle">先问一件事</a>
           </div>
         </div>
       </div>
@@ -105,12 +105,28 @@
       <div class="shell">
         <div class="section-head">
           <h2>选择你的入口</h2>
-          <p>如果你想看长期结构，先获取人生剧本；如果你正在问一件具体事情，首页也可以直接起卦看短期窗口。</p>
+          <p>深度报告是 MVP 的核心体验：看长期结构、事业财富、关系窗口、风险边界和可执行建议。起卦用于当下具体问题。</p>
+        </div>
+        <div class="deep-spotlight">
+          <article class="deep-main">
+            <p class="eyebrow">Core Product</p>
+            <h3>深度命理报告</h3>
+            <p>互动 HTML + PDF 双交付。以八字四柱为底图，结合大运、流年、十神、神煞和现实问卷，输出事业发展、未来十年财运、感情运势、2026 流月、核心危机、大白话总结、喜用神和适配水晶。</p>
+            <div class="actions">
+              <a class="btn primary" href="/questionnaire.html">填写问卷并生成报告</a>
+              <a class="btn secondary" href="/deep-report.html">查看报告包含什么</a>
+            </div>
+          </article>
+          <div class="deep-list">
+            <div><b>标准版</b><br>深度报告：xxx，即时生成互动网页和 PDF。</div>
+            <div><b>进阶版</b><br>深度报告 + 人工复核 + 水晶手链：xxx。</div>
+            <div><b>适合谁</b><br>想认真看事业、钱、关系、选择节奏和未来风险的人。</div>
+          </div>
         </div>
         <div class="windows">
           <div class="window">
-            <h3>获取人生剧本</h3>
-            <p class="hint">免费版会生成完整命盘图和一段大白话总结，先看性格、适合行业和感情倾向。深度报告后续可升级为互动 HTML + PDF。</p>
+            <h3>免费排盘体验</h3>
+            <p class="hint">免费版会生成完整命盘图和一段基础总结，用来先看性格、适合行业和感情倾向。长期结构和关键年份请看深度报告。</p>
             <form id="reportForm" class="fields">
               <div><label>姓名</label><input name="name" placeholder="用于报告标题"></div>
               <div><label>性别 *</label><select name="gender" required><option value="">请选择</option><option>男</option><option>女</option></select></div>
@@ -119,7 +135,7 @@
               <div class="full"><label>出生地点 *</label><input name="birthPlace" required placeholder="例如：中国广州天河区"></div>
               <div><label>当前行业</label><input name="industry" placeholder="行业 / 专业方向"></div>
               <div><label>当前角色</label><input name="role" placeholder="学生 / 创业 / 职位"></div>
-              <button id="reportSubmit" class="btn dark full" type="submit">生成免费版人生剧本</button>
+              <button id="reportSubmit" class="btn dark full" type="submit">生成免费版排盘</button>
             </form>
             <div class="error" id="reportError"></div>
             <div class="result" id="reportResult">
@@ -127,7 +143,7 @@
               <a id="chartLink" href="#" target="_blank" rel="noopener">查看命盘图</a>
             </div>
             <div class="actions">
-              <a class="btn secondary" href="/deep-report.html">查看深度报告包含什么</a>
+              <a class="btn secondary" href="/questionnaire.html">升级深度报告</a>
             </div>
           </div>
 
@@ -151,13 +167,13 @@
     <section>
       <div class="shell">
         <div class="section-head">
-          <h2>后续你会看到的内容</h2>
-          <p>第一版不把所有功能塞满，但每个入口都已经留好位置。</p>
+          <h2>更多入口</h2>
+          <p>围绕深度报告补充学习、问事和后续五行物件。</p>
         </div>
         <div class="support">
           <a class="card" href="/ten-gods.html"><span class="tag">Guide</span><h3>十神介绍</h3><p>理解你的表达、财富、责任和学习模式。</p></a>
           <a class="card" href="/shensha.html"><span class="tag">Symbols</span><h3>神煞介绍</h3><p>辅助判断，不做恐吓式吉凶标签。</p></a>
-          <a class="card" href="/questionnaire.html"><span class="tag">Intake</span><h3>深度报告问卷</h3><p>用于人工复核和完整报告校准。</p></a>
+          <a class="card" href="/questionnaire.html"><span class="tag">Report</span><h3>生成深度报告</h3><p>填写标准问卷，生成互动 HTML 与 PDF。</p></a>
           <a class="card" href="/shop.html"><span class="tag">Shop</span><h3>玄学商城</h3><p>五行水晶、符箓、香材与定制物件框架。</p></a>
         </div>
       </div>
@@ -193,7 +209,7 @@
         $('reportError').style.display = 'block';
       } finally {
         $('reportSubmit').disabled = false;
-        $('reportSubmit').textContent = '生成免费版人生剧本';
+        $('reportSubmit').textContent = '生成免费版排盘';
       }
     });
     $('oracleForm').addEventListener('submit', async e => {
@@ -207,7 +223,7 @@
         const r = data.result;
         const esc = value => String(value || '').replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
         const list = items => (items || []).map(item => `<li>${esc(item)}</li>`).join('');
-        $('oracleResult').innerHTML = `<strong>判断：${esc(r.verdict)}｜${esc(r.verdictTone)}</strong><span>${esc(r.baseHexagram)}，${esc(r.movingLine)}爻动，变${esc(r.changedHexagram)}；互卦：${esc(r.mutualHexagram)}</span><span>体用：${esc(r.body)} / ${esc(r.use)}；${esc(r.relation)}</span><span>${esc(r.relationText)}</span><span>${esc(r.seasonText)}</span><span>${esc(r.movementText)}</span><span>达成度：${esc(r.success)}；风险：${esc(r.risk)}；置信度：${esc(r.confidence)}</span><span>行动窗口：${esc(r.actionWindow)}</span><span>${esc(r.summary)}</span><ul>${list(r.advice)}</ul><ul>${list(r.riskPoints)}</ul>`;
+        $('oracleResult').innerHTML = `<strong>判断：${esc(r.verdict)}｜${esc(r.verdictTone)}</strong><span>${esc(r.summary)}</span><span>卦象：${esc(r.baseHexagram)}，${esc(r.movingLine)}爻动，互卦${esc(r.mutualHexagram)}，变${esc(r.changedHexagram)}</span><span>体用：${esc(r.body)} / ${esc(r.use)}；${esc(r.relation)}。${esc(r.relationText)}</span><span>达成度：${esc(r.success)}；风险：${esc(r.risk)}；置信度：${esc(r.confidence)}</span><span>行动窗口：${esc(r.actionWindow)}</span><span>${esc(r.questionReading||r.summary)}</span><b>行动建议</b><ul>${list(r.advice)}</ul><b>风险边界</b><ul>${list(r.riskPoints)}</ul>`;
         $('oracleResult').style.display = 'grid';
       } catch (err) {
         $('oracleError').textContent = err.message;

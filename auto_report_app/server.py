@@ -541,6 +541,58 @@ def divination_contextual_reading(topic: str, question: str, background: str, ve
     return reading, advice, risks
 
 
+def llm_divination_prompt(result: dict) -> list[dict[str, str]]:
+    schema_note = {
+        "questionReading": "围绕用户具体问题写一段客户可读解读，必须引用本卦/互卦/变卦、体用关系、动爻阶段、达成度和风险。",
+        "advice": ["3-5 条具体行动建议，每条都要能落地"],
+        "riskPoints": ["3-5 条风险提醒，必须贴合用户问题、背景、合同/关系/金钱/时间等现实变量"],
+        "actionWindow": "具体行动窗口和观察期限",
+        "summary": "一段大白话结论，直接回答这件事该进、该缓、还是先观察。",
+    }
+    system = (
+        "你是 Ming Atelier 的梅花易数起卦解释层。你不重新起卦，只根据输入结果做客户可读解读。"
+        "必须保留输入中的卦名、体用、生克、动爻、达成度、风险和置信度，不得改分数，不得保证结果。"
+        "输出风格对标高端私人咨询：20% 技术依据，80% 针对用户问题的现实判断。"
+        "必须把卦象和用户的具体问题连起来，不要写泛泛的吉凶话术。"
+        "如果是合作/副业，重点写合同、分工、付款、交付、试运行和退出条件；"
+        "如果是感情，重点写承诺、沟通、时机、互相投入和边界；"
+        "如果是事业/财务，重点写权责、收益、成本、现金流、备选方案和风控。"
+        "语言要直接、克制、有同理心，不恐吓，不许诺。输出必须是合法 JSON，不要 Markdown。"
+    )
+    user = (
+        "请按以下 JSON schema 返回："
+        f"{json.dumps(schema_note, ensure_ascii=False)}\n\n"
+        "起卦结构化结果如下：\n"
+        f"{json.dumps(result, ensure_ascii=False)}"
+    )
+    return [{"role": "system", "content": system}, {"role": "user", "content": user}]
+
+
+def enrich_divination_with_llm(result: dict) -> dict:
+    result["llmStatus"] = "disabled"
+    if not llm_report_enabled():
+        return result
+    llm = call_llm_json(llm_divination_prompt(result))
+    if not isinstance(llm, dict):
+        result["llmStatus"] = "fallback"
+        return result
+    changed = False
+    for key, min_len in [("questionReading", 60), ("summary", 45), ("actionWindow", 12)]:
+        value = llm.get(key)
+        if isinstance(value, str) and len(value.strip()) >= min_len:
+            result[key] = value.strip()
+            changed = True
+    for key in ["advice", "riskPoints"]:
+        value = llm.get(key)
+        if isinstance(value, list):
+            cleaned = [str(item).strip() for item in value if isinstance(item, str) and len(str(item).strip()) >= 10]
+            if 3 <= len(cleaned) <= 6:
+                result[key] = cleaned
+                changed = True
+    result["llmStatus"] = "applied" if changed else "fallback"
+    return result
+
+
 def build_divination(data: dict) -> dict:
     question = data.get("question", "").strip()
     if not question:
@@ -594,7 +646,7 @@ def build_divination(data: dict) -> dict:
     background = data.get("background", "").strip()
     topic = divination_topic(question, background)
     question_reading, advice, risk_points = divination_contextual_reading(topic, question, background, verdict, relation, phase)
-    return {
+    result = {
         "question": question,
         "time": divination_time.strftime("%Y-%m-%d %H:%M"),
         "location": data.get("location", "").strip() or "未填，按当前本地时间起卦",
@@ -624,6 +676,7 @@ def build_divination(data: dict) -> dict:
         "riskPoints": risk_points,
         "summary": f"此卦判断为「{verdict}」，倾向是「{verdict_tone}」。对应你问的“{question}”，结论不是抽象吉凶，而是：{question_reading}",
     }
+    return enrich_divination_with_llm(result)
 
 
 def report_pdf(data: dict, computed: dict, chart_png: Path, output: Path) -> None:
