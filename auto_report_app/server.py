@@ -10,6 +10,8 @@ import uuid
 from datetime import datetime
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
+from urllib import error as urlerror
+from urllib import request as urlrequest
 from urllib.parse import unquote, urlparse
 
 from reportlab.lib import colors
@@ -1844,6 +1846,214 @@ def event_calibration_rows(events: str, model: dict) -> list[list[str]]:
     return rows
 
 
+def llm_report_enabled() -> bool:
+    return os.environ.get("MING_ATELIER_LLM", "1").lower() not in {"0", "false", "off"} and bool(os.environ.get("OPENAI_API_KEY"))
+
+
+def compact_rows(rows: list[list[str]], limit: int | None = None) -> list[list[str]]:
+    return rows[:limit] if limit else rows
+
+
+def llm_fact_packet(data: dict, computed: dict, model: dict) -> dict:
+    ec = model["ec"]
+    context = model["analysis_context"]
+    return {
+        "client": {
+            "name": data.get("name") or "匿名",
+            "gender": data.get("gender") or "",
+            "birth": f"{data.get('calendar', '阳历')} {data.get('birthDate', '')} {data.get('birthTime', '')}",
+            "birthPlace": data.get("birthPlace") or "",
+            "currentCity": data.get("currentCity") or "",
+            "industry": data.get("industry") or "",
+            "role": data.get("role") or "",
+            "status": data.get("status") or "",
+            "question": data.get("question") or "",
+        },
+        "chart": {
+            "pillars": {
+                "year": ec.getYear(),
+                "month": ec.getMonth(),
+                "day": ec.getDay(),
+                "hour": ec.getTime(),
+            },
+            "dayMaster": f"{context['day_stem']}{context['day_element']}",
+            "monthCommand": f"{context['month_branch']} / {context['month_structure']}",
+            "strength": f"{model['day_strength_label']} {model['day_strength']}%",
+            "engineUsefulElements": model["useful_elements"],
+            "engineUsefulReason": model["useful_text"],
+            "fiveElements": model["profile"],
+            "relations": computed["chart"].get("relations") or [],
+            "currentDayun": model["selected_dayun"],
+            "dayunRows": compact_rows(model["dayun_rows"], 12),
+        },
+        "tenGods": {
+            "rows": model["ten_god_rows"],
+            "groupScores": context["group_scores"],
+            "counts": context["ten_god_counts"],
+            "spouseStars": context["spouse_stars"],
+            "spouseVisible": context["spouse_visible"],
+            "spouseHidden": context["spouse_hidden"],
+        },
+        "shensha": model["shensha_rows"],
+        "riskFlags": context.get("risk_flags", []),
+        "computedSections": {
+            "careerRows": model.get("career_rows", []),
+            "wealthIntro": model.get("wealth_tone", {}).get("base", ""),
+            "incomeRows": model.get("income_rows", []),
+            "incomeStageRows": model.get("income_stage_rows", []),
+            "annualRows": model.get("annual_rows", []),
+            "relationshipRows": model.get("relationship_rows", []),
+            "monthlyRows": model.get("monthly_rows", []),
+            "crisisRows": model.get("crisis_rows", []),
+            "summaryParagraphs": plain_summary_paragraphs(data, model),
+        },
+    }
+
+
+def llm_report_prompt(packet: dict) -> list[dict[str, str]]:
+    schema_note = {
+        "useful_elements": ["金", "水"],
+        "useful_text": "可选。若你认为引擎喜用神不准确，可返回 1-3 个五行和一句说明；必须基于月令、日主强弱、十神压力、合冲刑害，不得缺啥补啥。",
+        "career_rows": [["主题", "判断", "依据"]],
+        "wealth_intro": "未来十年财运开头说明，一段即可。",
+        "income_notes": {"百万级": "替换收入卡条件文案", "500万级": "替换收入卡条件文案", "千万级": "替换收入卡条件文案"},
+        "income_stage_rows": [["阶段", "收入判断", "关键条件", "风险"]],
+        "annual_notes": [{"year": "2026", "note": "覆盖该年的触发与行动规则，不改分数"}],
+        "relationship_rows": [["主题", "判断", "说明"]],
+        "monthly_notes": [{"month": "2026-02", "note": "覆盖该月提示，不改分数"}],
+        "june_2026_detail": "2026年6月甲午重点提示。",
+        "crisis_rows": [["主题", "盘面依据", "现实动作"]],
+        "summary_paragraphs": ["5段大白话总结"],
+    }
+    system = (
+        "你是 Ming Atelier 的八字命理解读层。你只写解释，不重新排盘。"
+        "必须遵守：四柱、十神、神煞、地支关系、大运、流年和分数以输入 JSON 为准；"
+        "不得引用输入里不存在的十神、神煞或年份；不得恐吓、不得保证发财/结婚/灾祸；"
+        "不得用固定话术，不得只按五行百分比或缺啥补啥判断喜用。"
+        "语言风格：东方命理、克制、直接、有同理心，像高端私人报告，不像模板。"
+        "输出必须是合法 JSON，不要 Markdown，不要解释 JSON 之外的内容。"
+    )
+    user = (
+        "请基于以下结构化命盘，为六个客户可见板块生成个性化文本：事业发展、未来十年财运、感情运势、2026流月、核心危机、大白话总结。"
+        "保留页面现有架构和表格维度，返回字段按这个样例："
+        f"{json.dumps(schema_note, ensure_ascii=False)}\n\n"
+        "结构化命盘如下：\n"
+        f"{json.dumps(packet, ensure_ascii=False)}"
+    )
+    return [{"role": "system", "content": system}, {"role": "user", "content": user}]
+
+
+def call_openai_json(messages: list[dict[str, str]]) -> dict | None:
+    api_key = os.environ.get("OPENAI_API_KEY")
+    if not api_key:
+        return None
+    model = os.environ.get("OPENAI_MODEL", "gpt-4o-mini")
+    payload = {
+        "model": model,
+        "messages": messages,
+        "temperature": float(os.environ.get("MING_ATELIER_LLM_TEMPERATURE", "0.45")),
+        "response_format": {"type": "json_object"},
+    }
+    req = urlrequest.Request(
+        os.environ.get("OPENAI_CHAT_COMPLETIONS_URL", "https://api.openai.com/v1/chat/completions"),
+        data=json.dumps(payload, ensure_ascii=False).encode("utf-8"),
+        headers={"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"},
+        method="POST",
+    )
+    try:
+        with urlrequest.urlopen(req, timeout=int(os.environ.get("MING_ATELIER_LLM_TIMEOUT", "45"))) as resp:
+            result = json.loads(resp.read().decode("utf-8"))
+        content = result["choices"][0]["message"]["content"]
+        return json.loads(content)
+    except (KeyError, json.JSONDecodeError, TimeoutError, urlerror.URLError, urlerror.HTTPError):
+        return None
+
+
+def valid_text(value, min_len: int = 2) -> bool:
+    return isinstance(value, str) and len(value.strip()) >= min_len
+
+
+def valid_rows(rows, width: int, min_rows: int = 1, max_rows: int = 20) -> bool:
+    return (
+        isinstance(rows, list)
+        and min_rows <= len(rows) <= max_rows
+        and all(isinstance(row, list) and len(row) == width and all(valid_text(cell) for cell in row) for row in rows)
+    )
+
+
+def apply_llm_sections(model: dict, llm: dict | None) -> bool:
+    if not isinstance(llm, dict):
+        return False
+    changed = False
+    elements = llm.get("useful_elements")
+    if isinstance(elements, list):
+        clean = [item for item in elements if item in {"金", "木", "水", "火", "土"}]
+        if 1 <= len(clean) <= 3:
+            model["useful_elements"] = unique(clean)
+            if valid_text(llm.get("useful_text"), 12):
+                model["useful_text"] = llm["useful_text"].strip()
+            changed = True
+    if valid_rows(llm.get("career_rows"), 3, 4, 8):
+        model["career_rows"] = llm["career_rows"]
+        changed = True
+    if valid_text(llm.get("wealth_intro"), 30):
+        model["wealth_tone"]["base"] = llm["wealth_intro"].strip()
+        changed = True
+    income_notes = llm.get("income_notes")
+    if isinstance(income_notes, dict):
+        updated = []
+        for row in model["income_rows"]:
+            note = income_notes.get(row[0])
+            updated.append([row[0], row[1], row[2], note.strip() if valid_text(note, 15) else row[3]])
+        model["income_rows"] = updated
+        changed = True
+    if valid_rows(llm.get("income_stage_rows"), 4, 3, 5):
+        model["income_stage_rows"] = llm["income_stage_rows"]
+        changed = True
+    annual_notes = llm.get("annual_notes")
+    if isinstance(annual_notes, list):
+        by_year = {str(item.get("year")): item.get("note", "").strip() for item in annual_notes if isinstance(item, dict)}
+        rows = []
+        for row in model["annual_rows"]:
+            rows.append(row[:10] + [by_year.get(row[0], row[10]) if valid_text(by_year.get(row[0]), 15) else row[10]])
+        model["annual_rows"] = rows
+        changed = True
+    if valid_rows(llm.get("relationship_rows"), 3, 5, 10):
+        model["relationship_rows"] = llm["relationship_rows"]
+        changed = True
+    monthly_notes = llm.get("monthly_notes")
+    if isinstance(monthly_notes, list):
+        by_month = {str(item.get("month")): item.get("note", "").strip() for item in monthly_notes if isinstance(item, dict)}
+        rows = []
+        for row in model["monthly_rows"]:
+            rows.append(row[:7] + [by_month.get(row[0], row[7]) if valid_text(by_month.get(row[0]), 15) else row[7]])
+        model["monthly_rows"] = rows
+        changed = True
+    if valid_text(llm.get("june_2026_detail"), 30):
+        model["june_2026_detail"] = llm["june_2026_detail"].strip()
+        changed = True
+    if valid_rows(llm.get("crisis_rows"), 3, 3, 6):
+        model["crisis_rows"] = llm["crisis_rows"]
+        changed = True
+    summary = llm.get("summary_paragraphs")
+    if isinstance(summary, list) and 3 <= len(summary) <= 7 and all(valid_text(item, 30) for item in summary):
+        model["llm_summary_paragraphs"] = [item.strip() for item in summary]
+        changed = True
+    return changed
+
+
+def enrich_model_with_llm(data: dict, computed: dict, model: dict) -> None:
+    model["llm_status"] = "disabled"
+    if not llm_report_enabled():
+        return
+    packet = llm_fact_packet(data, computed, model)
+    llm = call_openai_json(llm_report_prompt(packet))
+    if apply_llm_sections(model, llm):
+        model["llm_status"] = "applied"
+    else:
+        model["llm_status"] = "fallback"
+
+
 def report_model(data: dict, computed: dict) -> dict:
     ec = computed["ec"]
     profile = computed["profile"]
@@ -1895,6 +2105,7 @@ def report_model(data: dict, computed: dict) -> dict:
     model["crisis_rows"] = crisis_rows(context)
     model["june_2026_detail"] = june_2026_detail(context)
     model["event_calibration_rows"] = event_calibration_rows(events, model)
+    enrich_model_with_llm(data, computed, model)
     return model
 
 
@@ -2084,6 +2295,8 @@ def html_card_table(rows: list[list[str]], title_key: str = "主题") -> str:
 
 
 def plain_summary_paragraphs(data: dict, model: dict) -> list[str]:
+    if model.get("llm_summary_paragraphs"):
+        return model["llm_summary_paragraphs"]
     useful = "、".join(model["useful_elements"]) or "节奏与边界"
     name = data.get("name") or "这张盘"
     industry = data.get("industry") or "未填写行业"
@@ -2114,8 +2327,8 @@ def report_plain_summary(data: dict, model: dict) -> str:
     return "\n\n".join(plain_summary_paragraphs(data, model))
 
 
-def deep_report_pdf(data: dict, computed: dict, chart_png: Path, output: Path) -> None:
-    model = report_model(data, computed)
+def deep_report_pdf(data: dict, computed: dict, chart_png: Path, output: Path, model: dict | None = None) -> None:
+    model = model or report_model(data, computed)
     useful_img, crystal_img = generate_standard_visuals(output.stem, model["useful_elements"])
     font = register_font()
     base = getSampleStyleSheet()
@@ -2194,8 +2407,8 @@ def deep_report_pdf(data: dict, computed: dict, chart_png: Path, output: Path) -
     doc.build(story)
 
 
-def deep_report_html(data: dict, computed: dict, chart_png: Path, output: Path) -> None:
-    model = report_model(data, computed)
+def deep_report_html(data: dict, computed: dict, chart_png: Path, output: Path, model: dict | None = None) -> None:
+    model = model or report_model(data, computed)
     useful_img, crystal_img = generate_standard_visuals(output.stem, model["useful_elements"])
     ec = model["ec"]
     raw_title = f"{data.get('name') or '匿名'}命理报告"
@@ -2355,8 +2568,9 @@ class Handler(BaseHTTPRequestHandler):
                 report_slug = safe_name(f"{data.get('name') or '匿名'}命理报告")
                 pdf_path = GENERATED / f"{report_slug}-{uuid.uuid4().hex[:6]}.pdf"
                 html_path = GENERATED / f"{report_slug}-互动版-{uuid.uuid4().hex[:6]}.html"
-                deep_report_pdf(data, computed, chart_png, pdf_path)
-                deep_report_html(data, computed, chart_png, html_path)
+                model = report_model(data, computed)
+                deep_report_pdf(data, computed, chart_png, pdf_path, model)
+                deep_report_html(data, computed, chart_png, html_path, model)
                 pdf_url = f"/generated/{pdf_path.name}"
                 html_url = f"/generated/{html_path.name}"
                 chart_url = f"/generated/{chart_png.name}"
