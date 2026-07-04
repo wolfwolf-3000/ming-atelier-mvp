@@ -372,6 +372,23 @@ def current_dayun(ec, gender: str, target_year: int = 2026):
     return yun, selected, rows[:6]
 
 
+def dayun_for_year(dayun_rows: list[list[str]], year: int | str, fallback: str = "未识别") -> str:
+    try:
+        target = int(year)
+    except (TypeError, ValueError):
+        return fallback
+    for row in dayun_rows:
+        if len(row) < 2 or "-" not in row[1]:
+            continue
+        start, end = row[1].split("-", 1)
+        try:
+            if int(start) <= target <= int(end):
+                return row[0]
+        except ValueError:
+            continue
+    return fallback
+
+
 def trigram_index_from_lines(lines: tuple[int, int, int]) -> int:
     for index, item in TRIGRAMS.items():
         if item[3] == lines:
@@ -952,7 +969,7 @@ def income_probabilities(strength: int, useful: list[str], data: dict, ec, profi
     ]
 
 
-def annual_rows(selected_ganzhi: str, useful: list[str], context: dict | None = None) -> list[list[str]]:
+def annual_rows(selected_ganzhi: str, useful: list[str], context: dict | None = None, dayun_rows: list[list[str]] | None = None) -> list[list[str]]:
     if context:
         reset_luck_phrase_counts(context, "year")
         rows = []
@@ -962,7 +979,7 @@ def annual_rows(selected_ganzhi: str, useful: list[str], context: dict | None = 
             rows.append([
                 year,
                 ganzhi,
-                selected_ganzhi or "未识别",
+                dayun_for_year(dayun_rows or [], year, selected_ganzhi or "未识别"),
                 str(read["career"]),
                 str(read["wealth"]),
                 str(read["relationship"]),
@@ -987,7 +1004,7 @@ def annual_rows(selected_ganzhi: str, useful: list[str], context: dict | None = 
         ("2035", "乙卯", 5, 5, 7, 6, 6, 5, 8, "乙卯木旺带人际、合作和关系调整，卯木容易触发边界议题；合规、口碑、情绪承诺和合同条款要提前稳住。"),
         ("2036", "丙辰", 5, 4, 5, 7, 6, 5, 6, "丙火再起、辰土收束，像一次复盘与重整；不要重复 2026 的冲动扩张，要用预算、复盘和退出条件先框住机会。"),
     ]
-    return [[year, pillar, selected_ganzhi or "未识别", str(career), str(wealth), str(relation), str(stress), str(loss), str(family), str(compliance), trigger] for year, pillar, career, wealth, relation, stress, loss, family, compliance, trigger in years]
+    return [[year, pillar, dayun_for_year(dayun_rows or [], year, selected_ganzhi or "未识别"), str(career), str(wealth), str(relation), str(stress), str(loss), str(family), str(compliance), trigger] for year, pillar, career, wealth, relation, stress, loss, family, compliance, trigger in years]
 
 
 def ten_god_for(day_stem: str, target_stem: str) -> str:
@@ -1604,7 +1621,7 @@ def flow_chart_model(computed: dict, gender: str, useful: list[str], context: di
         status = "当前大运" if selected and dy.getStartYear() <= now.year <= dy.getEndYear() else ""
         dayun_strip.append([f"{dy.getStartAge()}-{dy.getEndAge()}岁", str(dy.getStartYear()), ganzhi, status])
     annual_strip = []
-    for row in annual_rows(selected.getGanZhi() if selected else "", useful, context):
+    for row in annual_rows(selected.getGanZhi() if selected else "", useful, context, dayun_rows):
         annual_strip.append([row[0], row[1], row[3], row[4], row[5], row[6], compact_flow_note(row[10])])
     month_strip = [[row[0], row[1], row[2], row[3], row[4], row[6], compact_flow_note(row[7])] for row in monthly_rows(context)]
     return {
@@ -1933,7 +1950,16 @@ def llm_report_prompt(packet: dict) -> list[dict[str, str]]:
         "income_notes": {"百万级": "替换收入卡条件文案", "500万级": "替换收入卡条件文案", "千万级": "替换收入卡条件文案"},
         "income_stage_rows": [["阶段", "收入判断", "关键条件", "风险"]],
         "annual_notes": [{"year": "2026", "note": "覆盖该年的触发与行动规则，不改分数"}],
-        "relationship_rows": [["主题", "判断", "说明"]],
+        "relationship_rows": [
+            ["未来关系波动", "Gemini 对亲密关系整体走势的判断", "必须引用伴侣星、日支/夫妻宫、合冲刑害、大运或流年触发"],
+            ["适合恋爱窗口", "年份或阶段", "说明为什么这些年份或阶段更适合建立关系"],
+            ["最可能遇到时间", "年份或阶段", "不能写固定模板；依据流年、大运、日支触发写"],
+            ["身高/体型", "无法提供判断或低分辨率象意", "不能硬编；能判断才写，不能就写无法提供判断"],
+            ["外貌气质", "气质取象", "只能写外貌/气质，不要和行业角色重复"],
+            ["从事行业/角色", "行业或角色取象", "必须写职业/行业/角色，不得复用外貌气质原句"],
+            ["不适配对象", "不适配类型", "结合盘面风险写关系边界"],
+            ["结婚成熟窗口", "年份或阶段", "写关系成熟条件，不保证结婚"],
+        ],
         "monthly_notes": [{"month": "2026-02", "note": "覆盖该月提示，不改分数"}],
         "june_2026_detail": "2026年6月甲午重点提示。",
         "crisis_rows": [["主题", "盘面依据", "现实动作"]],
@@ -1941,14 +1967,21 @@ def llm_report_prompt(packet: dict) -> list[dict[str, str]]:
     }
     system = (
         "你是 Ming Atelier 的八字命理解读层。你只写解释，不重新排盘。"
+        "对事业发展、未来十年财运、感情运势、2026流月、核心危机、大白话总结这六个私人订制板块，"
+        "你的独立判断与语言结论占 90%；输入中的本地命理 skill、书籍规则和表格只占 10%，用于事实锚点、术语依据和校验。"
+        "不要被 computedSections 的旧文案牵着走；可以重写旧结论，但不能改动命盘事实和分数。"
         "必须遵守：四柱、十神、神煞、地支关系、大运、流年和分数以输入 JSON 为准；"
         "不得引用输入里不存在的十神、神煞或年份；不得恐吓、不得保证发财/结婚/灾祸；"
+        "你必须完整覆盖事业发展、未来十年财运、感情运势、2026流月、核心危机、大白话总结；"
+        "感情运势必须返回 8 行 relationship_rows，且“外貌气质”和“从事行业/角色”不能使用同一句话；"
         "不得用固定话术，不得只按五行百分比或缺啥补啥判断喜用。"
         "语言风格：东方命理、克制、直接、有同理心，像高端私人报告，不像模板。"
         "输出必须是合法 JSON，不要 Markdown，不要解释 JSON 之外的内容。"
     )
     user = (
         "请基于以下结构化命盘，为六个客户可见板块生成个性化文本：事业发展、未来十年财运、感情运势、2026流月、核心危机、大白话总结。"
+        "注意：原始盘信息、格局与用神、十神分析、神煞体系、喜用神、适配水晶由本地引擎负责；你只负责上述六个私人订制板块。"
+        "六个板块请以你的 Gemini Pro 结论为主，避免沿用 computedSections 里的模板话术。"
         "保留页面现有架构和表格维度，返回字段按这个样例："
         f"{json.dumps(schema_note, ensure_ascii=False)}\n\n"
         "结构化命盘如下：\n"
@@ -2007,7 +2040,7 @@ def call_gemini_json(messages: list[dict[str, str]]) -> dict | None:
     api_key = os.environ.get("GEMINI_API_KEY") or os.environ.get("GOOGLE_API_KEY")
     if not api_key:
         return None
-    model = os.environ.get("GEMINI_MODEL", "gemini-3.5-flash").replace("models/", "")
+    model = os.environ.get("GEMINI_MODEL", "gemini-pro-latest").replace("models/", "")
     system_text = "\n".join(item["content"] for item in messages if item.get("role") == "system")
     user_text = "\n\n".join(item["content"] for item in messages if item.get("role") != "system")
     payload = {
@@ -2141,7 +2174,7 @@ def report_model(data: dict, computed: dict) -> dict:
     dominant = "、".join(f"{k}{v}%" for k, v in sorted(profile.items(), key=lambda item: item[1], reverse=True))
     shensha = shensha_rows(computed)
     context = analysis_context(data, computed, strength, useful)
-    annual = annual_rows(selected.getGanZhi() if selected else "", useful, context)
+    annual = annual_rows(selected.getGanZhi() if selected else "", useful, context, dayun_rows)
     monthly = monthly_rows(context)
     model = {
         "ec": ec,
