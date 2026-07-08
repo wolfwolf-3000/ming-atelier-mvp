@@ -1308,11 +1308,11 @@ def interaction_note(labels: list[str], context: dict) -> tuple[str, bool, bool]
     month_hit = any(context["month_branch"] in label for label in labels)
     note = "、".join(labels[:3])
     if day_hit:
-        note += "，触发日支/关系宫。"
+        note += "，关系、合作绑定和贴身利益会更容易被推到台前。"
     elif month_hit:
-        note += "，触发月令/事业宫。"
+        note += "，事业环境、客户要求和执行节奏会更明显。"
     else:
-        note += "，作为背景触发。"
+        note += "，作为这一阶段的背景压力或机会。"
     return note, day_hit, month_hit
 
 
@@ -1415,7 +1415,7 @@ def special_luck_phrase(key: str, context: dict, scope: str, seed: str) -> str:
         ),
         "weak_officer": (
             [
-                "身弱官杀旺被触发，合同、平台规则、交付责任和法律口径要先审。",
+                "日主承压而规则星走强，合同、平台规则、交付责任和法律口径要先审。",
                 "官杀压力重时，别用情绪硬扛规则；先补资质、证据链和专业支持。",
             ],
             [
@@ -1465,7 +1465,7 @@ def special_luck_phrase(key: str, context: dict, scope: str, seed: str) -> str:
         ),
         "collision": (
             [
-                "合冲刑害被触发，节奏会变快也更容易出摩擦；重大决定要留书面确认。",
+                "合冲刑害走到台前，节奏会变快也更容易出摩擦；重大决定要留书面确认。",
                 "盘面互动变强，适合做调整，不适合把所有筹码压在一次承诺上。",
             ],
             [
@@ -1501,12 +1501,12 @@ def special_luck_phrase(key: str, context: dict, scope: str, seed: str) -> str:
             "有支撑信号出现，适合把专业证据、复盘资料和协作机制补齐。",
         ],
         "day_hit": [
-            "日支被触发，关系、合作绑定、居住安排或贴身利益会被推到台前。",
+            "日支有动，关系、合作绑定、居住安排或贴身利益会被推到台前。",
             "触到关系宫时，很多事不只是业务问题，也会变成信任、承诺和边界问题。",
             "日支有动，适合把亲密关系与合作关系里的现实条件讲清楚。",
         ],
         "month_hit": [
-            "月令被触发，事业环境、客户要求、上级规则和执行节奏会更显眼。",
+            "月令主题走强，事业环境、客户要求、上级规则和执行节奏会更显眼。",
             "触到事业宫时，工作方法要升级；旧流程容易不够用。",
             "月柱主题被带动，适合整理业务结构，也要防项目节奏被外部牵着走。",
         ],
@@ -1758,14 +1758,41 @@ def income_stage_rows(useful: list[str], strength: int, annual: list[list[str]] 
         else:
             judgment = "筛选与防守期"
             condition = "不宜重资产押注，先守现金流、合同、库存和关键客户。"
+        year_tag = f"{risky[0]}{risky[1]}"
+        high_risk_lines = {
+            "2026-2027": f"{label}里最需要慢下来的节点是{year_tag}。先确认收款、责任、交付顺序和退出条件，再决定要不要放大。",
+            "2028-2029": f"{label}的钱和人都会更活，{year_tag}尤其要防合作边界变糊；报价、客户归属和分账口径要提前写清。",
+            "2030-2033": f"{label}容易进入系统化考验，{year_tag}不适合靠临场反应解决问题；流程、合同、税务和团队责任要先定版。",
+            "2034-2036": f"{label}像一次方向再筛选，{year_tag}要避免为了新机会提前透支；先看资源能不能长期承接。",
+        }
+        medium_risk_lines = {
+            "2026-2027": f"{label}整体可推进，但{year_tag}容易让节奏变快。适合先做小范围验证，再扩预算或承诺。",
+            "2028-2029": f"{label}有客户和现金流机会，{year_tag}适合谈条件，但不宜把账期、库存和交付压力全压到自己身上。",
+            "2030-2033": f"{label}更适合把能力变成系统，{year_tag}要重视验收、回款和岗位责任，而不是只看表面规模。",
+            "2034-2036": f"{label}可以观察新方向，{year_tag}先用低成本试错，别一开始就投入过重。",
+        }
+        low_risk_lines = {
+            "2026-2027": f"{label}风险相对可控，但{year_tag}仍要保留预算、账期、合同和退出条件。",
+            "2028-2029": f"{label}可用来扩大客户面，但{year_tag}要把复购、介绍费和客户池归属讲清。",
+            "2030-2033": f"{label}适合沉淀制度和产品，{year_tag}重点是把账、货、人和流程收拢。",
+            "2034-2036": f"{label}更适合复盘和调整，{year_tag}先稳住旧盘，再看新盘。",
+        }
         if avg_risk >= 18:
-            risk = f"高风险点在 {risky[0]}{risky[1]}：{compact_flow_note(risky[10])}"
+            risk = high_risk_lines.get(label, f"{label}要在{year_tag}放慢确认。")
+        elif avg_risk >= 14:
+            risk = medium_risk_lines.get(label, f"{label}可推进，但{year_tag}要先验证。")
         else:
-            risk = f"风险可控，但 {risky[0]}{risky[1]} 仍需按预算和退出条件推进。"
+            risk = low_risk_lines.get(label, f"{label}风险可控，但{year_tag}要留复盘。")
         if strength < 48:
-            risk += " 身弱盘先补资源与支持系统，不宜硬扛。"
+            risk += " 这类盘先补资源与支持系统，不宜靠硬扛换增长。"
         elif strength > 68:
-            risk += " 身强盘最怕动作过大，先定边界再放量。"
+            suffix = {
+                "2026-2027": " 初期最忌一兴奋就把周期拉长。",
+                "2028-2029": " 钱越容易动，越要守住账户和客户主权。",
+                "2030-2033": " 规模越大，越要让制度先替你承压。",
+                "2034-2036": " 新方向可以看，但先让旧系统稳住。",
+            }.get(label, " 越顺的时候越要克制动作幅度。")
+            risk += suffix
         rows.append([label, judgment, condition, risk])
     return rows
 
@@ -1908,12 +1935,19 @@ def relationship_profile(data: dict, useful: list[str], context: dict | None = N
         star_text = "、".join(unique(context["spouse_visible"] + context["spouse_hidden"])) or "未明显透出"
         spouse_element = BRANCH_ELEMENT.get(context["day_branch"], "")
         trait = {
-            "金": "边界感强、专业、重规则或金融/数据/法务/技术气质",
-            "水": "沟通强、流动性高、跨城/跨境/内容信息气质",
-            "木": "成长型、教育/内容/设计/咨询气质，重长期发展",
-            "火": "表达强、外向、品牌/销售/传播气质，节奏较快",
-            "土": "稳定务实、运营/管理/地产/供应链气质，重现实承接",
+            "金": "外在更容易给人清爽、克制、有边界和专业感，不一定热络，但做事讲规则。",
+            "水": "气质偏灵活、会沟通、信息感强，可能带一点跨城、跨文化或流动性的感觉。",
+            "木": "气质偏成长型，重学习、审美、长期发展和精神连接，不太适合粗糙强压的相处。",
+            "火": "气质更明亮、表达欲强、反应快，容易带来热度，也需要成熟的情绪节奏。",
+            "土": "气质偏稳定务实，重生活秩序、责任感和现实承接，给人的安全感比较强。",
         }.get(spouse_element, "偏稳定和专业感")
+        role_trait = {
+            "金": "更可能出现在金融、数据、法务、技术、管理、审计、医疗器械或强规则行业。",
+            "水": "更可能接触内容信息、咨询、贸易、跨境、互联网、传媒、流动型业务或沟通型岗位。",
+            "木": "更可能与教育、内容、设计、咨询、产品、文化审美、成长型组织或长期项目相关。",
+            "火": "更可能与品牌、传播、销售、市场、娱乐、培训、表达型岗位或曝光型业务有关。",
+            "土": "更可能在运营、项目管理、供应链、地产、行政、人资、财务基础岗或稳定型组织里。",
+        }.get(spouse_element, "更偏专业型、稳定型或需要长期积累的角色")
         relation_level = "中等偏高" if good_years else "需谨慎观察"
         risk_note = "；".join(f"{row[0]}{row[1]}压力高" for row in risk_years[:2]) or "主要风险来自现实责任没有谈清"
         return [
@@ -1921,7 +1955,7 @@ def relationship_profile(data: dict, useful: list[str], context: dict | None = N
             ["适合恋爱窗口", window, "按流年与日支、伴侣星、压力分数综合筛选，不是固定年份。"],
             ["最可能遇到时间", meet, "这是自动模型窗口；若客户提供恋爱/分手/结婚节点，可进一步校准。"],
             ["外貌气质", trait, f"由日支五行、伴侣星和喜用{''.join(useful)}综合取象，置信度中低。"],
-            ["从事行业/角色", trait, "这是象意推断，不是硬性条件。"],
+            ["从事行业/角色", role_trait, "这是象意推断，不是硬性条件。"],
             ["不适配对象", "承诺模糊、财务边界混乱、强情绪控制或长期不给行动的人", risk_note],
             ["结婚成熟窗口", window if meet != "无法提供判断" else "无法提供判断", "重点不是单一年份，而是对象、城市、钱、家庭责任是否同步成熟。"],
         ]
@@ -2330,9 +2364,136 @@ def apply_llm_sections(model: dict, llm: dict | None) -> bool:
     return changed
 
 
+REVIEW_BANNED_PHRASES = [
+    "高风险点在",
+    "触发日支/关系宫",
+    "触发月令/事业宫",
+    "身强盘最怕动作过大",
+    "先定边界再放量",
+    "前期讲义气、后期算不清",
+    "比劫夺财被引动",
+    "不要只靠口头默契",
+    "机会与挑战并存",
+    "注意沟通",
+]
+
+
+def review_texts(model: dict) -> list[tuple[str, str]]:
+    texts: list[tuple[str, str]] = []
+    for row in model.get("career_rows", []):
+        texts.extend([("career", str(cell)) for cell in row])
+    texts.append(("wealth_intro", model.get("wealth_tone", {}).get("base", "")))
+    for row in model.get("income_stage_rows", []):
+        texts.extend([("income_stage", str(cell)) for cell in row])
+    for row in model.get("annual_rows", []):
+        if len(row) > 10:
+            texts.append((f"annual_{row[0]}", str(row[10])))
+    for row in model.get("relationship_rows", []):
+        texts.extend([("relationship", str(cell)) for cell in row])
+    for row in model.get("monthly_rows", []):
+        if len(row) > 7:
+            texts.append((f"monthly_{row[0]}", str(row[7])))
+    for row in model.get("crisis_rows", []):
+        texts.extend([("crisis", str(cell)) for cell in row])
+    for item in model.get("llm_summary_paragraphs", []):
+        texts.append(("summary", str(item)))
+    return [(key, text.strip()) for key, text in texts if text and text.strip()]
+
+
+def repeated_sentence_issues(texts: list[tuple[str, str]]) -> list[str]:
+    seen: dict[str, int] = {}
+    for _, text in texts:
+        for part in re.split(r"[。；;]\s*", text):
+            clean = part.strip()
+            if len(clean) >= 18:
+                seen[clean] = seen.get(clean, 0) + 1
+    return [f"重复句：{sentence[:42]}" for sentence, count in seen.items() if count >= 2]
+
+
+def report_quality_issues(model: dict) -> list[str]:
+    texts = review_texts(model)
+    full_text = "\n".join(text for _, text in texts)
+    issues: list[str] = []
+    for phrase in REVIEW_BANNED_PHRASES:
+        count = full_text.count(phrase)
+        if count:
+            issues.append(f"出现模板/禁用短语「{phrase}」{count}次")
+    issues.extend(repeated_sentence_issues(texts)[:8])
+    annual_notes = [row[10] for row in model.get("annual_rows", []) if len(row) > 10]
+    if len(annual_notes) >= 8:
+        openers = [note[:18] for note in annual_notes if len(note) >= 18]
+        repeated_openers = {item for item in openers if openers.count(item) >= 2}
+        for opener in sorted(repeated_openers):
+            issues.append(f"年度说明开头重复：{opener}")
+    relationship = {row[0]: row[1:] for row in model.get("relationship_rows", []) if len(row) >= 3}
+    looks = " ".join(relationship.get("外貌气质", []))
+    role = " ".join(relationship.get("从事行业/角色", []))
+    if looks and role and looks == role:
+        issues.append("感情运势中外貌气质与从事行业/角色完全重复")
+    if len(full_text) < 1800:
+        issues.append("私人订制板块总字数偏短，可能没有达到付费报告信息量")
+    return unique(issues)
+
+
+def llm_delivery_review_prompt(packet: dict, issues: list[str]) -> list[dict[str, str]]:
+    schema_note = {
+        "career_rows": [["主题", "判断", "依据"]],
+        "wealth_intro": "重写未来十年财运开头，一段客户能听懂的大白话。",
+        "income_stage_rows": [["阶段", "收入判断", "关键条件", "风险"]],
+        "annual_notes": [{"year": "2026", "note": "该年年度大白话分析"}],
+        "relationship_rows": [["主题", "判断", "说明"]],
+        "monthly_notes": [{"month": "2026-02", "note": "该月行动建议"}],
+        "june_2026_detail": "2026年6月甲午重点提示。",
+        "crisis_rows": [["主题", "盘面依据", "现实动作"]],
+        "summary_paragraphs": ["5段大白话总结"],
+    }
+    system = (
+        "你是 Ming Atelier 的交付前审稿官。你不重新排盘，只检查并重写客户可见语言。"
+        "当前报告已生成，但 QA 发现模板化、重复、术语堆砌或信息量不足。"
+        "你必须在锁定四柱、十神、神煞、大运、流年、分数和风险旗标的前提下，重写客户真正会看的板块。"
+        "不要复用旧句，不要写“触发日支/关系宫”“高风险点在”“先定边界再放量”等审稿问题里的句式。"
+        "每一年、每个月都要有自己的语气和判断依据；同一个命理逻辑可以重复，但表达不能复制粘贴。"
+        "输出必须是合法 JSON，不要 Markdown，不要解释 JSON 之外的内容。"
+    )
+    user = (
+        "请按 schema 返回可替换字段。annual_notes 必须覆盖 2026-2036 共 11 年；monthly_notes 必须覆盖输入里的全部 2026 流月。"
+        "relationship_rows 必须保留原有主题，不得出现身高/体型，外貌气质和行业角色不能复用同一句。"
+        "summary_paragraphs 需要像一段真正的付费总结，覆盖性格、行业/事业、财运年份、感情窗口、风险边界和顺势建议。\n\n"
+        f"schema: {json.dumps(schema_note, ensure_ascii=False)}\n\n"
+        f"QA发现的问题：{json.dumps(issues, ensure_ascii=False)}\n\n"
+        f"锁定命盘与当前报告如下：{json.dumps(packet, ensure_ascii=False)}"
+    )
+    return [{"role": "system", "content": system}, {"role": "user", "content": user}]
+
+
+def pre_delivery_review(data: dict, computed: dict, model: dict) -> None:
+    issues = report_quality_issues(model)
+    model["review_issues"] = issues
+    model["review_status"] = "passed" if not issues else "needs_review"
+    if not issues or not llm_report_enabled():
+        return
+    packet = llm_fact_packet(data, computed, model)
+    packet["currentVisibleSections"] = {
+        "careerRows": model.get("career_rows", []),
+        "wealthIntro": model.get("wealth_tone", {}).get("base", ""),
+        "incomeStageRows": model.get("income_stage_rows", []),
+        "annualRows": model.get("annual_rows", []),
+        "relationshipRows": model.get("relationship_rows", []),
+        "monthlyRows": model.get("monthly_rows", []),
+        "crisisRows": model.get("crisis_rows", []),
+        "summaryParagraphs": plain_summary_paragraphs(data, model),
+    }
+    reviewed = call_llm_json(llm_delivery_review_prompt(packet, issues))
+    if apply_llm_sections(model, reviewed):
+        remaining = report_quality_issues(model)
+        model["review_issues"] = remaining
+        model["review_status"] = "passed_after_llm_review" if not remaining else "reviewed_with_warnings"
+
+
 def enrich_model_with_llm(data: dict, computed: dict, model: dict) -> None:
     model["llm_status"] = "disabled"
     if not llm_report_enabled():
+        pre_delivery_review(data, computed, model)
         return
     packet = llm_fact_packet(data, computed, model)
     changed = False
@@ -2343,6 +2504,7 @@ def enrich_model_with_llm(data: dict, computed: dict, model: dict) -> None:
     detail_llm = call_llm_json(llm_detail_prompt(packet))
     changed = apply_llm_sections(model, detail_llm) or changed
     model["llm_status"] = "applied" if changed else "fallback"
+    pre_delivery_review(data, computed, model)
 
 
 def report_model(data: dict, computed: dict) -> dict:
@@ -2865,8 +3027,19 @@ class Handler(BaseHTTPRequestHandler):
                     "pdfUrl": pdf_url,
                     "htmlUrl": html_url,
                     "chartUrl": chart_url,
+                    "llmStatus": model.get("llm_status"),
+                    "reviewStatus": model.get("review_status"),
+                    "reviewIssues": model.get("review_issues", []),
                 })
-                self.send_json({"ok": True, "recordId": run_id, "pdfUrl": pdf_url, "htmlUrl": html_url, "chartUrl": chart_url})
+                self.send_json({
+                    "ok": True,
+                    "recordId": run_id,
+                    "pdfUrl": pdf_url,
+                    "htmlUrl": html_url,
+                    "chartUrl": chart_url,
+                    "llmStatus": model.get("llm_status"),
+                    "reviewStatus": model.get("review_status"),
+                })
                 return
             pdf_path = GENERATED / f"{run_id}.pdf"
             report_pdf(data, computed, chart_png, pdf_path)
