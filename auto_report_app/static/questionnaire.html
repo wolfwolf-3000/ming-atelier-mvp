@@ -89,7 +89,15 @@
           <button class="btn secondary" type="button" id="copy">生成并复制问卷结果</button>
           <button class="btn gold" type="button" id="download">下载填写结果</button>
         </div>
-        <p class="wait-note">深度报告会调用排盘与大模型解读，通常需要等待 90-180 秒。生成期间请尽量不要锁屏、切换 App 或关闭页面。</p>
+        <p class="wait-note">深度报告需要排盘、调用大模型解读、交付前复查并生成 HTML/PDF，通常需要 2-5 分钟。生成期间请尽量不要锁屏、切换 App 或关闭页面。</p>
+        <div class="progress-box" id="progressBox" aria-live="polite">
+          <div class="progress-top">
+            <span id="progressStage">准备生成</span>
+            <span id="progressPercent">0%</span>
+          </div>
+          <div class="progress-track"><span class="progress-bar" id="progressBar"></span></div>
+          <p class="progress-note" id="progressNote">正在提交资料，请保持页面打开。</p>
+        </div>
       </form>
 
       <div class="panel" id="outputBox" style="display:none;margin-top:18px">
@@ -173,6 +181,44 @@
       document.getElementById('outputBox').style.display = 'block';
       document.getElementById('outputBox').scrollIntoView({ behavior: 'smooth', block: 'start' });
     }
+    let progressTimer = null;
+    function setProgress(percent, stage, note) {
+      document.getElementById('progressBar').style.width = `${percent}%`;
+      document.getElementById('progressPercent').textContent = `${percent}%`;
+      document.getElementById('progressStage').textContent = stage;
+      document.getElementById('progressNote').textContent = note;
+    }
+    function startProgress() {
+      const box = document.getElementById('progressBox');
+      box.style.display = 'block';
+      box.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      const stages = [
+        [12, '排盘中', '正在换算四柱、十神、神煞和地支关系。'],
+        [28, '建立命盘结构', '正在整理大运、流年、事业与关系的分析底盘。'],
+        [48, '生成深度解读', '正在调用大模型写事业、财运、感情和风险板块。'],
+        [68, '交付前复查', '正在检查是否有重复话术、模板句和遗漏板块。'],
+        [82, '生成文件', '正在生成互动 HTML 与 PDF，请继续保持页面打开。'],
+        [92, '即将完成', '报告正在收尾，网络慢时这里可能会停留一会儿。']
+      ];
+      let index = 0;
+      setProgress(6, '准备生成', '正在提交资料，请保持页面打开。');
+      clearInterval(progressTimer);
+      progressTimer = setInterval(() => {
+        if (index < stages.length) {
+          const [percent, stage, note] = stages[index];
+          setProgress(percent, stage, note);
+          index += 1;
+        }
+      }, 24000);
+    }
+    function finishProgress() {
+      clearInterval(progressTimer);
+      setProgress(100, '报告已完成', '报告已生成，可在线阅读或下载 PDF。');
+    }
+    function failProgress(message) {
+      clearInterval(progressTimer);
+      setProgress(0, '生成失败', message || '生成失败，请稍后重试。');
+    }
     document.getElementById('generate').addEventListener('click', async () => {
       if (!validateRequired()) return;
       const button = document.getElementById('generate');
@@ -180,14 +226,17 @@
       button.disabled = true;
       button.textContent = '生成中...';
       box.style.display = 'none';
+      startProgress();
       try {
         const data = await postJson('/api/deep-report', collectPayload());
         document.getElementById('htmlLink').href = data.htmlUrl;
         document.getElementById('pdfLink').href = data.pdfUrl;
         document.getElementById('chartLink').href = data.chartUrl;
+        finishProgress();
         box.style.display = 'block';
         box.scrollIntoView({ behavior: 'smooth', block: 'start' });
       } catch (error) {
+        failProgress(error.message);
         alert(error.message);
       } finally {
         button.disabled = false;
