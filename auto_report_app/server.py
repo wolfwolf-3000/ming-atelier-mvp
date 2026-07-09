@@ -490,19 +490,142 @@ def verdict_from_score(score: int) -> tuple[str, str, str]:
     return "凶", "暂缓为宜", "阻力较明显，当前不适合硬推；若必须推进，应先降风险、缩小投入。"
 
 
+def clamp_int(value: int | float, low: int, high: int) -> int:
+    return max(low, min(high, int(round(value))))
+
+
+def normalize_local_datetime(value: str) -> datetime | None:
+    raw = str(value or "").strip()
+    match = re.match(r"^(\d{4})-(\d{2})-(\d{2})[T\s](\d{1,2}):(\d{2})(?::(\d{2}))?", raw)
+    if not match:
+        return None
+    year, month, day, hour, minute, second = match.groups()
+    return datetime(int(year), int(month), int(day), int(hour), int(minute), int(second or 0))
+
+
+def divination_datetime(data: dict) -> tuple[datetime, str, str]:
+    timezone_name = str(data.get("timezone") or data.get("timeZone") or "").strip()
+    if data.get("divinationDate") and data.get("divinationTime"):
+        data["divinationTime"] = normalize_time(data["divinationTime"])
+        return datetime.fromisoformat(data["divinationDate"] + "T" + data["divinationTime"]), timezone_name, "用户填写时间"
+    for key in ("divinationLocal", "clientLocalTime", "localTime"):
+        parsed = normalize_local_datetime(data.get(key, ""))
+        if parsed:
+            return parsed, timezone_name, "浏览器起念时间"
+    return datetime.now(), timezone_name, "服务器当前时间"
+
+
 def divination_topic(question: str, background: str) -> str:
     text = question + " " + background
     topics = [
-        ("合作/副业", ["合作", "合伙", "副业", "项目", "客户", "合同", "报价", "资源", "推进"]),
+        ("健康/安全", ["健康", "身体", "手术", "病", "安全", "危险", "事故"]),
         ("感情/关系", ["感情", "恋爱", "复合", "分手", "结婚", "对象", "关系", "伴侣"]),
-        ("事业/工作", ["工作", "跳槽", "面试", "升职", "老板", "公司", "事业", "职业"]),
         ("财务/投资", ["投资", "买", "卖", "钱", "收入", "财", "股票", "房", "资产"]),
+        ("事业/工作", ["工作", "跳槽", "面试", "升职", "老板", "公司", "事业", "职业", "offer", "岗位"]),
         ("学业/考试", ["考试", "申请", "学校", "学业", "录取", "论文", "证书"]),
+        ("出行/迁移", ["出行", "旅行", "搬家", "搬迁", "出国", "签证", "航班", "迁移"]),
+        ("合作/副业", ["合作", "合伙", "副业", "项目", "客户", "合同", "报价", "分账", "股权", "交付"]),
     ]
+    best_label = "具体事项"
+    best_score = 0
     for label, words in topics:
-        if any(word in text for word in words):
-            return label
-    return "具体事项"
+        score = sum(1 for word in words if word in text)
+        if score > best_score:
+            best_label = label
+            best_score = score
+    return best_label
+
+
+def has_any(text: str, words: list[str]) -> bool:
+    return any(word and word in text for word in words)
+
+
+def topic_score_adjustment(topic: str, relation: str, phase: str, question: str, background: str, omen: str) -> tuple[int, int, int, list[str]]:
+    text = f"{question} {background}".lower()
+    relation_scores = {
+        "合作/副业": {"用生体": 6, "体克用": 4, "体用同气": 2, "体生用": -8, "用克体": -13},
+        "感情/关系": {"用生体": 7, "体用同气": 3, "体克用": -3, "体生用": -7, "用克体": -11},
+        "事业/工作": {"用生体": 7, "体克用": 5, "体用同气": 2, "体生用": -4, "用克体": -10},
+        "财务/投资": {"用生体": 4, "体克用": 2, "体用同气": 0, "体生用": -10, "用克体": -15},
+        "学业/考试": {"用生体": 6, "体克用": 4, "体用同气": 2, "体生用": -5, "用克体": -9},
+        "出行/迁移": {"用生体": 5, "体克用": 2, "体用同气": 1, "体生用": -6, "用克体": -12},
+        "健康/安全": {"用生体": 2, "体克用": -2, "体用同气": -1, "体生用": -8, "用克体": -16},
+    }
+    phase_scores = {
+        "合作/副业": {"初段": 3, "中段": -5, "后段": -1},
+        "感情/关系": {"初段": 1, "中段": -6, "后段": -3},
+        "事业/工作": {"初段": 3, "中段": -3, "后段": 1},
+        "财务/投资": {"初段": 0, "中段": -7, "后段": -2},
+        "学业/考试": {"初段": 2, "中段": -2, "后段": 2},
+        "出行/迁移": {"初段": 2, "中段": -5, "后段": -1},
+        "健康/安全": {"初段": -2, "中段": -8, "后段": -4},
+    }
+    notes = []
+    score = relation_scores.get(topic, {}).get(relation, -1) + phase_scores.get(topic, {}).get(phase, 0)
+    risk = 0
+    confidence = 0
+
+    positive = ["明确", "已确认", "已签", "通过", "愿意", "稳定", "有预算", "已付款", "offer", "录取", "见过", "正在推进"]
+    negative = ["没谈清", "不清楚", "拖延", "冷淡", "断联", "争吵", "隐瞒", "借钱", "高杠杆", "冲动", "临时", "反复"]
+    if has_any(text, positive):
+        score += 5
+        confidence += 3
+        notes.append("背景里已有明确推进信号，达成度上调")
+    if has_any(text, negative):
+        score -= 6
+        risk += 1
+        confidence += 2
+        notes.append("背景里已有现实阻力，风险上调")
+
+    if topic == "合作/副业":
+        if has_any(text, ["口头", "资源很多", "没合同", "分账", "股权", "退出"]):
+            score -= 5
+            risk += 1
+            notes.append("合作边界不清，先按高摩擦处理")
+        if has_any(text, ["合同", "付款", "责任人", "交付范围", "试运行"]):
+            score += 4
+            notes.append("合作条件有落点，可小步验证")
+    elif topic == "感情/关系":
+        if has_any(text, ["断联", "冷淡", "分手", "暧昧", "不回复"]):
+            score -= 6
+            risk += 1
+            notes.append("关系回应不足，不能只按情绪推进")
+        if has_any(text, ["见面", "稳定", "承诺", "确定关系", "家人"]):
+            score += 4
+            notes.append("关系有现实承接点")
+    elif topic == "事业/工作":
+        if has_any(text, ["薪资", "汇报线", "岗位", "资源支持", "offer"]):
+            score += 4
+            notes.append("事业问题已有可核验条件")
+        if has_any(text, ["裸辞", "不明确", "画饼", "试用", "裁员"]):
+            score -= 5
+            risk += 1
+            notes.append("职业承诺与现实资源需复核")
+    elif topic == "财务/投资":
+        if has_any(text, ["借钱", "杠杆", "重仓", "短线", "保本", "高收益"]):
+            score -= 9
+            risk += 2
+            notes.append("财务问题出现高风险关键词")
+        if has_any(text, ["小额", "分批", "止损", "现金流", "退出"]):
+            score += 4
+            notes.append("已有风控设计，风险略降")
+    elif topic == "健康/安全":
+        risk += 2
+        score -= 5
+        notes.append("健康安全类问题不按高达成度处理，必须现实复核")
+
+    omen_text = str(omen or "").strip()
+    if omen_text and omen_text not in {"无", "没有", "none", "None"}:
+        confidence += 4
+        if has_any(omen_text, ["亮", "光", "金", "顺", "开", "喜", "清"]):
+            score += 3
+            notes.append("外应偏顺，作为小幅助力")
+        if has_any(omen_text, ["碎", "黑", "堵", "吵", "破", "掉", "暗", "痛"]):
+            score -= 3
+            risk += 1
+            notes.append("外应偏阻，作为小幅风险提示")
+
+    return score, risk, confidence, notes[:4]
 
 
 def divination_contextual_reading(topic: str, question: str, background: str, verdict: str, relation: str, phase: str) -> tuple[str, list[str], list[str]]:
@@ -511,7 +634,7 @@ def divination_contextual_reading(topic: str, question: str, background: str, ve
         "体生用": "你会比较主动付出资源和精力，容易先投入、后等回报。",
         "体克用": "你有主动掌控空间，但也容易因为控制太急而让对方退缩。",
         "用克体": "外部压力压到自己身上，推进时要先判断成本是否已经超过收益。",
-        "同气": "双方节奏相近，成败更取决于细节、时机和执行纪律。",
+        "体用同气": "双方节奏相近，成败更取决于细节、时机和执行纪律。",
     }.get(relation, "卦象提示要把抽象判断落到具体条件。")
     phase_hint = {
         "初段": "事情还在起势阶段，先验证对方态度，不宜一上来绑定大承诺。",
@@ -543,6 +666,10 @@ def divination_contextual_reading(topic: str, question: str, background: str, ve
 
 def llm_divination_prompt(result: dict) -> list[dict[str, str]]:
     schema_note = {
+        "reviewedVerdict": "可选。若原始判断与问题明显不匹配，可返回 吉/小吉/平/凶 之一。",
+        "reviewedSuccess": "可选。0-100 的整数，原则上只在原始达成度上下 12 分内修正。",
+        "reviewedRisk": "可选。1-10 的整数，原则上只在原始风险上下 2 分内修正。",
+        "reviewedConfidence": "可选。0-100 的整数，按信息完整度修正。",
         "questionReading": "围绕用户具体问题写一段客户可读解读，必须引用本卦/互卦/变卦、体用关系、动爻阶段、达成度和风险。",
         "advice": ["3-5 条具体行动建议，每条都要能落地"],
         "riskPoints": ["3-5 条风险提醒，必须贴合用户问题、背景、合同/关系/金钱/时间等现实变量"],
@@ -550,13 +677,14 @@ def llm_divination_prompt(result: dict) -> list[dict[str, str]]:
         "summary": "一段大白话结论，直接回答这件事该进、该缓、还是先观察。",
     }
     system = (
-        "你是 Ming Atelier 的梅花易数起卦解释层。你不重新起卦，只根据输入结果做客户可读解读。"
-        "必须保留输入中的卦名、体用、生克、动爻、达成度、风险和置信度，不得改分数，不得保证结果。"
+        "你是 Ming Atelier 的梅花易数起卦复核与解释层。你不重新起卦，必须保留输入中的本卦、互卦、变卦、体用和动爻。"
+        "你可以复核达成度、风险、置信度和吉凶是否贴合用户问题；若要修正，必须克制，通常达成度不超过上下12分，风险不超过上下2分。"
         "输出风格对标高端私人咨询：20% 技术依据，80% 针对用户问题的现实判断。"
         "必须把卦象和用户的具体问题连起来，不要写泛泛的吉凶话术。"
         "如果是合作/副业，重点写合同、分工、付款、交付、试运行和退出条件；"
         "如果是感情，重点写承诺、沟通、时机、互相投入和边界；"
         "如果是事业/财务，重点写权责、收益、成本、现金流、备选方案和风控。"
+        "如果是健康、安全、法律、投资保证类问题，必须强调现实复核和专业意见，不能给确定性承诺。"
         "语言要直接、克制、有同理心，不恐吓，不许诺。输出必须是合法 JSON，不要 Markdown。"
     )
     user = (
@@ -568,6 +696,13 @@ def llm_divination_prompt(result: dict) -> list[dict[str, str]]:
     return [{"role": "system", "content": system}, {"role": "user", "content": user}]
 
 
+def percent_int(value: str | int | float | None) -> int | None:
+    match = re.search(r"\d{1,3}", str(value or ""))
+    if not match:
+        return None
+    return clamp_int(int(match.group(0)), 0, 100)
+
+
 def enrich_divination_with_llm(result: dict) -> dict:
     result["llmStatus"] = "disabled"
     if not llm_report_enabled():
@@ -577,6 +712,31 @@ def enrich_divination_with_llm(result: dict) -> dict:
         result["llmStatus"] = "fallback"
         return result
     changed = False
+    original_success = percent_int(result.get("success"))
+    original_risk = percent_int(result.get("risk"))
+    verdict = str(llm.get("reviewedVerdict", "")).strip()
+    if verdict in {"吉", "小吉", "平", "凶"}:
+        result["verdict"] = verdict
+        _, verdict_tone, verdict_text = verdict_from_score(percent_int(llm.get("reviewedSuccess")) or original_success or 50)
+        result["verdictTone"] = verdict_tone
+        result["verdictText"] = verdict_text
+        changed = True
+    reviewed_success = percent_int(llm.get("reviewedSuccess"))
+    if reviewed_success is not None and original_success is not None:
+        bounded = clamp_int(reviewed_success, original_success - 12, original_success + 12)
+        result["success"] = f"{bounded}%"
+        if not verdict:
+            result["verdict"], result["verdictTone"], result["verdictText"] = verdict_from_score(bounded)
+        changed = True
+    reviewed_risk = percent_int(llm.get("reviewedRisk"))
+    if reviewed_risk is not None and original_risk is not None:
+        bounded = clamp_int(reviewed_risk, original_risk - 2, original_risk + 2)
+        result["risk"] = f"{clamp_int(bounded, 1, 10)}/10"
+        changed = True
+    reviewed_confidence = percent_int(llm.get("reviewedConfidence"))
+    if reviewed_confidence is not None:
+        result["confidence"] = f"{clamp_int(reviewed_confidence, 45, 82)}%"
+        changed = True
     for key, min_len in [("questionReading", 60), ("summary", 45), ("actionWindow", 12)]:
         value = llm.get(key)
         if isinstance(value, str) and len(value.strip()) >= min_len:
@@ -597,11 +757,7 @@ def build_divination(data: dict) -> dict:
     question = data.get("question", "").strip()
     if not question:
         raise ValueError("请填写要问的具体事情")
-    if data.get("divinationDate") and data.get("divinationTime"):
-        data["divinationTime"] = normalize_time(data["divinationTime"])
-        divination_time = datetime.fromisoformat(data["divinationDate"] + "T" + data["divinationTime"])
-    else:
-        divination_time = datetime.now()
+    divination_time, timezone_name, time_source = divination_datetime(data)
     solar = Solar.fromYmdHms(divination_time.year, divination_time.month, divination_time.day, divination_time.hour, divination_time.minute, divination_time.second)
     lunar = solar.getLunar()
     ec = lunar.getEightChar()
@@ -629,30 +785,49 @@ def build_divination(data: dict) -> dict:
     phase, phase_score, phase_text = moving_line_reading(moving_line)
     body_score = support_score(body_element, month_element, day_element)
     use_score = support_score(use_element, month_element, day_element)
-    success = max(28, min(86, 58 + relation_score + body_score - max(0, use_score - body_score) // 2 + phase_score))
+    background = data.get("background", "").strip()
+    omen = data.get("omen", "").strip() or "无"
+    topic = divination_topic(question, background)
+    topic_adjust, topic_risk, topic_confidence, topic_notes = topic_score_adjustment(topic, relation, phase, question, background, omen)
+    success = clamp_int(58 + relation_score + body_score - max(0, use_score - body_score) // 2 + phase_score + topic_adjust, 24, 90)
     risk = 5 + (2 if success < 48 else 0) + (1 if moving_line in (3, 4) else 0) + (1 if relation == "用克体" else 0) - (1 if success >= 68 else 0)
-    risk = max(2, min(9, risk))
+    risk = clamp_int(risk + topic_risk, 1, 10)
     verdict, verdict_tone, verdict_text = verdict_from_score(success)
-    confidence = 58
-    confidence += 4 if data.get("location", "").strip() else -4
-    confidence += 3 if data.get("background", "").strip() else -4
-    confidence += 3 if data.get("omen", "").strip() else -2
-    confidence = max(45, min(72, confidence))
+    confidence = 65
+    confidence += 6 if time_source != "服务器当前时间" else -5
+    confidence += 4 if timezone_name else -4
+    confidence += 3 if data.get("location", "").strip() else -4
+    confidence += 5 if background else -6
+    confidence += 4 if omen not in {"无", "没有", "none", "None"} else -2
+    confidence += topic_confidence
+    if len(question) < 8:
+        confidence -= 5
+    confidence = clamp_int(confidence, 42, 82)
     action_window = {
         "初段": "先用 24-72 小时观察回应；若反馈顺，再推进下一步。",
         "中段": "未来 3-14 天是关键拉扯期，适合谈条件、补材料、看对方态度。",
         "后段": "未来 7-30 天看落地结果，重点放在确认、收尾和防反复。",
     }[phase]
-    background = data.get("background", "").strip()
-    topic = divination_topic(question, background)
     question_reading, advice, risk_points = divination_contextual_reading(topic, question, background, verdict, relation, phase)
+    body_energy = clamp_int((0.55 + body_score / 30 + max(relation_score, -10) / 80) * 100, 20, 90)
+    use_energy = clamp_int((0.55 + use_score / 30 - max(relation_score, -10) / 100) * 100, 20, 90)
+    benefit_loss = "2:1" if success >= 70 and risk <= 5 else "1:1" if success >= 52 and risk <= 7 else "1:2" if risk <= 8 else "1:3"
+    solar_term = ""
+    try:
+        solar_term = lunar.getJieQi() or f"{lunar.getPrevJieQi()}至{lunar.getNextJieQi()}之间"
+    except Exception:
+        solar_term = "节气未校准"
     result = {
         "question": question,
         "time": divination_time.strftime("%Y-%m-%d %H:%M"),
+        "timeSource": time_source,
+        "timezone": timezone_name or "未识别",
         "location": data.get("location", "").strip() or "未填，按当前本地时间起卦",
         "background": background or "未填",
         "topic": topic,
-        "omen": data.get("omen", "").strip() or "无",
+        "omen": omen,
+        "lunarText": f"农历{lunar_month}月{lunar_day}日，{ec.getYear()}年 {ec.getMonth()}月 {ec.getDay()}日 {ec.getTime()}时",
+        "solarTerm": solar_term,
         "baseHexagram": hexagram_name(upper_index, lower_index),
         "mutualHexagram": hexagram_name(mutual_upper, mutual_lower),
         "changedHexagram": hexagram_name(changed_upper, changed_lower),
@@ -663,7 +838,9 @@ def build_divination(data: dict) -> dict:
         "relation": relation,
         "relationText": relation_text,
         "seasonText": f"月令偏{month_element or '未明'}，日辰偏{day_element or '未明'}；体卦得分 {body_score:+d}，用卦得分 {use_score:+d}。",
+        "energyText": f"体卦能量系数约 {body_energy / 100:.2f}，用卦/外部变量能量系数约 {use_energy / 100:.2f}。",
         "movementText": phase_text,
+        "topicCalibration": "；".join(topic_notes) or "问题背景未出现强烈现实修正信号，主要按卦气与体用判断。",
         "verdict": verdict,
         "verdictTone": verdict_tone,
         "verdictText": verdict_text,
@@ -671,6 +848,7 @@ def build_divination(data: dict) -> dict:
         "risk": f"{risk}/10",
         "confidence": f"{confidence}%",
         "actionWindow": action_window,
+        "benefitLossRatio": benefit_loss,
         "questionReading": question_reading,
         "advice": advice,
         "riskPoints": risk_points,
