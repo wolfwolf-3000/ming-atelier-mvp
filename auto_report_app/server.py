@@ -105,6 +105,13 @@ TRIGRAMS = {
 GENERATES = {"木": "火", "火": "土", "土": "金", "金": "水", "水": "木"}
 CONTROLS = {"木": "土", "土": "水", "水": "火", "火": "金", "金": "木"}
 GAN_HE = {"甲己": "甲己合土", "乙庚": "乙庚合金", "丙辛": "丙辛合水", "丁壬": "丁壬合木", "戊癸": "戊癸合火"}
+GAN_CHONG = {"甲庚": "甲庚冲", "乙辛": "乙辛冲", "丙壬": "丙壬冲", "丁癸": "丁癸冲"}
+SAN_HUI = {
+    frozenset("亥子丑"): "亥子丑三会水局",
+    frozenset("寅卯辰"): "寅卯辰三会木局",
+    frozenset("巳午未"): "巳午未三会火局",
+    frozenset("申酉戌"): "申酉戌三会金局",
+}
 HEXAGRAM_NAMES = {
     ("乾", "乾"): "乾为天", ("乾", "兑"): "天泽履", ("乾", "离"): "天火同人", ("乾", "震"): "天雷无妄", ("乾", "巽"): "天风姤", ("乾", "坎"): "天水讼", ("乾", "艮"): "天山遁", ("乾", "坤"): "天地否",
     ("兑", "乾"): "泽天夬", ("兑", "兑"): "兑为泽", ("兑", "离"): "泽火革", ("兑", "震"): "泽雷随", ("兑", "巽"): "泽风大过", ("兑", "坎"): "泽水困", ("兑", "艮"): "泽山咸", ("兑", "坤"): "泽地萃",
@@ -855,6 +862,455 @@ def build_divination(data: dict) -> dict:
         "summary": f"此卦判断为「{verdict}」，倾向是「{verdict_tone}」。对应你问的“{question}”，结论不是抽象吉凶，而是：{question_reading}",
     }
     return enrich_divination_with_llm(result)
+
+
+def relation_labels_between(a: str, b: str) -> list[str]:
+    if not a or not b:
+        return []
+    labels = []
+    if a == b:
+        labels.append(f"{a}{b}伏吟")
+        if a in SELF_XING:
+            labels.append(SELF_XING[a])
+    key = branch_pair_key(a, b)
+    for mapping in (LIU_HE, LIU_CHONG, LIU_HAI, LIU_PO, PAIR_XING):
+        if key in mapping:
+            labels.append(mapping[key])
+    return unique(labels)
+
+
+def relation_weight(labels: list[str], pillar_weight: int = 1) -> int:
+    score = 0
+    for label in labels:
+        if "六合" in label or "合" in label and "半合" not in label:
+            score += 8
+        if "半合" in label:
+            score += 5
+        if "三合" in label or "三会" in label:
+            score += 9
+        if "冲" in label:
+            score -= 10
+        if "刑" in label:
+            score -= 9
+        if "害" in label:
+            score -= 7
+        if "破" in label:
+            score -= 6
+        if "伏吟" in label:
+            score -= 3
+    return score * pillar_weight
+
+
+def stem_relation_between(a: str, b: str) -> list[str]:
+    if not a or not b:
+        return []
+    labels = []
+    labels.append(GAN_HE.get(a + b) or GAN_HE.get(b + a) or "")
+    labels.append(GAN_CHONG.get(a + b) or GAN_CHONG.get(b + a) or "")
+    return unique([label for label in labels if label])
+
+
+def compatibility_person(data: dict, computed: dict) -> dict:
+    ec = computed["ec"]
+    profile = computed["profile"]
+    diag = day_master_diagnostics(ec, profile)
+    useful = diag["useful"]
+    context = analysis_context(data, computed, diag["strength"], useful)
+    pillars = computed["chart"]["pillars"]
+    hidden_stems = []
+    for branch in [pillar["branch"] for pillar in pillars]:
+        hidden_stems.extend([stem for stem, _ in HIDDEN_WEIGHT.get(branch, [])])
+    return {
+        "name": data.get("name") or "匿名",
+        "gender": data.get("gender") or "",
+        "ec": ec,
+        "computed": computed,
+        "profile": profile,
+        "diagnostic": diag,
+        "context": context,
+        "useful": useful,
+        "day_stem": ec.getDayGan(),
+        "day_branch": ec.getDayZhi(),
+        "day_element": STEM_ELEMENT.get(ec.getDayGan(), ""),
+        "pillars": pillars,
+        "stems": [pillar["stem"] for pillar in pillars],
+        "branches": [pillar["branch"] for pillar in pillars],
+        "hidden_stems": hidden_stems,
+    }
+
+
+def partner_star_hits(observer: dict, partner: dict) -> dict:
+    spouse_stars = observer["context"]["spouse_stars"]
+    partner_stems = partner["stems"] + partner["hidden_stems"]
+    rows = []
+    score = 0
+    for stem in partner_stems:
+        ten_god = ten_god_for(observer["day_stem"], stem)
+        if ten_god in spouse_stars:
+            score += 8 if stem in partner["stems"] else 4
+            rows.append(f"{partner['name']}的{stem}对{observer['name']}是{ten_god}")
+    day_ten_god = ten_god_for(observer["day_stem"], partner["day_stem"])
+    if day_ten_god in spouse_stars:
+        score += 12
+        rows.insert(0, f"{partner['name']}日主{partner['day_stem']}直接触动{observer['name']}的{day_ten_god}")
+    return {"score": min(score, 30), "rows": unique(rows[:5]), "dayTenGod": day_ten_god}
+
+
+def useful_complement(observer: dict, partner: dict) -> dict:
+    useful = observer["useful"]
+    hits = sum(partner["profile"].get(element, 0) for element in useful)
+    if hits >= 46:
+        score = 18
+        text = f"{partner['name']}五行里能给到{observer['name']}需要的{ '、'.join(useful) }，互补感明显。"
+    elif hits >= 28:
+        score = 11
+        text = f"{partner['name']}对{observer['name']}的{ '、'.join(useful) }有一定补益，但还要看关系节奏和现实承接。"
+    else:
+        score = 4
+        text = f"{partner['name']}对{observer['name']}的喜用补益不算强，更多要靠相处规则而不是自然互补。"
+    return {"score": score, "text": text, "hitPercent": hits}
+
+
+def cross_branch_matrix(a: dict, b: dict) -> list[dict]:
+    labels = ["年柱", "月柱", "日柱", "时柱"]
+    rows = []
+    for i, a_branch in enumerate(a["branches"]):
+        for j, b_branch in enumerate(b["branches"]):
+            rels = relation_labels_between(a_branch, b_branch)
+            if not rels:
+                continue
+            pillar_weight = 3 if i == 2 and j == 2 else 2 if i in {1, 2} or j in {1, 2} else 1
+            weight = relation_weight(rels, pillar_weight)
+            if weight > 0:
+                meaning = "带来靠近、互相借力或关系黏合。"
+            elif any("冲" in rel or "刑" in rel for rel in rels):
+                meaning = "容易带来强触发、节奏拉扯、争执或现实压力。"
+            else:
+                meaning = "容易在细节、安全感、时间安排或边界上出现别扭。"
+            rows.append({
+                "aPillar": labels[i],
+                "bPillar": labels[j],
+                "aBranch": a_branch,
+                "bBranch": b_branch,
+                "relations": rels,
+                "weight": weight,
+                "meaning": meaning,
+            })
+    return sorted(rows, key=lambda item: abs(item["weight"]), reverse=True)
+
+
+def combined_branch_sets(a: dict, b: dict) -> list[str]:
+    branches = set(a["branches"] + b["branches"])
+    labels = []
+    for combo, label in SAN_HE.items():
+        if combo.issubset(branches):
+            labels.append(label)
+    for combo, label in SAN_HUI.items():
+        if combo.issubset(branches):
+            labels.append(label)
+    for raw, label in SAN_HE_HALVES.items():
+        if raw[0] in branches and raw[1] in branches:
+            labels.append(label)
+    return unique(labels)
+
+
+def cross_stem_matrix(a: dict, b: dict) -> list[dict]:
+    labels = ["年干", "月干", "日干", "时干"]
+    rows = []
+    for i, a_stem in enumerate(a["stems"]):
+        for j, b_stem in enumerate(b["stems"]):
+            rels = stem_relation_between(a_stem, b_stem)
+            if not rels:
+                continue
+            rows.append({
+                "aPillar": labels[i],
+                "bPillar": labels[j],
+                "aStem": a_stem,
+                "bStem": b_stem,
+                "relations": rels,
+                "meaning": "天干合冲更像表层态度、沟通方式、吸引点和合作方式的触发。",
+            })
+    return rows
+
+
+def compatibility_windows(a: dict, b: dict) -> list[list[str]]:
+    rows = []
+    reset_luck_phrase_counts(a["context"], "compat_a")
+    reset_luck_phrase_counts(b["context"], "compat_b")
+    for offset, ganzhi in enumerate(GANZHI_2026_2036):
+        year = str(2026 + offset)
+        a_read = analyze_luck_pillar(a["context"], ganzhi, "year")
+        b_read = analyze_luck_pillar(b["context"], ganzhi, "year")
+        branch = split_ganzhi(ganzhi)[1]
+        a_rels = relation_labels_with(a["branches"], branch)
+        b_rels = relation_labels_with(b["branches"], branch)
+        heat = (a_read["relationship"] + b_read["relationship"]) / 2
+        risk = max(a_read["stress"], b_read["stress"], a_read["loss"], b_read["loss"])
+        if heat >= 7 and risk <= 6:
+            judgment = "适合推进"
+        elif heat >= 6 and risk >= 7:
+            judgment = "有吸引但波动大"
+        elif risk >= 8:
+            judgment = "谨慎，不宜重绑定"
+        else:
+            judgment = "观察磨合"
+        note = (
+            f"{ganzhi}年，{a['name']}关系分{a_read['relationship']}/9、压力{a_read['stress']}/9；"
+            f"{b['name']}关系分{b_read['relationship']}/9、压力{b_read['stress']}/9。"
+            f"{'、'.join(unique(a_rels + b_rels)[:4]) or '未见强触发'}。"
+        )
+        rows.append([year, ganzhi, judgment, note])
+    return rows
+
+
+def deterministic_compatibility_text(model: dict) -> dict:
+    a = model["a"]
+    b = model["b"]
+    a_to_b = model["attraction"]["aToB"]
+    b_to_a = model["attraction"]["bToA"]
+    complement = model["complement"]
+    def relation_summary(rows: list[dict], limit: int) -> str:
+        items = []
+        seen = set()
+        for row in rows:
+            label = f"{row['aBranch']}{row['bBranch']}：{'、'.join(row['relations'])}"
+            if label in seen:
+                continue
+            items.append(label)
+            seen.add(label)
+            if len(items) >= limit:
+                break
+        return "；".join(items)
+
+    conflicts = [row for row in model["branchMatrix"] if row["weight"] < 0]
+    bonds = [row for row in model["branchMatrix"] if row["weight"] > 0]
+    conflict_text = relation_summary(conflicts, 4) or "强冲突不算多，主要看现实节奏。"
+    bond_text = relation_summary(bonds, 3) or "显性合局不算强，吸引更多来自十神互相触动。"
+    summary = (
+        f"{a['name']}和{b['name']}这组合不是单纯好或坏，而是要看吸引、互补和触发能不能被现实规则接住。"
+        f"{a['name']}日主{a['day_stem']}{a['day_element']}，喜用偏{'、'.join(a['useful']) or '未明'}；"
+        f"{b['name']}日主{b['day_stem']}{b['day_element']}，喜用偏{'、'.join(b['useful']) or '未明'}。"
+        f"{complement['aFromB']['text']}{complement['bFromA']['text']}"
+        f"吸引力上，{';'.join(a_to_b['rows'][:2]) or '一方伴侣星触发不强'}；"
+        f"{';'.join(b_to_a['rows'][:2]) or '另一方伴侣星触发不强'}。"
+        f"稳定点在：{bond_text}。问题点在：{conflict_text}。"
+        "所以这段关系适合先把关系定义、钱、时间安排和现实规划讲清楚，再看能否长期推进。"
+    )
+    return {
+        "overall": summary,
+        "attraction": "双方是否有感觉，主要看彼此是否触动对方的伴侣星、日主和夫妻宫。这个组合的吸引不是只靠生肖，而是命盘里确实有互相看见对方的信号。",
+        "complement": "互补的重点是五行和行为系统：谁让谁冷静，谁给谁方向，谁提供规则，谁提供行动力。互补强时是彼此扶住，互补失衡时就会变成一方拉着另一方走。",
+        "friction": f"主要摩擦来自：{conflict_text}。这些不是一定分开，而是说明关系里容易在安全感、节奏、钱、承诺或现实计划上有反复。",
+        "timing": "年份窗口要同时看两个人的流年。关系分高但风险也高的年份，适合观察和谈规则；关系分高且风险较低的年份，更适合推进承诺。",
+        "advice": [
+            "先定义关系，不要长期暧昧或只靠感觉推进。",
+            "钱、项目、资源和亲密关系分开处理，至少前期不要混在一起。",
+            "遇到冲刑害破被触发的年份，先谈边界、节奏和现实安排，再谈情绪。",
+            "如果要长期发展，双方都需要能把话说清楚，而不是用冷战或试探消耗对方。",
+        ],
+    }
+
+
+def llm_compatibility_prompt(packet: dict) -> list[dict[str, str]]:
+    schema_note = {
+        "overall": "整体合盘结论，300-600字，像私人咨询，不要模板。",
+        "attraction": "互相吸引为什么成立或不成立，必须引用双方日主、伴侣星、夫妻宫或十神触发。",
+        "complement": "互补关系，说明谁补谁什么、会带来什么现实效果。",
+        "friction": "主要拉扯，不恐吓，解释情绪、安全感、钱、节奏、现实规划里的具体问题。",
+        "timing": "2026-2036 的关系窗口总结，说明哪些年适合推进，哪些年不宜重绑定。",
+        "advice": ["4-6条相处建议，必须具体"],
+        "shortVerdict": "一句话结论，30字以内",
+    }
+    system = (
+        "你是 Ming Atelier 的八字合盘解读层。确定性事实已经由程序排好，你不能改四柱、日主、五行、十神、冲合刑害、年份。"
+        "你的任务是把合盘结果写成客户能读懂、愿意付费的关系报告。"
+        "分析权重：20% 技术依据，80% 贴合双方关系的解释。"
+        "必须覆盖：整体适配、互相吸引、五行互补、冲合刑害带来的相处问题、2026-2036窗口、相处建议。"
+        "不要只说“适合/不适合”，要讲为什么、怎么相处、哪几年慢一点、哪些边界要先定。"
+        "语言可参考：直接、细腻、有同理心、东方命理感，但不要恐吓，不保证结婚，不给法律/投资确定性建议。"
+        "输出必须是合法 JSON，不要 Markdown，不要 JSON 之外的解释。"
+    )
+    user = (
+        "请根据以下合盘事实输出客户可见文本。不要复用输入里的句子，组织成自然语言：\n"
+        f"schema: {json.dumps(schema_note, ensure_ascii=False)}\n\n"
+        f"合盘事实：{json.dumps(packet, ensure_ascii=False)}"
+    )
+    return [{"role": "system", "content": system}, {"role": "user", "content": user}]
+
+
+def apply_compatibility_llm(model: dict) -> None:
+    model["llmStatus"] = "disabled"
+    text = deterministic_compatibility_text(model)
+    model["text"] = text
+    if not llm_report_enabled():
+        return
+    packet = {
+        "personA": {
+            "name": model["a"]["name"],
+            "gender": model["a"]["gender"],
+            "pillars": {
+                "year": model["a"]["ec"].getYear(),
+                "month": model["a"]["ec"].getMonth(),
+                "day": model["a"]["ec"].getDay(),
+                "hour": model["a"]["ec"].getTime(),
+            },
+            "dayMaster": f"{model['a']['day_stem']}{model['a']['day_element']}",
+            "strength": f"{model['a']['diagnostic']['label']} {model['a']['diagnostic']['strength']}%",
+            "useful": model["a"]["useful"],
+            "profile": model["a"]["profile"],
+            "spouseStars": model["a"]["context"]["spouse_stars"],
+            "riskFlags": model["a"]["context"]["risk_flags"],
+        },
+        "personB": {
+            "name": model["b"]["name"],
+            "gender": model["b"]["gender"],
+            "pillars": {
+                "year": model["b"]["ec"].getYear(),
+                "month": model["b"]["ec"].getMonth(),
+                "day": model["b"]["ec"].getDay(),
+                "hour": model["b"]["ec"].getTime(),
+            },
+            "dayMaster": f"{model['b']['day_stem']}{model['b']['day_element']}",
+            "strength": f"{model['b']['diagnostic']['label']} {model['b']['diagnostic']['strength']}%",
+            "useful": model["b"]["useful"],
+            "profile": model["b"]["profile"],
+            "spouseStars": model["b"]["context"]["spouse_stars"],
+            "riskFlags": model["b"]["context"]["risk_flags"],
+        },
+        "scores": model["scores"],
+        "attraction": model["attraction"],
+        "complement": model["complement"],
+        "branchMatrix": model["branchMatrix"][:12],
+        "stemMatrix": model["stemMatrix"][:10],
+        "combinedSets": model["combinedSets"],
+        "windows": model["windows"],
+        "relationshipQuestion": model["question"],
+        "currentStatus": model["status"],
+    }
+    llm = call_llm_json(llm_compatibility_prompt(packet))
+    if not isinstance(llm, dict):
+        model["llmStatus"] = "fallback"
+        return
+    changed = False
+    for key, min_len in [("overall", 120), ("attraction", 60), ("complement", 60), ("friction", 60), ("timing", 60), ("shortVerdict", 8)]:
+        value = llm.get(key)
+        if isinstance(value, str) and len(value.strip()) >= min_len:
+            model["text"][key] = value.strip()
+            changed = True
+    advice = llm.get("advice")
+    if isinstance(advice, list):
+        cleaned = [str(item).strip() for item in advice if isinstance(item, str) and len(str(item).strip()) >= 10]
+        if 3 <= len(cleaned) <= 7:
+            model["text"]["advice"] = cleaned
+            changed = True
+    model["llmStatus"] = "applied" if changed else "fallback"
+
+
+def build_compatibility(data: dict) -> tuple[dict, Path]:
+    def person(prefix: str, fallback_name: str) -> dict:
+        result = {
+            "name": data.get(f"{prefix}Name") or fallback_name,
+            "gender": data.get(f"{prefix}Gender") or "",
+            "birthDate": data.get(f"{prefix}BirthDate") or "",
+            "birthTime": data.get(f"{prefix}BirthTime") or "",
+            "birthPlace": data.get(f"{prefix}BirthPlace") or "",
+            "calendar": "阳历",
+        }
+        missing = [key for key in ("gender", "birthDate", "birthTime", "birthPlace") if not result.get(key)]
+        if missing:
+            raise ValueError(f"{fallback_name}缺少字段：{', '.join(missing)}")
+        return result
+
+    a_data = person("a", "你")
+    b_data = person("b", "对方")
+    run_id = f"compatibility-{safe_name(a_data['name'])}-{safe_name(b_data['name'])}-{uuid.uuid4().hex[:6]}"
+    a_computed, _ = build_chart(a_data, run_id + "-a")
+    b_computed, _ = build_chart(b_data, run_id + "-b")
+    a = compatibility_person(a_data, a_computed)
+    b = compatibility_person(b_data, b_computed)
+    a_to_b = partner_star_hits(a, b)
+    b_to_a = partner_star_hits(b, a)
+    a_from_b = useful_complement(a, b)
+    b_from_a = useful_complement(b, a)
+    branch_matrix = cross_branch_matrix(a, b)
+    stem_matrix = cross_stem_matrix(a, b)
+    combined_sets = combined_branch_sets(a, b)
+    aggregate_weights: dict[str, int] = {}
+    for row in branch_matrix:
+        for label in row["relations"]:
+            current = aggregate_weights.get(label)
+            if current is None or abs(row["weight"]) > abs(current):
+                aggregate_weights[label] = row["weight"]
+    branch_score = sum(weight for weight in aggregate_weights.values() if weight > 0)
+    attraction = clamp_int(48 + a_to_b["score"] + b_to_a["score"] + min(18, max(0, branch_score // 2)), 20, 95)
+    complement_score = clamp_int(42 + a_from_b["score"] + b_from_a["score"], 20, 95)
+    friction_raw = abs(sum(weight for weight in aggregate_weights.values() if weight < 0))
+    friction = clamp_int(32 + friction_raw, 10, 92)
+    stability = clamp_int((attraction + complement_score + 100 - friction) / 3, 15, 92)
+    overall = clamp_int(attraction * 0.34 + complement_score * 0.28 + stability * 0.25 + (100 - friction) * 0.13, 18, 94)
+    model = {
+        "a": a,
+        "b": b,
+        "question": data.get("question") or "",
+        "status": data.get("status") or "",
+        "scores": {
+            "overall": f"{overall}%",
+            "attraction": f"{attraction}%",
+            "complement": f"{complement_score}%",
+            "friction": f"{friction}%",
+            "stability": f"{stability}%",
+        },
+        "attraction": {"aToB": a_to_b, "bToA": b_to_a},
+        "complement": {"aFromB": a_from_b, "bFromA": b_from_a},
+        "branchMatrix": branch_matrix,
+        "stemMatrix": stem_matrix,
+        "combinedSets": combined_sets,
+        "windows": compatibility_windows(a, b),
+    }
+    apply_compatibility_llm(model)
+    output = GENERATED / f"{run_id}.html"
+    compatibility_report_html(model, output)
+    return model, output
+
+
+def compatibility_report_html(model: dict, output: Path) -> None:
+    def e(value) -> str:
+        return html.escape(str(value or ""))
+
+    def score_card(label: str, value: str, text: str) -> str:
+        pct = percent_int(value) or 0
+        return f'<article class="kpi"><span>{e(label)}</span><b>{e(value)}</b><i><em style="width:{pct}%"></em></i><p>{e(text)}</p></article>'
+
+    branch_rows = "".join(
+        f"<tr><td>{e(row['aPillar'])} {e(row['aBranch'])}</td><td>{e(row['bPillar'])} {e(row['bBranch'])}</td><td>{e('、'.join(row['relations']))}</td><td>{e(row['meaning'])}</td></tr>"
+        for row in model["branchMatrix"][:16]
+    ) or '<tr><td colspan="4">未见强冲合刑害破，重点看十神与现实节奏。</td></tr>'
+    stem_rows = "".join(
+        f"<tr><td>{e(row['aPillar'])} {e(row['aStem'])}</td><td>{e(row['bPillar'])} {e(row['bStem'])}</td><td>{e('、'.join(row['relations']))}</td><td>{e(row['meaning'])}</td></tr>"
+        for row in model["stemMatrix"][:12]
+    ) or '<tr><td colspan="4">天干显性合冲不强。</td></tr>'
+    window_rows = "".join(f"<tr><td>{e(row[0])}</td><td>{e(row[1])}</td><td>{e(row[2])}</td><td>{e(row[3])}</td></tr>" for row in model["windows"])
+    advice = "".join(f"<li>{e(item)}</li>" for item in model["text"]["advice"])
+    a = model["a"]
+    b = model["b"]
+    html_text = f"""<!doctype html>
+<html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>{e(a['name'])} × {e(b['name'])} 合盘报告｜Ming Atelier</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&display=swap');
+*{{box-sizing:border-box}}body{{margin:0;background:#050302;color:#f6e8c8;font-family:"Songti SC","STSong","Noto Serif SC","Kaiti SC",serif;line-height:1.72}}a{{color:inherit}}.shell{{width:min(1180px,calc(100% - 36px));margin:0 auto}}.hero{{min-height:76vh;display:grid;align-items:center;position:relative;overflow:hidden;background:radial-gradient(circle at 72% 38%,rgba(216,173,85,.24),transparent 28%),linear-gradient(120deg,#070402,#130d05 52%,#050302)}}.hero:before{{content:"合";position:absolute;right:8vw;top:4vh;font-size:34vw;color:rgba(216,173,85,.06);line-height:1}}.hero:after{{content:"";position:absolute;inset:0;background:radial-gradient(circle at 24% 30%,rgba(247,217,142,.08),transparent 24%),linear-gradient(180deg,transparent,rgba(0,0,0,.5))}}.hero .shell{{position:relative;z-index:2}}.eyebrow{{color:#d8ad55;font-family:Optima,Arial,sans-serif;letter-spacing:.28em;font-size:12px;text-transform:uppercase}}h1{{font-family:"Instrument Serif",serif;font-size:clamp(54px,8vw,112px);line-height:.95;margin:10px 0;color:#ffe0a0;font-weight:400}}.lead{{max-width:860px;font-size:20px;color:#ead9b8}}.actions{{display:flex;gap:12px;flex-wrap:wrap;margin-top:24px}}.btn{{border:1px solid rgba(216,173,85,.62);padding:12px 18px;text-decoration:none;background:rgba(12,8,4,.7)}}section{{padding:58px 0;border-top:1px solid rgba(216,173,85,.18)}}h2{{font-size:34px;color:#f4c979;margin:0 0 18px}}.grid{{display:grid;grid-template-columns:repeat(5,1fr);gap:14px}}.kpi,.card{{border:1px solid rgba(216,173,85,.34);background:rgba(18,13,7,.78);padding:18px;box-shadow:0 18px 42px rgba(0,0,0,.26)}}.kpi b{{display:block;color:#ffe0a0;font-size:30px;margin:8px 0}}.kpi i{{display:block;height:8px;background:rgba(216,173,85,.16);overflow:hidden}}.kpi em{{display:block;height:100%;background:linear-gradient(90deg,#d8ad55,#ffe0a0)}}.two{{display:grid;grid-template-columns:1fr 1fr;gap:16px}}p{{color:#e2cfaa}}ul{{padding-left:20px}}li{{margin:8px 0;color:#ead9b8}}table{{width:100%;border-collapse:collapse;min-width:780px}}th,td{{border-bottom:1px solid rgba(216,173,85,.2);padding:11px;text-align:left;vertical-align:top}}th{{color:#f4c979;background:rgba(216,173,85,.08)}}.table{{overflow:auto;border:1px solid rgba(216,173,85,.25)}}.fade{{opacity:0;transform:translateY(16px);transition:.7s ease}}.fade.show{{opacity:1;transform:none}}@media(max-width:820px){{.grid,.two{{grid-template-columns:1fr}}h1{{font-size:52px}}}}
+</style></head><body>
+<main>
+<section class="hero"><div class="shell"><p class="eyebrow">Ming Atelier · Compatibility Reading</p><h1>{e(a['name'])}<br>× {e(b['name'])}</h1><p class="lead">{e(model['text'].get('shortVerdict') or '强吸引、看边界、慢推进。')}</p><div class="actions"><a class="btn" href="/">回到主页</a><a class="btn" href="/compatibility.html">重新合盘</a></div></div></section>
+<section class="fade"><div class="shell"><h2>整体判断</h2><div class="grid">{score_card('整体适配',model['scores']['overall'],'综合吸引、互补、稳定与摩擦。')}{score_card('吸引力',model['scores']['attraction'],'彼此是否触动伴侣星和夫妻宫。')}{score_card('互补度',model['scores']['complement'],'对方是否补到自己的喜用和行为系统。')}{score_card('摩擦度',model['scores']['friction'],'冲刑害破和现实拉扯强度。')}{score_card('稳定度',model['scores']['stability'],'长期承接和关系落地能力。')}</div><div class="card" style="margin-top:16px"><p>{e(model['text']['overall'])}</p></div></div></section>
+<section class="fade"><div class="shell two"><article class="card"><h2>吸引与互补</h2><p>{e(model['text']['attraction'])}</p><p>{e(model['text']['complement'])}</p></article><article class="card"><h2>主要拉扯</h2><p>{e(model['text']['friction'])}</p><ul>{advice}</ul></article></div></section>
+<section class="fade"><div class="shell"><h2>年份窗口</h2><p>{e(model['text']['timing'])}</p><div class="table"><table><thead><tr><th>年份</th><th>流年</th><th>判断</th><th>说明</th></tr></thead><tbody>{window_rows}</tbody></table></div></div></section>
+<section class="fade"><div class="shell"><h2>地支关系矩阵</h2><div class="table"><table><thead><tr><th>{e(a['name'])}</th><th>{e(b['name'])}</th><th>关系</th><th>解读</th></tr></thead><tbody>{branch_rows}</tbody></table></div></div></section>
+<section class="fade"><div class="shell"><h2>天干合冲</h2><div class="table"><table><thead><tr><th>{e(a['name'])}</th><th>{e(b['name'])}</th><th>关系</th><th>解读</th></tr></thead><tbody>{stem_rows}</tbody></table></div></div></section>
+</main><footer class="shell" style="padding:32px 0;color:#9f8a62">Ming Atelier｜合盘属于传统文化关系阅读，不替代现实沟通、法律、财务或心理专业建议。</footer>
+<script>const io=new IntersectionObserver(es=>es.forEach(e=>{{if(e.isIntersecting)e.target.classList.add('show')}}),{{threshold:.12}});document.querySelectorAll('.fade').forEach(el=>io.observe(el));</script>
+</body></html>"""
+    output.write_text(html_text, encoding="utf-8")
 
 
 def report_pdf(data: dict, computed: dict, chart_png: Path, output: Path) -> None:
@@ -3160,7 +3616,7 @@ class Handler(BaseHTTPRequestHandler):
         self.end_headers()
 
     def do_POST(self) -> None:
-        if self.path not in {"/api/report", "/api/deep-report", "/api/divination"}:
+        if self.path not in {"/api/report", "/api/deep-report", "/api/divination", "/api/compatibility"}:
             self.send_error(404)
             return
         try:
@@ -3178,6 +3634,27 @@ class Handler(BaseHTTPRequestHandler):
                     "result": result,
                 })
                 self.send_json({"ok": True, "recordId": record_id, "result": result})
+                return
+            if self.path == "/api/compatibility":
+                model, html_path = build_compatibility(data)
+                record_id = uuid.uuid4().hex[:10]
+                html_url = f"/generated/{html_path.name}"
+                append_record({
+                    "id": record_id,
+                    "type": "compatibility",
+                    "createdAt": now_text(),
+                    "title": f"{data.get('aName') or '你'} × {data.get('bName') or '对方'} 合盘",
+                    "htmlUrl": html_url,
+                    "llmStatus": model.get("llmStatus"),
+                })
+                self.send_json({
+                    "ok": True,
+                    "recordId": record_id,
+                    "htmlUrl": html_url,
+                    "llmStatus": model.get("llmStatus"),
+                    "scores": model.get("scores"),
+                    "text": model.get("text"),
+                })
                 return
             required = ["gender", "birthDate", "birthTime", "birthPlace"]
             missing = [key for key in required if not data.get(key)]
