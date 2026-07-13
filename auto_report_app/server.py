@@ -346,6 +346,305 @@ def free_report_summary(data: dict, computed: dict) -> str:
     )
 
 
+def is_english(data: dict) -> bool:
+    return str(data.get("lang") or data.get("language") or "").strip().lower() in {"en", "english"}
+
+
+ELEMENT_EN = {"金": "Metal", "木": "Wood", "水": "Water", "火": "Fire", "土": "Earth"}
+ELEMENT_COLOR = {"金": "#d8ad55", "木": "#78b46d", "水": "#6fa8dc", "火": "#d95642", "土": "#b88a4d"}
+TEN_GOD_EN = {
+    "比肩": "Peer / Self (比肩)",
+    "劫财": "Rob Wealth / Competition (劫财)",
+    "食神": "Eating God / Stable Output (食神)",
+    "伤官": "Hurting Officer / Breakthrough Output (伤官)",
+    "正财": "Direct Wealth / Stable Money (正财)",
+    "偏财": "Indirect Wealth / Opportunity Money (偏财)",
+    "正官": "Direct Officer / Rules and Status (正官)",
+    "七杀": "Seven Killing / Pressure and Execution (七杀)",
+    "正印": "Direct Resource / Learning and Protection (正印)",
+    "偏印": "Indirect Resource / Insight and Models (偏印)",
+    "日主": "Day Master (日主)",
+}
+TEN_GOD_TEXT_EN = {
+    "比肩": "selfhood, peers, independence, and competitive awareness",
+    "劫财": "shared resources, split interests, peer competition, and cash-flow volatility",
+    "食神": "stable output, service quality, expression, and long-term reputation",
+    "伤官": "rule-breaking expression, innovation, sales, visibility, and challenging authority",
+    "正财": "stable income, clients, transactions, practical resources, and partner symbolism",
+    "偏财": "opportunity money, resource integration, market sense, and project-based gains",
+    "正官": "rules, responsibility, status, formal commitment, and partner symbolism",
+    "七杀": "pressure, speed, competition, external constraint, risk, and execution",
+    "正印": "learning, credentials, protection, institutional support, and recovery capacity",
+    "偏印": "insight, models, unconventional knowledge, research, intuition, and solitude",
+    "日主": "the central self, decision core, and action axis",
+}
+PILLAR_EN = {"年柱": "Year Pillar", "月柱": "Month Pillar", "日柱": "Day Pillar", "时柱": "Hour Pillar"}
+PILLAR_SCENE_EN = {
+    "年柱": "background, early environment, social field, and distant resources",
+    "月柱": "career base, real-world field, supervisors, parents, and execution environment",
+    "日柱": "self, spouse palace, intimate relationships, close resources, and personal decisions",
+    "时柱": "long-term plans, future projects, children/subordinates, side ventures, and later development",
+}
+SHENSHA_TEXT_EN = {
+    "天乙贵人": "Noble-person support: key helpers, institutions, professional resources, or protective support.",
+    "天德贵人": "Virtue star: softens conflict consequences, but does not cancel practical risk.",
+    "月德贵人": "Monthly virtue: repair, mediation, and damage control.",
+    "文昌贵人": "Writing and learning star: documents, exams, contracts, expression, and professional communication.",
+    "桃花": "Peach Blossom: attraction, social visibility, charm, emotional movement, and relationship activation.",
+    "学堂": "Formal learning, training, credentials, and verifiable skill.",
+    "国印": "Institutional authority, official process, credentials, and formal identity.",
+    "福星贵人": "Resource buffer, ease, support, and life comfort.",
+    "太极贵人": "Pattern recognition, metaphysics/philosophy, abstract thinking, and system study.",
+    "将星": "Leadership, command, management, and execution.",
+    "红鸾": "Romantic activation, closeness, social warmth, and relationship opportunity.",
+    "天喜": "Joy, relationship movement, emotional warmth, and pleasant cooperation.",
+    "十灵日": "Sensitivity, intuition, quick perception, expression, and creative responsiveness.",
+    "羊刃": "Sharp execution, competition, conflict potential, and the need for clear rules.",
+    "禄神": "Stable income, position resources, skill base, and sustainable support.",
+    "驿马": "Movement, travel, relocation, logistics, market mobility, and expansion.",
+    "华盖": "Research, art, metaphysics, aesthetics, solitude, and professional depth.",
+    "金舆": "Comfort, resources, vehicles, social presentation, and quality of life.",
+    "天医": "Repair, care, health awareness, healing resources, and problem recovery.",
+    "孤辰": "Independence, distance, self-processing, and slower relationship rhythm.",
+    "寡宿": "Emotional reserve, solitude, slower intimacy, and distance in closeness.",
+    "劫煞": "Sudden competition, resource interruption, external shock, and volatility.",
+    "亡神": "Hidden pressure, unseen consumption, judgment gaps, and implicit constraints.",
+    "空亡": "Emptiness, delay, reduced fulfillment, or unstable delivery.",
+    "灾煞": "Obstruction, disruption, external interference, and caution signal.",
+    "童子": "Sensitivity, distance, unconventional preference, or unusual relationship rhythm; read conservatively.",
+}
+STEM_EN = {
+    "甲": "Jia Wood", "乙": "Yi Wood", "丙": "Bing Fire", "丁": "Ding Fire", "戊": "Wu Earth",
+    "己": "Ji Earth", "庚": "Geng Metal", "辛": "Xin Metal", "壬": "Ren Water", "癸": "Gui Water",
+}
+BRANCH_EN = {
+    "子": "Zi Water", "丑": "Chou Earth", "寅": "Yin Wood", "卯": "Mao Wood", "辰": "Chen Earth", "巳": "Si Fire",
+    "午": "Wu Fire", "未": "Wei Earth", "申": "Shen Metal", "酉": "You Metal", "戌": "Xu Earth", "亥": "Hai Water",
+}
+BRANCH_STAGE_EN = {
+    "长生": "Growth", "沐浴": "Bath", "冠带": "Crowning", "临官": "Official", "帝旺": "Peak",
+    "衰": "Decline", "病": "Illness", "死": "Death", "墓": "Tomb", "绝": "Severance", "胎": "Conception", "养": "Nurture",
+}
+SOLAR_TERM_EN = {
+    "立春-惊蛰": "Start of Spring - Awakening of Insects",
+    "惊蛰-清明": "Awakening of Insects - Clear and Bright",
+    "清明-立夏": "Clear and Bright - Start of Summer",
+    "立夏-芒种": "Start of Summer - Grain in Ear",
+    "芒种-小暑": "Grain in Ear - Minor Heat",
+    "小暑-立秋": "Minor Heat - Start of Autumn",
+    "立秋-白露": "Start of Autumn - White Dew",
+    "白露-寒露": "White Dew - Cold Dew",
+    "寒露-立冬": "Cold Dew - Start of Winter",
+    "立冬-大雪": "Start of Winter - Major Snow",
+    "大雪-小寒": "Major Snow - Minor Cold",
+    "小寒-立春": "Minor Cold - Start of Spring",
+}
+NAYIN_EN = {
+    "海中金": "Metal in the Sea", "炉中火": "Fire in the Furnace", "大林木": "Great Forest Wood", "路旁土": "Roadside Earth", "剑锋金": "Sword-Edge Metal",
+    "山头火": "Fire on the Mountain", "涧下水": "Stream Water", "城头土": "City Wall Earth", "白蜡金": "White Wax Metal", "杨柳木": "Willow Wood",
+    "泉中水": "Spring Water", "屋上土": "Roof Earth", "霹雳火": "Thunder Fire", "松柏木": "Pine-Cypress Wood", "长流水": "Long Flowing Water",
+    "砂中金": "Sand Metal", "沙中金": "Sand Metal", "山下火": "Fire Below Mountain", "平地木": "Flatland Wood", "壁上土": "Wall Earth", "金箔金": "Gold Foil Metal",
+    "佛灯火": "Lamp Fire", "覆灯火": "Covered Lamp Fire", "天河水": "Milky Way Water", "大驿土": "Post Station Earth", "钗钏金": "Hairpin Metal", "桑柘木": "Mulberry Wood",
+    "大溪水": "Great Creek Water", "沙中土": "Sand Earth", "天上火": "Heavenly Fire", "石榴木": "Pomegranate Wood", "大海水": "Great Sea Water",
+}
+GENDER_EN = {"男": "male", "女": "female"}
+TIME_SOURCE_EN = {
+    "服务器当前时间": "server current time",
+    "用户本地时间": "user local time",
+    "浏览器起念时间": "browser-captured question time",
+}
+TRIGRAM_EN = {
+    "乾": "Qian", "兑": "Dui", "离": "Li", "震": "Zhen",
+    "巽": "Xun", "坎": "Kan", "艮": "Gen", "坤": "Kun",
+}
+
+
+def element_en(value: str) -> str:
+    return ELEMENT_EN.get(value, value or "")
+
+
+def solar_term_en(value: str) -> str:
+    return SOLAR_TERM_EN.get(value, value or "")
+
+
+def ganzhi_en(value: str) -> str:
+    text = str(value or "").strip()
+    if len(text) >= 2 and text[0] in STEM_EN and text[1] in BRANCH_EN:
+        return f"{STEM_EN[text[0]]} / {BRANCH_EN[text[1]]}"
+    return ""
+
+
+def bilingual_ganzhi(value: str) -> str:
+    text = str(value or "").strip()
+    en = ganzhi_en(text)
+    if en:
+        return f"{text}\n{en}"
+    if text == "未识别":
+        return "未识别\nNot identified"
+    return text
+
+
+def bilingual_branch_set(value: str) -> str:
+    text = str(value or "").strip()
+    if not text or text in {"None", "无", "未识别"}:
+        return {"None": "None", "无": "无\nNone", "未识别": "未识别\nNot identified"}.get(text, text)
+    translated = []
+    for char in text:
+        if char in BRANCH_EN:
+            translated.append(BRANCH_EN[char])
+    return f"{text}\n{' / '.join(translated)}" if translated else text
+
+
+def bilingual_pillars(ec) -> str:
+    parts = [
+        ("Year", ec.getYear()),
+        ("Month", ec.getMonth()),
+        ("Day", ec.getDay()),
+        ("Hour", ec.getTime()),
+    ]
+    return " | ".join(f"{value} {label}\n{ganzhi_en(value)}" for label, value in parts)
+
+
+def branch_relation_en(text: str) -> str:
+    relation_words = {"冲": "clash", "刑": "punishment", "害": "harm", "破": "break", "合": "combination", "伏吟": "repetition"}
+    source = str(text or "").replace("地支冲刑害破：", "").replace("Branch interactions:", "").strip()
+    if not source:
+        return ""
+    translated = []
+    for item in re.split(r"[；;、,\s]+", source):
+        if not item:
+            continue
+        branches = [BRANCH_EN.get(char, char) for char in item if char in BRANCH_EN]
+        relation = next((en for cn, en in relation_words.items() if cn in item), "")
+        if branches or relation:
+            translated.append(" ".join(branches + ([relation] if relation else [])))
+    return "; ".join(translated)
+
+
+def bilingual_branch_relation_text(text: str) -> str:
+    text = str(text or "")
+    en = branch_relation_en(text)
+    return f"{text}\n{en}" if en else text
+
+
+def hidden_bilingual_plain(items: list[str] | str) -> str:
+    if isinstance(items, str):
+        items = [part.strip() for part in re.split(r"[/|、,]+", items) if part.strip()]
+    cn_parts = []
+    en_parts = []
+    for item in items:
+        stem, _, element = str(item).partition("·")
+        cn_parts.append(str(item))
+        en_parts.append(" / ".join(part for part in [STEM_EN.get(stem, ""), ELEMENT_EN.get(element, element if element else "")] if part))
+    return f"{' / '.join(cn_parts)}\n{' / '.join(part for part in en_parts if part)}" if cn_parts else "None"
+
+
+def bilingual_term_list(items: list[str] | str, mapping: dict[str, str], separator: str = " / ") -> str:
+    if isinstance(items, str):
+        items = [part.strip() for part in re.split(r"[、,|/]+", items) if part.strip()]
+    if not items:
+        return "None"
+    cn = separator.join(str(item) for item in items)
+    en = separator.join(short_en_name(str(item), mapping) for item in items if mapping.get(str(item)))
+    return f"{cn}\n{en}" if en else cn
+
+
+def bilingual_chart_cell(row_label: str, cell: str) -> str:
+    text = str(cell or "")
+    if text in {"None", "No dominant ShenSha", "Activated by timing overlay", "Not identified"}:
+        return text
+    if row_label == "Heavenly Stem" and text in STEM_EN:
+        return f"{text}\n{STEM_EN[text]}"
+    if row_label == "Earthly Branch" and text in BRANCH_EN:
+        return f"{text}\n{BRANCH_EN[text]}"
+    if row_label == "Hidden Stems":
+        return hidden_bilingual_plain(text)
+    if row_label in {"Main Star / Stem Ten-God", "Branch Ten-Gods"}:
+        return bilingual_term_list(text, TEN_GOD_EN)
+    if row_label == "NaYin":
+        return bilingual_term_list([text], NAYIN_EN)
+    if row_label == "Void Branches":
+        return bilingual_branch_set(text)
+    if row_label == "Growth Stage":
+        return bilingual_term_list([text], BRANCH_STAGE_EN)
+    if row_label == "ShenSha":
+        return bilingual_term_list(text, SHENSHA_TEXT_EN)
+    if len(text) >= 2 and text[0] in STEM_EN and text[1] in BRANCH_EN:
+        return bilingual_ganzhi(text)
+    return text
+
+
+def element_behavior_en(element: str) -> str:
+    return {
+        "金": "boundaries, contracts, pricing, finance, audit, review, and asset awareness.",
+        "水": "calm judgment, communication, data, mobility, pressure management, and cross-border flow.",
+        "木": "learning, growth, content, education, product iteration, long-term planning, and network development.",
+        "火": "expression, visibility, branding, sales, speed, warmth, and public influence.",
+        "土": "execution, process, inventory, organization, risk control, trust, and long-term stability.",
+    }.get(element, "rhythm, boundaries, and real-world calibration.")
+
+
+def branch_relations_text_en(relations: list[str]) -> str:
+    if not relations:
+        return "No major branch interaction detected."
+    text = "; ".join(relations)
+    return text.replace("地支冲刑害破：", "Branch interactions: ").replace("无明显合冲刑害破", "No major combination/clash/punishment/harm/break detected").replace("；", "; ")
+
+
+def crystal_rows_en(elements: list[str]) -> list[list[str]]:
+    mapping = {
+        "金": ["Clear Quartz / White Phantom", "clarity, pricing, contracts, review, and asset awareness", "Keep it near your desk, contracts, or accounting files as a reminder to calculate before deciding."],
+        "水": ["Obsidian / Aquamarine", "cooling the mind, emotional regulation, communication, boundaries, and stress control", "Useful for negotiations or high-pressure conversations: pause before agreeing."],
+        "木": ["Green Phantom / Aventurine", "learning, growth, long-term plans, recovery, and sustainable output", "Place it in a study or planning area to reinforce iteration over impulse."],
+        "火": ["Red Agate / Garnet", "expression, visibility, action, sales, and ignition", "Use for presentations, interviews, launches, and communication; avoid emotional overdrive."],
+        "土": ["Citrine / Tiger's Eye", "execution, organization, cash flow, inventory, and practical grounding", "Place it near finance, inventory, or project-management areas: rules before expansion."],
+    }
+    return [[element_en(e)] + mapping.get(e, ["Clear Quartz", "clarity and stability", "Use it as a daily action anchor."]) for e in elements]
+
+
+def free_report_summary_en(data: dict, computed: dict) -> str:
+    ec = computed["ec"]
+    profile = computed["profile"]
+    day_stem = ec.getDayGan()
+    day_element = STEM_ELEMENT.get(day_stem, "")
+    dominant = sorted(profile.items(), key=lambda item: item[1], reverse=True)[:2]
+    dominant_text = ", ".join(f"{element_en(k)} {v}%" for k, v in dominant)
+    industry = data.get("industry") or data.get("role") or "not specified"
+    role = data.get("role") or "not specified"
+    gender = data.get("gender", "")
+    spouse_logic = "wealth star" if gender == "男" else "officer/killing star"
+    if day_element in {"金", "水"}:
+        personality = (
+            "Your temperament leans rational, observant, and boundary-aware. You usually need a situation to make sense "
+            "before you invest trust, money, or emotion. The advantage is strong judgment under pressure; the caution is "
+            "that you may appear distant or overly self-protective when stressed."
+        )
+        industries = "data, finance, risk control, operations, consulting, technology products, research, compliance, and cross-border systems"
+    elif day_element in {"木", "火"}:
+        personality = (
+            "Your chart carries more growth and expression drive. You are moved by goals, visibility, people, creative output, "
+            "and momentum. The advantage is learning speed and initiative; the caution is that emotion or excitement can make "
+            "you commit too much too early."
+        )
+        industries = "education, content, branding, marketing, product growth, design, management training, and advisory services"
+    else:
+        personality = (
+            "Your chart shows stronger endurance and practical carrying capacity. You are suited to building things slowly, "
+            "organizing resources, and staying with long cycles. The caution is taking on too much responsibility before your "
+            "own needs are clearly protected."
+        )
+        industries = "project management, supply chain, finance operations, real estate, organizational management, HR, and traditional-industry upgrades"
+    return (
+        f"Your Day Master is {day_stem} ({STEM_EN.get(day_stem, day_element)}), with the most visible element balance around {dominant_text}. "
+        f"{personality} Based on the industry and role you entered ({industry} / {role}), fields related to {industries} are generally easier "
+        "to make productive, especially when your work has clear standards, repeatable delivery, and disciplined cash-flow rules. "
+        f"In relationships, this chart reads through the {spouse_logic} and the spouse palace rather than a simple zodiac match. "
+        "The key is rhythm, boundaries, and real responsibility. If a relationship repeatedly drains your time, money, promises, or location decisions, "
+        "it should not be forced forward only because the attraction is strong. This free reading gives a first-layer personality, career, and relationship view; "
+        "major luck cycles, year-by-year timing, soulmate windows, and deeper risk analysis belong in the deep report."
+    )
+
+
 def normalize_time(value: str) -> str:
     match = re.search(r"(\d{1,2}):(\d{2})", str(value or ""))
     if not match:
@@ -524,19 +823,20 @@ def divination_datetime(data: dict) -> tuple[datetime, str, str]:
 
 def divination_topic(question: str, background: str) -> str:
     text = question + " " + background
+    text_lower = text.lower()
     topics = [
-        ("健康/安全", ["健康", "身体", "手术", "病", "安全", "危险", "事故"]),
-        ("感情/关系", ["感情", "恋爱", "复合", "分手", "结婚", "对象", "关系", "伴侣"]),
-        ("财务/投资", ["投资", "买", "卖", "钱", "收入", "财", "股票", "房", "资产"]),
-        ("事业/工作", ["工作", "跳槽", "面试", "升职", "老板", "公司", "事业", "职业", "offer", "岗位"]),
-        ("学业/考试", ["考试", "申请", "学校", "学业", "录取", "论文", "证书"]),
-        ("出行/迁移", ["出行", "旅行", "搬家", "搬迁", "出国", "签证", "航班", "迁移"]),
-        ("合作/副业", ["合作", "合伙", "副业", "项目", "客户", "合同", "报价", "分账", "股权", "交付"]),
+        ("健康/安全", ["健康", "身体", "手术", "病", "安全", "危险", "事故", "health", "surgery", "illness", "safety", "danger", "accident"]),
+        ("感情/关系", ["感情", "恋爱", "复合", "分手", "结婚", "对象", "关系", "伴侣", "relationship", "dating", "love", "breakup", "marriage", "partner", "romantic"]),
+        ("财务/投资", ["投资", "买", "卖", "钱", "收入", "财", "股票", "房", "资产", "investment", "invest", "money", "income", "stock", "asset", "property", "cash"]),
+        ("事业/工作", ["工作", "跳槽", "面试", "升职", "老板", "公司", "事业", "职业", "offer", "岗位", "career", "job", "work", "interview", "promotion", "company", "role"]),
+        ("学业/考试", ["考试", "申请", "学校", "学业", "录取", "论文", "证书", "exam", "school", "application", "admission", "thesis", "certificate"]),
+        ("出行/迁移", ["出行", "旅行", "搬家", "搬迁", "出国", "签证", "航班", "迁移", "travel", "move", "relocation", "visa", "flight", "migration"]),
+        ("合作/副业", ["合作", "合伙", "副业", "项目", "客户", "合同", "报价", "分账", "股权", "交付", "partnership", "partner", "side business", "side project", "project", "client", "contract", "equity", "delivery"]),
     ]
     best_label = "具体事项"
     best_score = 0
     for label, words in topics:
-        score = sum(1 for word in words if word in text)
+        score = sum(1 for word in words if word in text or word in text_lower)
         if score > best_score:
             best_label = label
             best_score = score
@@ -760,6 +1060,111 @@ def enrich_divination_with_llm(result: dict) -> dict:
     return result
 
 
+def divination_result_en(result: dict) -> dict:
+    verdict_map = {"吉": "Favorable", "小吉": "Mildly favorable", "平": "Mixed / neutral", "凶": "Unfavorable"}
+    tone_map = {
+        "顺势可进": "favorable; move with timing",
+        "可进，但要控风险": "can move forward with risk control",
+        "先观察，再小步推进": "observe first, then move in small steps",
+        "条件未稳，宜缓": "conditions are not stable; slow down",
+        "不宜硬推": "do not force it now",
+    }
+    topic = result.get("topic", "")
+    topic_en = {
+        "合作/副业": "partnership / side project",
+        "感情/关系": "relationship",
+        "事业/工作": "career / work",
+        "财务/投资": "finance / investment",
+        "健康/安全": "health / safety",
+    }.get(topic, "general decision")
+    relation = result.get("relation", "")
+    relation_en = {
+        "用生体": "the external side supports you",
+        "体生用": "you are investing more energy into the matter",
+        "体克用": "you have room to take control",
+        "用克体": "the external pressure is pressing back on you",
+        "体用同气": "both sides are moving with similar energy",
+    }.get(relation, relation)
+    phase = result.get("phase", "")
+    phase_en = {"初段": "early stage", "中段": "middle stage", "late stage": "late stage", "后段": "late stage"}.get(phase, phase)
+    question = result.get("question", "")
+    success = result.get("success", "")
+    risk = result.get("risk", "")
+    confidence = result.get("confidence", "")
+    body_match = re.search(r"(.+?)卦（(.+?)）", str(result.get("body", "")))
+    use_match = re.search(r"(.+?)卦（(.+?)）", str(result.get("use", "")))
+    if body_match:
+        trigram, element = body_match.groups()
+        result["body"] = f"{TRIGRAM_EN.get(trigram, trigram)} trigram ({element_en(element)})"
+    if use_match:
+        trigram, element = use_match.groups()
+        result["use"] = f"{TRIGRAM_EN.get(trigram, trigram)} trigram ({element_en(element)})"
+    result["timeSource"] = TIME_SOURCE_EN.get(result.get("timeSource"), result.get("timeSource", "time source not identified"))
+    if result.get("timezone") == "未识别":
+        result["timezone"] = "not identified"
+    if str(result.get("location", "")).startswith("未填"):
+        result["location"] = "not provided; cast by current local time"
+    if result.get("background") == "未填":
+        result["background"] = "not provided"
+    if result.get("omen") in {"无", "没有"}:
+        result["omen"] = "none"
+    result["lunarText"] = "Chinese lunar calendar and Four-Pillar time markers are used as the casting base."
+    result["solarTerm"] = "solar-term signal used as supporting timing context"
+    result["topic"] = topic_en
+    result["verdict"] = verdict_map.get(result.get("verdict"), result.get("verdict"))
+    result["verdictTone"] = tone_map.get(result.get("verdictTone"), result.get("verdictTone"))
+    result["phase"] = phase_en
+    result["relation"] = relation_en
+    result["relationText"] = f"In this reading, {relation_en}. The moving line is in the {phase_en}, so the matter should be tested through concrete feedback rather than pushed by emotion."
+    result["seasonText"] = "The chart was cast from the question time. Seasonal and day-branch energy are supporting signals, not a guarantee."
+    result["energyText"] = "Body/use energy compares your own position with the outside condition. A gap means the matter needs verification before commitment."
+    result["movementText"] = f"The moving line sits in the {phase_en}; read it as timing pressure, not a fixed fate."
+    result["topicCalibration"] = f"The question is treated as {topic_en}. Background details adjust the reading only when they show concrete real-world risk."
+    result["verdictText"] = f"This reads as {result['verdict']}: the answer depends on evidence, timing, boundaries, and whether the other side gives concrete action."
+    result["questionReading"] = (
+        f"For your question, “{question}”, the reading leans {result['verdict']} rather than a simple yes/no. "
+        f"The success estimate is {success}, risk is {risk}, and confidence is {confidence}. "
+        f"Because {relation_en} and the matter is in the {phase_en}, the practical move is to verify one clear condition first: "
+        "who commits, by when, with what cost, and what happens if the answer changes."
+    )
+    if topic_en == "relationship":
+        result["advice"] = [
+            "Ask for one concrete next step instead of forcing an emotional conclusion.",
+            "Keep money, living arrangements, and long-term promises separate until the relationship definition is clearer.",
+            "If the other person only gives warmth but no action, lower your investment and observe.",
+        ]
+        result["riskPoints"] = [
+            "The main risk is emotional ambiguity turning into self-consumption.",
+            "Do not use pressure, testing, or silence as the main communication method.",
+            "If there is control, safety risk, or harm, prioritize real-world support over divination.",
+        ]
+    elif topic_en == "partnership / side project":
+        result["advice"] = [
+            "Start with a written scope: responsibility, delivery, payment, ownership, and exit terms.",
+            "Run a small trial before committing long-term resources.",
+            "Delay any large financial or equity decision until the other party gives concrete obligations.",
+        ]
+        result["riskPoints"] = [
+            "The main risk is vague resources turning into your extra work and cost.",
+            "If payment, timeline, or ownership is unclear, the obstacle is already visible.",
+            "For large money or legal exposure, use professional review.",
+        ]
+    else:
+        result["advice"] = [
+            "Turn the question into one verifiable action and one clear deadline.",
+            "Test the response before increasing commitment.",
+            "Keep an exit condition and do not put all options into one decision.",
+        ]
+        result["riskPoints"] = [
+            "The more vague the question is, the lower the usable accuracy.",
+            "If real-world evidence contradicts the reading, prioritize the evidence.",
+            "Major legal, medical, or investment matters require professional review.",
+        ]
+    result["actionWindow"] = "Use the next 24-72 hours for the first signal; use the next 7-14 days to verify whether the condition can actually land."
+    result["summary"] = f"Overall: {result['verdict']}. This is not a blank fortune label; for this specific question, the reading says to proceed only through verification, boundaries, and staged commitment."
+    return result
+
+
 def build_divination(data: dict) -> dict:
     question = data.get("question", "").strip()
     if not question:
@@ -861,7 +1266,10 @@ def build_divination(data: dict) -> dict:
         "riskPoints": risk_points,
         "summary": f"此卦判断为「{verdict}」，倾向是「{verdict_tone}」。对应你问的“{question}”，结论不是抽象吉凶，而是：{question_reading}",
     }
-    return enrich_divination_with_llm(result)
+    result = enrich_divination_with_llm(result)
+    if is_english(data):
+        result = divination_result_en(result)
+    return result
 
 
 def relation_labels_between(a: str, b: str) -> list[str]:
@@ -1033,6 +1441,52 @@ def cross_stem_matrix(a: dict, b: dict) -> list[dict]:
     return rows
 
 
+PILLAR_SHORT_EN = {"年柱": "Year Pillar", "月柱": "Month Pillar", "日柱": "Day Pillar", "时柱": "Hour Pillar", "年干": "Year Stem", "月干": "Month Stem", "日干": "Day Stem", "时干": "Hour Stem"}
+
+
+def compatibility_judgment_en(value: str) -> str:
+    return {
+        "适合推进": "Good window to move forward",
+        "有吸引但波动大": "Attraction is strong, but volatility is high",
+        "谨慎，不宜重绑定": "Be cautious; avoid heavy binding",
+        "观察磨合": "Observe and test the rhythm",
+    }.get(value, value)
+
+
+def compatibility_branch_meaning_en(row: dict) -> str:
+    weight = row.get("weight", 0)
+    if weight > 0:
+        return "This signal creates closeness, support, or a sense of being pulled together. It is useful, but still needs clear rhythm and boundaries."
+    if weight < -7:
+        return "This is a strong trigger point. It can show pace conflict, emotional friction, pressure around safety, or practical disagreement."
+    if weight < 0:
+        return "This can create small but repeated discomfort around details, security, timing, or boundaries."
+    return "This relation is a secondary signal; read it together with attraction, useful-element complement, and real communication."
+
+
+def localize_compatibility_model_en(model: dict) -> None:
+    converted_windows = []
+    for year, pillar, judgment, _note in model.get("windows", []):
+        converted_windows.append([
+            year,
+            pillar,
+            compatibility_judgment_en(judgment),
+            (
+                f"In {year} ({pillar}), read both charts together. This year is better used for pacing, boundary-setting, and checking whether attraction can become stable behavior. "
+                "If attraction and stress both rise, avoid making emotional promises before money, time, and future plans are clear."
+            ),
+        ])
+    model["windows"] = converted_windows
+    for row in model.get("branchMatrix", []):
+        row["aPillar"] = PILLAR_SHORT_EN.get(row.get("aPillar"), row.get("aPillar"))
+        row["bPillar"] = PILLAR_SHORT_EN.get(row.get("bPillar"), row.get("bPillar"))
+        row["meaning"] = compatibility_branch_meaning_en(row)
+    for row in model.get("stemMatrix", []):
+        row["aPillar"] = PILLAR_SHORT_EN.get(row.get("aPillar"), row.get("aPillar"))
+        row["bPillar"] = PILLAR_SHORT_EN.get(row.get("bPillar"), row.get("bPillar"))
+        row["meaning"] = "Heavenly-stem combinations and clashes describe visible attitude, communication style, attraction points, and cooperation style."
+
+
 def compatibility_windows(a: dict, b: dict) -> list[list[str]]:
     rows = []
     reset_luck_phrase_counts(a["context"], "compat_a")
@@ -1111,7 +1565,53 @@ def deterministic_compatibility_text(model: dict) -> dict:
     }
 
 
-def llm_compatibility_prompt(packet: dict) -> list[dict[str, str]]:
+def deterministic_compatibility_text_en(model: dict) -> dict:
+    a = model["a"]
+    b = model["b"]
+    conflicts = [row for row in model["branchMatrix"] if row["weight"] < 0]
+    bonds = [row for row in model["branchMatrix"] if row["weight"] > 0]
+
+    def relation_summary(rows: list[dict], limit: int) -> str:
+        items = []
+        seen = set()
+        for row in rows:
+            label = f"{row['aBranch']} with {row['bBranch']}: {', '.join(row['relations'])}"
+            if label in seen:
+                continue
+            items.append(label)
+            seen.add(label)
+            if len(items) >= limit:
+                break
+        return "; ".join(items)
+
+    conflict_text = relation_summary(conflicts, 4) or "there are no dominant hard clashes; the relationship depends more on pace and real-life boundaries."
+    bond_text = relation_summary(bonds, 3) or "the visible combination structure is not especially strong; attraction comes more from partner-star and Ten-God activation."
+    a_useful = ", ".join(element_en(x) for x in a["useful"]) or "not clearly defined"
+    b_useful = ", ".join(element_en(x) for x in b["useful"]) or "not clearly defined"
+    summary = (
+        f"{a['name']} and {b['name']} are not a simple good-or-bad match. The chart needs to be read through attraction, complement, friction, and whether the relationship can be held by real rules. "
+        f"{a['name']}'s Day Master is {a['day_stem']} ({element_en(a['day_element'])}), with useful elements leaning toward {a_useful}. "
+        f"{b['name']}'s Day Master is {b['day_stem']} ({element_en(b['day_element'])}), with useful elements leaning toward {b_useful}. "
+        f"The stabilizing signals are: {bond_text}. The pressure points are: {conflict_text}. "
+        "This means the relationship can have attraction and learning value, but it should not be left vague. Define the relationship, money boundaries, time rhythm, and future expectations before making heavy commitments."
+    )
+    return {
+        "overall": summary,
+        "attraction": "Attraction is read through whether each person activates the other's partner star, Day Master, and spouse palace. This is more precise than a zodiac-style match; it asks whether the other person actually appears inside your relationship symbols.",
+        "complement": "Complement is not one person fixing the other. It shows whose elements and behavior system bring calm, direction, structure, initiative, or emotional steadiness to the other person.",
+        "friction": f"The main friction signals are: {conflict_text}. These do not force separation, but they describe where safety, pace, money, commitment, and future planning may repeatedly trigger each other.",
+        "timing": "Timing should be read by comparing both people's annual luck. Years with high attraction and high risk are better for observation and boundary-setting; years with high relationship score and lower risk are better for commitment.",
+        "advice": [
+            "Define the relationship early; do not stay in a long ambiguous state.",
+            "Keep money, projects, resources, and intimacy separate in the early stage.",
+            "When clash or punishment years are activated, discuss boundaries and practical plans before emotional conclusions.",
+            "Long-term development requires direct communication rather than silence, testing, or assumption.",
+        ],
+        "shortVerdict": "Strong attraction; define boundaries before commitment.",
+    }
+
+
+def llm_compatibility_prompt(packet: dict, lang: str = "zh") -> list[dict[str, str]]:
     schema_note = {
         "overall": "整体合盘结论，300-600字，像私人咨询，不要模板。",
         "attraction": "互相吸引为什么成立或不成立，必须引用双方日主、伴侣星、夫妻宫或十神触发。",
@@ -1121,6 +1621,21 @@ def llm_compatibility_prompt(packet: dict) -> list[dict[str, str]]:
         "advice": ["4-6条相处建议，必须具体"],
         "shortVerdict": "一句话结论，30字以内",
     }
+    if lang == "en":
+        system = (
+            "You are Ming Atelier's BaZi compatibility interpretation layer. The deterministic chart facts are already locked. "
+            "Do not change the Four Pillars, Day Masters, Five Elements, Ten Gods, branch relations, scores, or years. "
+            "Your task is to write a premium client-facing relationship reading in English. "
+            "Analysis weighting: 20% technical BaZi anchors, 80% practical relationship interpretation. "
+            "Cover overall fit, mutual attraction, Five-Element complement, clashes/punishments/harms in real relationship behavior, 2026-2036 timing, and concrete advice. "
+            "Do not promise marriage, do not frighten the client, and do not give legal/financial certainty. Return valid JSON only."
+        )
+        user = (
+            "Write the customer-facing compatibility interpretation in English. Keep Chinese stems/branches/star names as technical symbols when needed, but explain them in plain English. "
+            f"schema: {json.dumps(schema_note, ensure_ascii=False)}\n\n"
+            f"Compatibility facts: {json.dumps(packet, ensure_ascii=False)}"
+        )
+        return [{"role": "system", "content": system}, {"role": "user", "content": user}]
     system = (
         "你是 Ming Atelier 的八字合盘解读层。确定性事实已经由程序排好，你不能改四柱、日主、五行、十神、冲合刑害、年份。"
         "你的任务是把合盘结果写成客户能读懂、愿意付费的关系报告。"
@@ -1140,7 +1655,8 @@ def llm_compatibility_prompt(packet: dict) -> list[dict[str, str]]:
 
 def apply_compatibility_llm(model: dict) -> None:
     model["llmStatus"] = "disabled"
-    text = deterministic_compatibility_text(model)
+    lang = model.get("lang", "zh")
+    text = deterministic_compatibility_text_en(model) if lang == "en" else deterministic_compatibility_text(model)
     model["text"] = text
     if not llm_report_enabled():
         return
@@ -1187,7 +1703,7 @@ def apply_compatibility_llm(model: dict) -> None:
         "relationshipQuestion": model["question"],
         "currentStatus": model["status"],
     }
-    llm = call_llm_json(llm_compatibility_prompt(packet))
+    llm = call_llm_json(llm_compatibility_prompt(packet, lang))
     if not isinstance(llm, dict):
         model["llmStatus"] = "fallback"
         return
@@ -1251,6 +1767,7 @@ def build_compatibility(data: dict) -> tuple[dict, Path]:
     model = {
         "a": a,
         "b": b,
+        "lang": "en" if is_english(data) else "zh",
         "question": data.get("question") or "",
         "status": data.get("status") or "",
         "scores": {
@@ -1267,6 +1784,8 @@ def build_compatibility(data: dict) -> tuple[dict, Path]:
         "combinedSets": combined_sets,
         "windows": compatibility_windows(a, b),
     }
+    if model["lang"] == "en":
+        localize_compatibility_model_en(model)
     apply_compatibility_llm(model)
     output = GENERATED / f"{run_id}.html"
     compatibility_report_html(model, output)
@@ -1281,33 +1800,54 @@ def compatibility_report_html(model: dict, output: Path) -> None:
         pct = percent_int(value) or 0
         return f'<article class="kpi"><span>{e(label)}</span><b>{e(value)}</b><i><em style="width:{pct}%"></em></i><p>{e(text)}</p></article>'
 
+    lang_en = model.get("lang") == "en"
     branch_rows = "".join(
-        f"<tr><td>{e(row['aPillar'])} {e(row['aBranch'])}</td><td>{e(row['bPillar'])} {e(row['bBranch'])}</td><td>{e('、'.join(row['relations']))}</td><td>{e(row['meaning'])}</td></tr>"
+        f"<tr><td>{e(row['aPillar'])} {e(row['aBranch'])}</td><td>{e(row['bPillar'])} {e(row['bBranch'])}</td><td>{e((', ' if lang_en else '、').join(row['relations']))}</td><td>{e(row['meaning'])}</td></tr>"
         for row in model["branchMatrix"][:16]
-    ) or '<tr><td colspan="4">未见强冲合刑害破，重点看十神与现实节奏。</td></tr>'
+    ) or (('<tr><td colspan="4">No dominant hard clash or combination detected; focus on Ten-God activation and real-life rhythm.</td></tr>' if lang_en else '<tr><td colspan="4">未见强冲合刑害破，重点看十神与现实节奏。</td></tr>'))
     stem_rows = "".join(
-        f"<tr><td>{e(row['aPillar'])} {e(row['aStem'])}</td><td>{e(row['bPillar'])} {e(row['bStem'])}</td><td>{e('、'.join(row['relations']))}</td><td>{e(row['meaning'])}</td></tr>"
+        f"<tr><td>{e(row['aPillar'])} {e(row['aStem'])}</td><td>{e(row['bPillar'])} {e(row['bStem'])}</td><td>{e((', ' if lang_en else '、').join(row['relations']))}</td><td>{e(row['meaning'])}</td></tr>"
         for row in model["stemMatrix"][:12]
-    ) or '<tr><td colspan="4">天干显性合冲不强。</td></tr>'
+    ) or (('<tr><td colspan="4">No strong visible heavenly-stem combination or clash.</td></tr>' if lang_en else '<tr><td colspan="4">天干显性合冲不强。</td></tr>'))
     window_rows = "".join(f"<tr><td>{e(row[0])}</td><td>{e(row[1])}</td><td>{e(row[2])}</td><td>{e(row[3])}</td></tr>" for row in model["windows"])
     advice = "".join(f"<li>{e(item)}</li>" for item in model["text"]["advice"])
     a = model["a"]
     b = model["b"]
+    page_lang = "en" if lang_en else "zh-CN"
+    report_title = "Compatibility Report" if lang_en else "合盘报告"
+    back_home = "Back Home" if lang_en else "回到主页"
+    redo = "New Compatibility Reading" if lang_en else "重新合盘"
+    overall_label = "Overall Reading" if lang_en else "整体判断"
+    score_labels = (
+        [("Overall Fit", "A blended score of attraction, complement, stability, and friction."),
+         ("Attraction", "Whether both charts activate partner-star and spouse-palace signals."),
+         ("Complement", "Whether each person supports the other's useful elements and behavior system."),
+         ("Friction", "The intensity of clashes, punishments, harms, breaks, and real-life tension."),
+         ("Stability", "Long-term landing capacity and relationship containment.")]
+        if lang_en
+        else [("整体适配", "综合吸引、互补、稳定与摩擦。"), ("吸引力", "彼此是否触动伴侣星和夫妻宫。"), ("互补度", "对方是否补到自己的喜用和行为系统。"), ("摩擦度", "冲刑害破和现实拉扯强度。"), ("稳定度", "长期承接和关系落地能力。")]
+    )
+    section_attraction = "Attraction & Complement" if lang_en else "吸引与互补"
+    section_friction = "Main Friction" if lang_en else "主要拉扯"
+    section_timing = "Timing Windows" if lang_en else "年份窗口"
+    section_branch = "Branch Relationship Matrix" if lang_en else "地支关系矩阵"
+    section_stem = "Heavenly Stem Relations" if lang_en else "天干合冲"
+    footer_text = "Ming Atelier | Compatibility readings are cultural relationship analysis and do not replace real communication, legal, financial, or psychological advice." if lang_en else "Ming Atelier｜合盘属于传统文化关系阅读，不替代现实沟通、法律、财务或心理专业建议。"
     html_text = f"""<!doctype html>
-<html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>{e(a['name'])} × {e(b['name'])} 合盘报告｜Ming Atelier</title>
+<html lang="{page_lang}"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>{e(a['name'])} × {e(b['name'])} {report_title}｜Ming Atelier</title>
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&display=swap');
 *{{box-sizing:border-box}}body{{margin:0;background:#050302;color:#f6e8c8;font-family:"Songti SC","STSong","Noto Serif SC","Kaiti SC",serif;line-height:1.72}}a{{color:inherit}}.shell{{width:min(1180px,calc(100% - 36px));margin:0 auto}}.hero{{min-height:76vh;display:grid;align-items:center;position:relative;overflow:hidden;background:radial-gradient(circle at 72% 38%,rgba(216,173,85,.24),transparent 28%),linear-gradient(120deg,#070402,#130d05 52%,#050302)}}.hero:before{{content:"合";position:absolute;right:8vw;top:4vh;font-size:34vw;color:rgba(216,173,85,.06);line-height:1}}.hero:after{{content:"";position:absolute;inset:0;background:radial-gradient(circle at 24% 30%,rgba(247,217,142,.08),transparent 24%),linear-gradient(180deg,transparent,rgba(0,0,0,.5))}}.hero .shell{{position:relative;z-index:2}}.eyebrow{{color:#d8ad55;font-family:Optima,Arial,sans-serif;letter-spacing:.28em;font-size:12px;text-transform:uppercase}}h1{{font-family:"Instrument Serif",serif;font-size:clamp(54px,8vw,112px);line-height:.95;margin:10px 0;color:#ffe0a0;font-weight:400}}.lead{{max-width:860px;font-size:20px;color:#ead9b8}}.actions{{display:flex;gap:12px;flex-wrap:wrap;margin-top:24px}}.btn{{border:1px solid rgba(216,173,85,.62);padding:12px 18px;text-decoration:none;background:rgba(12,8,4,.7)}}section{{padding:58px 0;border-top:1px solid rgba(216,173,85,.18)}}h2{{font-size:34px;color:#f4c979;margin:0 0 18px}}.grid{{display:grid;grid-template-columns:repeat(5,1fr);gap:14px}}.kpi,.card{{border:1px solid rgba(216,173,85,.34);background:rgba(18,13,7,.78);padding:18px;box-shadow:0 18px 42px rgba(0,0,0,.26)}}.kpi b{{display:block;color:#ffe0a0;font-size:30px;margin:8px 0}}.kpi i{{display:block;height:8px;background:rgba(216,173,85,.16);overflow:hidden}}.kpi em{{display:block;height:100%;background:linear-gradient(90deg,#d8ad55,#ffe0a0)}}.two{{display:grid;grid-template-columns:1fr 1fr;gap:16px}}p{{color:#e2cfaa}}ul{{padding-left:20px}}li{{margin:8px 0;color:#ead9b8}}table{{width:100%;border-collapse:collapse;min-width:780px}}th,td{{border-bottom:1px solid rgba(216,173,85,.2);padding:11px;text-align:left;vertical-align:top}}th{{color:#f4c979;background:rgba(216,173,85,.08)}}.table{{overflow:auto;border:1px solid rgba(216,173,85,.25)}}.fade{{opacity:0;transform:translateY(16px);transition:.7s ease}}.fade.show{{opacity:1;transform:none}}@media(max-width:820px){{.grid,.two{{grid-template-columns:1fr}}h1{{font-size:52px}}}}
 </style></head><body>
 <main>
-<section class="hero"><div class="shell"><p class="eyebrow">Ming Atelier · Compatibility Reading</p><h1>{e(a['name'])}<br>× {e(b['name'])}</h1><p class="lead">{e(model['text'].get('shortVerdict') or '强吸引、看边界、慢推进。')}</p><div class="actions"><a class="btn" href="/">回到主页</a><a class="btn" href="/compatibility.html">重新合盘</a></div></div></section>
-<section class="fade"><div class="shell"><h2>整体判断</h2><div class="grid">{score_card('整体适配',model['scores']['overall'],'综合吸引、互补、稳定与摩擦。')}{score_card('吸引力',model['scores']['attraction'],'彼此是否触动伴侣星和夫妻宫。')}{score_card('互补度',model['scores']['complement'],'对方是否补到自己的喜用和行为系统。')}{score_card('摩擦度',model['scores']['friction'],'冲刑害破和现实拉扯强度。')}{score_card('稳定度',model['scores']['stability'],'长期承接和关系落地能力。')}</div><div class="card" style="margin-top:16px"><p>{e(model['text']['overall'])}</p></div></div></section>
-<section class="fade"><div class="shell two"><article class="card"><h2>吸引与互补</h2><p>{e(model['text']['attraction'])}</p><p>{e(model['text']['complement'])}</p></article><article class="card"><h2>主要拉扯</h2><p>{e(model['text']['friction'])}</p><ul>{advice}</ul></article></div></section>
-<section class="fade"><div class="shell"><h2>年份窗口</h2><p>{e(model['text']['timing'])}</p><div class="table"><table><thead><tr><th>年份</th><th>流年</th><th>判断</th><th>说明</th></tr></thead><tbody>{window_rows}</tbody></table></div></div></section>
-<section class="fade"><div class="shell"><h2>地支关系矩阵</h2><div class="table"><table><thead><tr><th>{e(a['name'])}</th><th>{e(b['name'])}</th><th>关系</th><th>解读</th></tr></thead><tbody>{branch_rows}</tbody></table></div></div></section>
-<section class="fade"><div class="shell"><h2>天干合冲</h2><div class="table"><table><thead><tr><th>{e(a['name'])}</th><th>{e(b['name'])}</th><th>关系</th><th>解读</th></tr></thead><tbody>{stem_rows}</tbody></table></div></div></section>
-</main><footer class="shell" style="padding:32px 0;color:#9f8a62">Ming Atelier｜合盘属于传统文化关系阅读，不替代现实沟通、法律、财务或心理专业建议。</footer>
+<section class="hero"><div class="shell"><p class="eyebrow">Ming Atelier · Compatibility Reading</p><h1>{e(a['name'])}<br>× {e(b['name'])}</h1><p class="lead">{e(model['text'].get('shortVerdict') or ('Strong attraction; define boundaries before commitment.' if lang_en else '强吸引、看边界、慢推进。'))}</p><div class="actions"><a class="btn" href="/{'?lang=en' if lang_en else ''}">{back_home}</a><a class="btn" href="/compatibility.html{'?lang=en' if lang_en else ''}">{redo}</a></div></div></section>
+<section class="fade"><div class="shell"><h2>{overall_label}</h2><div class="grid">{score_card(score_labels[0][0],model['scores']['overall'],score_labels[0][1])}{score_card(score_labels[1][0],model['scores']['attraction'],score_labels[1][1])}{score_card(score_labels[2][0],model['scores']['complement'],score_labels[2][1])}{score_card(score_labels[3][0],model['scores']['friction'],score_labels[3][1])}{score_card(score_labels[4][0],model['scores']['stability'],score_labels[4][1])}</div><div class="card" style="margin-top:16px"><p>{e(model['text']['overall'])}</p></div></div></section>
+<section class="fade"><div class="shell two"><article class="card"><h2>{section_attraction}</h2><p>{e(model['text']['attraction'])}</p><p>{e(model['text']['complement'])}</p></article><article class="card"><h2>{section_friction}</h2><p>{e(model['text']['friction'])}</p><ul>{advice}</ul></article></div></section>
+<section class="fade"><div class="shell"><h2>{section_timing}</h2><p>{e(model['text']['timing'])}</p><div class="table"><table><thead><tr><th>{'Year' if lang_en else '年份'}</th><th>{'Annual Pillar' if lang_en else '流年'}</th><th>{'Judgment' if lang_en else '判断'}</th><th>{'Notes' if lang_en else '说明'}</th></tr></thead><tbody>{window_rows}</tbody></table></div></div></section>
+<section class="fade"><div class="shell"><h2>{section_branch}</h2><div class="table"><table><thead><tr><th>{e(a['name'])}</th><th>{e(b['name'])}</th><th>{'Relation' if lang_en else '关系'}</th><th>{'Reading' if lang_en else '解读'}</th></tr></thead><tbody>{branch_rows}</tbody></table></div></div></section>
+<section class="fade"><div class="shell"><h2>{section_stem}</h2><div class="table"><table><thead><tr><th>{e(a['name'])}</th><th>{e(b['name'])}</th><th>{'Relation' if lang_en else '关系'}</th><th>{'Reading' if lang_en else '解读'}</th></tr></thead><tbody>{stem_rows}</tbody></table></div></div></section>
+</main><footer class="shell" style="padding:32px 0;color:#9f8a62">{footer_text}</footer>
 <script>const io=new IntersectionObserver(es=>es.forEach(e=>{{if(e.isIntersecting)e.target.classList.add('show')}}),{{threshold:.12}});document.querySelectorAll('.fade').forEach(el=>io.observe(el));</script>
 </body></html>"""
     output.write_text(html_text, encoding="utf-8")
@@ -1328,18 +1868,37 @@ def report_pdf(data: dict, computed: dict, chart_png: Path, output: Path) -> Non
     yun, selected, dayun_rows = current_dayun(ec, data.get("gender", "男"))
     pillars = f"{ec.getYear()} 年｜{ec.getMonth()} 月｜{ec.getDay()} 日｜{ec.getTime()} 时"
     profile = computed["profile"]
-    summary = free_report_summary(data, computed)
+    lang_en = is_english(data)
+    summary = free_report_summary_en(data, computed) if lang_en else free_report_summary(data, computed)
+    title_text = f"{data.get('name') or 'Anonymous'} Free BaZi Reading" if lang_en else f"{data.get('name') or '匿名'} 免费排盘报告"
+    sub_text = (
+        f"{data.get('calendar', 'Solar')} {data.get('birthDate')} {data.get('birthTime')} | {data.get('birthPlace', '')} | {GENDER_EN.get(data.get('gender', ''), data.get('gender', ''))}"
+        if lang_en
+        else f"{data.get('calendar', '阳历')} {data.get('birthDate')} {data.get('birthTime')}｜{data.get('birthPlace', '')}｜{data.get('gender', '')}｜金额单位：人民币 RMB"
+    )
+    note_text = (
+        "Free version note: this report includes the birth chart and a first-layer plain-language reading. It does not expand major luck cycles, annual timing, soulmate windows, or deep risk analysis."
+        if lang_en
+        else "免费版说明：本报告只做排盘和一段基础大白话总结。命盘图保留神煞与地支关系，正文不展开深度格局、大运、流年和风险细断。"
+    )
+    raw_title = "1. Original Chart Information" if lang_en else "一、原始盘信息"
+    summary_title = "2. Plain-Language Summary" if lang_en else "二、大白话总结"
+    raw_rows = (
+        [["Item", "Content"], ["Four Pillars", pillars], ["Day Master", ec.getDayGan()], ["Current / 2026 Luck Pillar", selected.getGanZhi() if selected else "Not identified"], ["Five Element Estimate", ", ".join(f"{element_en(k)} {v}%" for k, v in profile.items())]]
+        if lang_en
+        else [["项目", "内容"], ["四柱", pillars], ["日主", ec.getDayGan()], ["当前/2026大运", selected.getGanZhi() if selected else "未识别"], ["五行估计", "，".join(f"{k}{v}%" for k, v in profile.items())]]
+    )
     story = [
-        paragraph(f"{data.get('name') or '匿名'} 免费排盘报告", styles["title"]),
-        paragraph(f"{data.get('calendar', '阳历')} {data.get('birthDate')} {data.get('birthTime')}｜{data.get('birthPlace', '')}｜{data.get('gender', '')}｜金额单位：人民币 RMB", styles["sub"]),
+        paragraph(title_text, styles["title"]),
+        paragraph(sub_text, styles["sub"]),
         Spacer(1, 8),
-        paragraph("免费版说明：本报告只做排盘和一段基础大白话总结。命盘图保留神煞与地支关系，正文不展开深度格局、大运、流年和风险细断。", styles["note"]),
+        paragraph(note_text, styles["note"]),
         Spacer(1, 8),
         Image(str(chart_png), width=135 * mm, height=205 * mm),
         PageBreak(),
-        paragraph("一、原始盘信息", styles["h1"]),
-        table([["项目", "内容"], ["四柱", pillars], ["日主", ec.getDayGan()], ["当前/2026大运", selected.getGanZhi() if selected else "未识别"], ["五行估计", "，".join(f"{k}{v}%" for k, v in profile.items())]], [34 * mm, 136 * mm], font),
-        paragraph("二、大白话总结", styles["h1"]),
+        paragraph(raw_title, styles["h1"]),
+        table(raw_rows, [44 * mm, 126 * mm], font),
+        paragraph(summary_title, styles["h1"]),
         paragraph(summary, styles["body"]),
     ]
     doc = SimpleDocTemplate(str(output), pagesize=A4, rightMargin=16 * mm, leftMargin=16 * mm, topMargin=14 * mm, bottomMargin=14 * mm)
@@ -2316,6 +2875,9 @@ def flow_pillar(day_stem: str, day_branch: str, ganzhi: str, label: str) -> dict
 def compact_flow_note(note: str) -> str:
     if not note:
         return ""
+    if "。" not in note and "." in note:
+        first = note.split(".", 1)[0].strip()
+        return f"{first}." if first else note
     first = note.split("。", 1)[0].strip()
     return f"{first}。" if first else note
 
@@ -2707,7 +3269,38 @@ def llm_fact_packet(data: dict, computed: dict, model: dict) -> dict:
     }
 
 
-def llm_report_prompt(packet: dict) -> list[dict[str, str]]:
+def llm_report_prompt(packet: dict, lang: str = "zh") -> list[dict[str, str]]:
+    if lang == "en":
+        schema_note = {
+            "useful_elements": ["金", "水"],
+            "useful_text": "Optional. If the engine's useful-element reading is inaccurate, return 1-3 Chinese element symbols and one explanation. Must be based on season, Day Master strength, Ten-God pressure, hidden stems, branch relations, and luck cycles. Do not use missing-element logic.",
+            "career_rows": [["Theme", "Reading", "Reasoning"]],
+            "wealth_intro": "One plain-English opening paragraph for ten-year wealth rhythm.",
+            "income_notes": {"Million-level": "replacement text", "Five-million level": "replacement text", "Ten-million level": "replacement text"},
+            "income_stage_rows": [["Stage", "Income Reading", "Key Condition", "Risk"]],
+            "annual_notes": [{"year": "2026", "note": "plain-English annual analysis"}],
+            "monthly_notes": [{"month": "2026-02", "note": "monthly action note"}],
+            "june_2026_detail": "Focused note for June 2026.",
+            "crisis_rows": [["Theme", "Chart Basis", "Real-World Action"]],
+            "summary_paragraphs": ["5 plain-English summary paragraphs"],
+        }
+        system = (
+            "You are the interpretation layer for Ming Atelier BaZi reports. You write only the client-facing interpretation; do not recalculate the chart. "
+            "For Career Development, Ten-Year Wealth, 2026 Monthly Timing, Core Crisis, and Plain-Language Summary, your independent judgment and language should drive 90% of the visible result; the local BaZi engine and tables are factual anchors and validation only. "
+            "Keep Four Pillars, Ten Gods, ShenSha, branch relations, luck cycles, annual pillars, scores, and chart facts exactly as provided. Do not invent chart facts. "
+            "Write in polished English for paying clients interested in BaZi. You may keep GanZhi, Ten-God Chinese names, and ShenSha names as technical symbols only when useful, but all explanatory prose must be English. "
+            "Do not use generic template language, do not use missing-element logic, and do not promise wealth, marriage, disaster, or certainty. "
+            "Return valid JSON only."
+        )
+        user = (
+            "Generate personalized English text for the client-visible sections: Career Development, Ten-Year Wealth, 2026 Monthly Timing, Core Crisis, and Plain-Language Summary. "
+            "Also review useful elements and return useful_elements/useful_text. The useful_elements value must still use Chinese element symbols from this set only: 金, 木, 水, 火, 土. "
+            "Annual notes must cover 2026 through 2036, each with a distinct reading grounded in that year's GanZhi, major luck, scores, and triggers. Do not reuse the same sentence structure year after year. "
+            "Use direct, restrained, empathetic, high-end English. Keep 20% technical anchoring and 80% practical interpretation.\n\n"
+            f"Schema: {json.dumps(schema_note, ensure_ascii=False)}\n\n"
+            f"Structured chart packet:\n{json.dumps(packet, ensure_ascii=False)}"
+        )
+        return [{"role": "system", "content": system}, {"role": "user", "content": user}]
     schema_note = {
         "useful_elements": ["金", "水"],
         "useful_text": "可选。若你认为引擎喜用神不准确，可返回 1-3 个五行和一句说明；必须基于月令、日主强弱、十神压力、合冲刑害，不得缺啥补啥。",
@@ -2749,7 +3342,25 @@ def llm_report_prompt(packet: dict) -> list[dict[str, str]]:
     return [{"role": "system", "content": system}, {"role": "user", "content": user}]
 
 
-def llm_detail_prompt(packet: dict) -> list[dict[str, str]]:
+def llm_detail_prompt(packet: dict, lang: str = "zh") -> list[dict[str, str]]:
+    if lang == "en":
+        schema_note = {
+            "ten_god_judgments": [{"index": 1, "judgment": "Plain-English interpretation of how this Ten-God signal affects personality, career, money, relationships, or long-term choice."}],
+            "shensha_notes": [{"pillar": "Year Pillar", "star": "天乙贵人", "note": "Plain-English explanation of this ShenSha in this pillar."}],
+        }
+        system = (
+            "You are the English explanation layer for Ming Atelier. Rewrite only the Ten-God judgment and the ShenSha pillar meaning. "
+            "Do not add Ten Gods or ShenSha that are not in the input. Keep the technical names as supplied, but make the client-facing explanation English. "
+            "Use 20% technical anchor and 80% practical reading: personality, career, money style, relationship pattern, risk boundaries, and long-term choices. "
+            "Return valid JSON only."
+        )
+        user = (
+            f"Return this schema: {json.dumps(schema_note, ensure_ascii=False)}\n\n"
+            "ten_god_judgments index starts at 1 and follows tenGods.rows. Cover as many rows as possible. "
+            "For shensha_notes, pillar must match the input English group names such as Year Pillar, Month Pillar, Day Pillar, Hour Pillar; star must match a ShenSha name in the input.\n\n"
+            f"Structured chart packet:\n{json.dumps(packet, ensure_ascii=False)}"
+        )
+        return [{"role": "system", "content": system}, {"role": "user", "content": user}]
     schema_note = {
         "ten_god_judgments": [{"index": 1, "judgment": "用大白话说明这一行十神对客户性格、事业、财务、关系或长期选择的影响"}],
         "shensha_notes": [{"pillar": "年柱", "star": "天乙贵人", "note": "用客户能理解的话说明这个神煞在该柱的体现"}],
@@ -2772,7 +3383,32 @@ def llm_detail_prompt(packet: dict) -> list[dict[str, str]]:
     return [{"role": "system", "content": system}, {"role": "user", "content": user}]
 
 
-def llm_relationship_prompt(packet: dict) -> list[dict[str, str]]:
+def llm_relationship_prompt(packet: dict, lang: str = "zh") -> list[dict[str, str]]:
+    if lang == "en":
+        schema_note = {
+            "relationship_rows": [
+                ["Overall relationship pattern", "Relationship trend reading", "Use partner star, spouse palace, branch relations, major luck, or annual triggers"],
+                ["Better dating window", "Years or stage", "Explain why these years/stages are better for forming a relationship"],
+                ["Likely meeting context", "Years or context", "Ground it in annual luck, major luck, spouse palace, or partner-star activation"],
+                ["Appearance / temperament", "Symbolic temperament", "Do not write body height or body type"],
+                ["Likely industry / role", "Industry or role symbolism", "Must be different from temperament wording"],
+                ["Mismatch type", "Unsuitable relationship type", "Connect chart risk to relationship boundaries"],
+                ["Marriage-readiness window", "Years or stage", "Write maturity conditions, do not guarantee marriage"],
+            ]
+        }
+        system = (
+            "You are the English relationship outlook layer for Ming Atelier. Output relationship_rows only. "
+            "Use the input partner stars, spouse palace, Ten-God distribution, branch combinations/clashes/punishments/harms/breaks, major luck, and 2026-2036 annual timing. Do not recalculate. "
+            "Do not include height/body type. Appearance/temperament and industry/role must be different. "
+            "Write for a paying client: 20% BaZi basis, 80% relationship pattern, partner standard, risk boundary, and timing window. "
+            "Do not guarantee marriage or fate. Return valid JSON only."
+        )
+        user = (
+            f"Return this schema: {json.dumps(schema_note, ensure_ascii=False)}\n\n"
+            "Preserve the seven row themes and order. Do not reuse default computedSections wording.\n\n"
+            f"Structured chart packet:\n{json.dumps(packet, ensure_ascii=False)}"
+        )
+        return [{"role": "system", "content": system}, {"role": "user", "content": user}]
     schema_note = {
         "relationship_rows": [
             ["未来关系波动", "对亲密关系整体走势的判断", "引用伴侣星、夫妻宫、合冲刑害、大运或流年触发"],
@@ -3069,7 +3705,35 @@ def report_quality_issues(model: dict) -> list[str]:
     return unique(issues)
 
 
-def llm_delivery_review_prompt(packet: dict, issues: list[str]) -> list[dict[str, str]]:
+def llm_delivery_review_prompt(packet: dict, issues: list[str], lang: str = "zh") -> list[dict[str, str]]:
+    if lang == "en":
+        schema_note = {
+            "career_rows": [["Theme", "Reading", "Reasoning"]],
+            "wealth_intro": "Rewrite the ten-year wealth opening in plain English.",
+            "income_stage_rows": [["Stage", "Income Reading", "Key Condition", "Risk"]],
+            "annual_notes": [{"year": "2026", "note": "annual plain-English analysis"}],
+            "relationship_rows": [["Theme", "Reading", "Explanation"]],
+            "monthly_notes": [{"month": "2026-02", "note": "monthly action note"}],
+            "june_2026_detail": "Focused note for June 2026.",
+            "crisis_rows": [["Theme", "Chart Basis", "Real-World Action"]],
+            "summary_paragraphs": ["5 plain-English summary paragraphs"],
+        }
+        system = (
+            "You are Ming Atelier's English pre-delivery reviewer. Do not recalculate the chart. "
+            "The report has QA issues such as repetition, template language, overly technical phrasing, or insufficient personalization. "
+            "Rewrite the visible client sections while preserving Four Pillars, Ten Gods, ShenSha, major luck, annual/monthly pillars, scores, and risk flags. "
+            "Every year and month must have its own tone and evidence. Avoid repeated sentence structures. "
+            "Write all explanatory prose in English. Technical Chinese symbols may remain only as chart labels. Return valid JSON only."
+        )
+        user = (
+            "Return replacement fields using the schema. annual_notes must cover 2026-2036; monthly_notes must cover all supplied 2026 months. "
+            "relationship_rows must preserve the themes, exclude height/body type, and keep temperament separate from industry/role. "
+            "summary_paragraphs should feel like a real paid summary: personality, career/industry, wealth years, relationship window, risk boundary, and timing advice.\n\n"
+            f"Schema: {json.dumps(schema_note, ensure_ascii=False)}\n\n"
+            f"QA issues: {json.dumps(issues, ensure_ascii=False)}\n\n"
+            f"Locked chart and current report: {json.dumps(packet, ensure_ascii=False)}"
+        )
+        return [{"role": "system", "content": system}, {"role": "user", "content": user}]
     schema_note = {
         "career_rows": [["主题", "判断", "依据"]],
         "wealth_intro": "重写未来十年财运开头，一段客户能听懂的大白话。",
@@ -3117,7 +3781,8 @@ def pre_delivery_review(data: dict, computed: dict, model: dict) -> None:
         "crisisRows": model.get("crisis_rows", []),
         "summaryParagraphs": plain_summary_paragraphs(data, model),
     }
-    reviewed = call_llm_json(llm_delivery_review_prompt(packet, issues))
+    lang = "en" if is_english(data) else "zh"
+    reviewed = call_llm_json(llm_delivery_review_prompt(packet, issues, lang))
     if apply_llm_sections(model, reviewed):
         remaining = report_quality_issues(model)
         model["review_issues"] = remaining
@@ -3131,11 +3796,12 @@ def enrich_model_with_llm(data: dict, computed: dict, model: dict) -> None:
         return
     packet = llm_fact_packet(data, computed, model)
     changed = False
-    llm = call_llm_json(llm_report_prompt(packet))
+    lang = "en" if is_english(data) else "zh"
+    llm = call_llm_json(llm_report_prompt(packet, lang))
     changed = apply_llm_sections(model, llm) or changed
-    relationship_llm = call_llm_json(llm_relationship_prompt(packet))
+    relationship_llm = call_llm_json(llm_relationship_prompt(packet, lang))
     changed = apply_llm_sections(model, relationship_llm) or changed
-    detail_llm = call_llm_json(llm_detail_prompt(packet))
+    detail_llm = call_llm_json(llm_detail_prompt(packet, lang))
     changed = apply_llm_sections(model, detail_llm) or changed
     model["llm_status"] = "applied" if changed else "fallback"
     pre_delivery_review(data, computed, model)
@@ -3192,8 +3858,211 @@ def report_model(data: dict, computed: dict) -> dict:
     model["crisis_rows"] = crisis_rows(context)
     model["june_2026_detail"] = june_2026_detail(context)
     model["event_calibration_rows"] = event_calibration_rows(events, model)
+    if is_english(data):
+        localize_deep_model_en(data, model)
     enrich_model_with_llm(data, computed, model)
     return model
+
+
+def localize_deep_model_en(data: dict, model: dict) -> None:
+    model["lang"] = "en"
+    useful = [element_en(item) for item in model.get("useful_elements", [])]
+    useful_text = ", ".join(useful) or "rhythm and structure"
+    day_master_stem = model["analysis_context"]["day_stem"]
+    day_master = STEM_EN.get(day_master_stem, f"{day_master_stem} {element_en(model['analysis_context']['day_element'])}")
+    model["dominant"] = ", ".join(
+        f"{element_en(k)} {v}%" for k, v in sorted(model.get("profile", {}).items(), key=lambda item: item[1], reverse=True)
+    )
+    model["day_strength_label"] = {"身强": "strong", "身弱": "weak", "中和": "balanced"}.get(model.get("day_strength_label"), model.get("day_strength_label", ""))
+    model["useful_text"] = (
+        f"The useful-element reading leans toward {useful_text}. This is not a 'missing element' rule; it is based on season, Day Master strength, visible pressure, hidden stems, branch interactions, and current luck-cycle conditions."
+    )
+    model["strength_reason"] = (
+        f"The Day Master is {day_master}. The strength estimate is a model reading, not a medical or financial fact. It helps identify whether the client should expand through output/wealth signals, or first build support, structure, and risk control."
+    )
+    model["wealth_tone"]["base"] = (
+        "The next ten years should be read as a rhythm of opportunity and containment. Money comes more easily when pricing, delivery, ownership, accounts, contracts, and cash-flow rules are written clearly before scale is pursued."
+    )
+    source_income = model.get("income_rows", [])
+    tier_names = ["RMB 1M-5M / year", "RMB 5M-10M / year", "RMB 10M+ / year"]
+    tier_labels = ["Million-level", "Five-million level", "Ten-million level"]
+    tier_notes = [
+        "This tier is most realistic when professional ability becomes a repeatable offer, client system, or productized service. Confidence estimate about 68%.",
+        "This tier requires stronger operating structure: legal terms, payment rhythm, delivery ownership, team/channel leverage, and financial review. Confidence estimate about 58%.",
+        "This tier is possible only when platform resources, team capacity, capital/supply chain support, and risk control can carry the scale. Confidence estimate about 45%.",
+    ]
+    model["income_rows"] = [
+        [tier_labels[i], source_income[i][1] if i < len(source_income) else "0%", tier_names[i], tier_notes[i]]
+        for i in range(3)
+    ]
+    model["career_rows"] = [
+        ["Operating style", "Build with structure before scaling", f"With useful elements around {useful_text}, the career path works better when methods, standards, and review systems are clear."],
+        ["Best-fit fields", "Strategy, product, operations, research, finance/risk, technology, consulting, or structured advisory work", "The chart favors turning knowledge and judgment into repeatable delivery."],
+        ["Risk control", "Avoid vague partnerships and emotionally driven expansion", "If role, ownership, client attribution, and payment are unclear, opportunity can become consumption."],
+        ["Growth method", "Use small tests, documented process, and staged commitments", "This turns chart pressure into execution rather than conflict."],
+    ]
+    model["income_stage_rows"] = [
+        ["2026-2027", "Foundation and first acceleration", "Clarify pricing, contracts, delivery standards, and cash-flow rhythm.", "Do not over-promise before the operating system is stable."],
+        ["2028-2029", "Client and resource activation", "Better for visible offers, repeatable products, stronger negotiation, and long-term clients.", "Money and relationship issues must not be mixed casually."],
+        ["2030-2033", "Systemization and asset building", "Suitable for team, product, cross-border resources, data, licensing, or structured channels.", "Process cost rises; personal willpower alone is not enough."],
+        ["2034-2036", "Repositioning and selective expansion", "Review what is truly scalable, then choose a narrower but stronger direction.", "Avoid new heavy commitments before the old system is cleaned up."],
+    ]
+    annual = []
+    annual_templates = [
+        "This is a year to move, but only after the operating terms are clear. Push visible offers and client conversion, while keeping payment schedule, refund terms, and delivery ownership written.",
+        "The money signal is usable, but it needs containment. Let pricing, account control, and written scope carry the opportunity instead of relying on excitement or verbal trust.",
+        "This year favors building an asset-like system: product, method, channel, documentation, recurring clients, or a team process. Avoid turning every opening into a heavy commitment.",
+        "Relationship and money can pull on each other this year. If an opportunity involves affection, friendship, partnership, or shared resources, separate the emotional decision from the financial one.",
+        "The chart reads this year as a maintenance-and-filter year. It is better for reviewing contracts, cleaning old obligations, and protecting cash flow than for forcing a large expansion.",
+        "Pressure is higher than the visible opportunity. Slow down major promises, use professional review where needed, and treat any rushed signature or unclear split as a warning signal.",
+    ]
+    for index, row in enumerate(model.get("annual_rows", [])):
+        year, ganzhi, dayun = row[0], row[1], row[2]
+        career, wealth, relation, stress, loss, compliance = [int(row[i]) for i in [3, 4, 5, 6, 7, 9]]
+        if loss >= 8 or compliance >= 8:
+            action = annual_templates[5]
+        elif wealth >= 8:
+            action = annual_templates[1]
+        elif career >= 8 or career >= wealth:
+            action = annual_templates[2]
+        elif relation >= 7:
+            action = annual_templates[3]
+        elif stress >= 7:
+            action = annual_templates[4]
+        else:
+            action = annual_templates[index % len(annual_templates)]
+        note = (
+            f"In {year} ({ganzhi} / {ganzhi_en(ganzhi)}), while the major-luck pillar is {dayun} / {ganzhi_en(dayun)}, the scores show career {career}, wealth {wealth}, relationship {relation}, stress {stress}, loss-risk {loss}, and compliance {compliance}. "
+            f"{action}"
+        )
+        display_row = row[:10]
+        display_row[1] = bilingual_ganzhi(ganzhi)
+        display_row[2] = bilingual_ganzhi(dayun)
+        annual.append(display_row + [note])
+    model["annual_rows"] = annual
+    model["relationship_rows"] = [
+        ["Overall relationship pattern", "Attraction needs definition and rhythm", "The spouse-star and spouse-palace signals should be read through real boundaries, not only chemistry."],
+        ["Better dating window", "Years with lower risk and clearer commitment signals", "Move slowly in high-trigger years; use them to observe consistency rather than force certainty."],
+        ["Likely meeting context", "Work, learning, projects, structured communities, or cross-border/online scenes", "The chart favors meeting through function and shared direction rather than pure randomness."],
+        ["Appearance / temperament", "Clear, composed, professional, or emotionally contained", "This is symbolic temperament reading, not a fixed physical description."],
+        ["Likely industry / role", "Finance, data, operations, consulting, technology, education, compliance, or structured service roles", "Look for someone who strengthens your reality system rather than only emotional heat."],
+        ["Mismatch type", "Ambiguous, highly emotional, financially boundaryless, or controlling partners", "These types amplify the chart's relationship and money stress."],
+        ["Marriage-readiness window", "When money, city, family responsibility, and long-term rhythm can be discussed plainly", "The chart does not guarantee marriage; it shows when a relationship becomes easier to land."],
+    ]
+    model["ten_god_rows"] = []
+    for god, pillar, _meaning, _reading in ten_god_rows({"chart": model["chart"]}):
+        pillar_label = "General position"
+        for cn, en in PILLAR_EN.items():
+            if pillar.startswith(cn):
+                suffix = pillar.removeprefix(cn)
+                english_terms = []
+                for char in suffix:
+                    if char in STEM_EN:
+                        english_terms.append(STEM_EN[char])
+                    elif char in BRANCH_EN:
+                        english_terms.append(BRANCH_EN[char])
+                pillar_label = en + suffix.replace("天干", " heavenly stem ").replace("地支", " earthly branch ").replace("藏", " hidden stem ")
+                if english_terms:
+                    pillar_label += "\n" + " / ".join(english_terms)
+                break
+        scene = next((scene for cn, scene in PILLAR_SCENE_EN.items() if pillar.startswith(cn)), "this life area")
+        god_text = TEN_GOD_TEXT_EN.get(god, "a supporting signal in the chart")
+        model["ten_god_rows"].append([
+            bilingual_term_list([god], TEN_GOD_EN),
+            pillar_label,
+            god_text.capitalize() + ".",
+            f"When this signal appears in {scene}, it describes how the client reacts in that arena: how they judge opportunity, handle pressure, set boundaries with people and money, and decide whether to invest more energy.",
+        ])
+    relation_rows = []
+    for relation in model.get("branch_relation_rows", []):
+        label = relation[0]
+        if label == "无明显合冲刑害破":
+            label = "No major combination/clash/punishment/harm/break detected"
+        else:
+            label = label.replace("地支冲刑害破：", "Branch interactions: ")
+            label = label.replace("；", "; ")
+            label = bilingual_branch_relation_text(label)
+        relation_rows.append([
+            label,
+            "The chart contains interaction between branches; it should not be read pillar by pillar only.",
+            "This can affect career rhythm, relationship stability, money retention, emotional swings, or timing pressure when activated by luck cycles.",
+            "Use written agreements, payment terms, review checkpoints, communication boundaries, and exit conditions as practical resolution.",
+        ])
+    model["branch_relation_rows"] = relation_rows
+    shensha_en = {}
+    balance_en = {}
+    for group, rows in model.get("shensha_rows", {}).items():
+        group_en = PILLAR_EN.get(group, group)
+        converted = []
+        for row in rows:
+            star = row[1]
+            converted.append([
+                row[0],
+                bilingual_term_list([star], SHENSHA_TEXT_EN),
+                row[2],
+                SHENSHA_TEXT_EN.get(star, "Auxiliary ShenSha signal; read together with Ten Gods, branch relations, and luck cycles."),
+                f"In the {group_en}, this signal mainly affects {PILLAR_SCENE_EN.get(group, 'the related life area')}. For the client, it shows where support, sensitivity, pressure, relationship pull, contract issues, or resource movement may be felt.",
+            ])
+        shensha_en[group_en] = converted
+        balance_en[group_en] = (
+            f"{group_en} ShenSha should be used as supporting evidence. Favorable stars show where help and skill may appear; pressure stars show where boundaries, documentation, and pacing are necessary."
+        )
+    model["shensha_rows"] = shensha_en
+    model["shensha_balance"] = balance_en
+    model["cross_shensha_balance"] = (
+        "Across pillars, ShenSha do not decide good or bad alone. They refine the reading by showing where talent, help, pressure, solitude, mobility, or relationship triggers are likely to appear."
+    )
+    flow = model.get("flow_chart", {})
+    if flow:
+        flow["headers"] = ["Item", "Year Pillar", "Month Pillar", "Day Pillar", "Hour Pillar", "Major Luck", "Annual Luck", "Monthly Luck"]
+        row_label_map = {
+            "主星/干神": "Main Star / Stem Ten-God",
+            "天干": "Heavenly Stem",
+            "地支": "Earthly Branch",
+            "藏干": "Hidden Stems",
+            "支神": "Branch Ten-Gods",
+            "纳音": "NaYin",
+            "空亡": "Void Branches",
+            "地势": "Growth Stage",
+            "神煞": "ShenSha",
+        }
+        converted_rows = []
+        for row in flow.get("rows", []):
+            row_label = row_label_map.get(row[0], row[0])
+            converted = [row_label]
+            for cell in row[1:]:
+                text = str(cell).replace("无明显主星", "No dominant ShenSha").replace("随流盘触发", "Activated by timing overlay")
+                converted.append(bilingual_chart_cell(row_label, text))
+            converted_rows.append(converted)
+        flow["rows"] = converted_rows
+        flow["dayun_strip"] = [
+            [str(row[0]).replace("岁", ""), row[1], bilingual_ganzhi(row[2]), "Current major luck" if row[3] == "当前大运" else ""]
+            for row in flow.get("dayun_strip", [])
+        ]
+        model["selected_dayun"] = bilingual_ganzhi(model.get("selected_dayun") or "未识别")
+        flow["selected_dayun"] = bilingual_ganzhi(flow.get("selected_dayun") or "未识别")
+        flow["flow_year"] = bilingual_ganzhi(flow.get("flow_year") or "")
+        flow["flow_month"] = bilingual_ganzhi(flow.get("flow_month") or "")
+    monthly = []
+    for row in model.get("monthly_rows", []):
+        monthly.append([row[0], bilingual_ganzhi(row[1]), f"{row[2]}\n{solar_term_en(row[2])}", *row[3:7], f"{row[0]} ({row[1]} / {ganzhi_en(row[1])}) is a month for controlled action. Keep the focus on one clear decision, verify the other side's response, and do not let emotion or urgency replace written confirmation."])
+    model["monthly_rows"] = monthly
+    model["june_2026_detail"] = (
+        "June 2026 is a high-activation month. It can bring visibility, movement, and decisive communication, but it also magnifies impulse, unclear promises, and conflict around money or relationship boundaries. Delay irreversible commitments until the terms are written."
+    )
+    model["crisis_rows"] = [
+        ["Partnership and split risk", "Peer/wealth interaction and branch triggers", "Do not rely on loyalty alone. Ownership, accounts, IP/data, payment, and exit terms must be written early."],
+        ["Over-expansion risk", "Output and wealth signals can be activated before the system is ready", "Scale only after delivery, cash flow, and review standards are stable."],
+        ["Relationship ambiguity", "Spouse-star and branch interactions can intensify emotional decisions", "Separate love, money, relocation, and business decisions instead of solving them all at once."],
+        ["Compliance and contract risk", "Officer/killing and clash signals require rules", "Use professional review for large contracts, equity, debt, legal, medical, or investment matters."],
+    ]
+    model["llm_summary_paragraphs"] = [
+        f"This chart is best read as a script of rhythm, boundaries, and choice. The Day Master is {day_master}, and the useful-element direction is {useful_text}. The core task is not to chase every opportunity, but to know when to move, when to hold structure, and when to stop emotional or financial leakage.",
+        "In personality and work style, you are not suited to vague environments for too long. You do better when expectations, standards, and accountability are visible. When the system is clear, your judgment becomes an asset; when the system is vague, you may carry too much pressure for other people.",
+        "Career and money improve when professional ability becomes a repeatable product, method, channel, or long-term client relationship. The highest-risk years are not necessarily the quiet years; they are the years when opportunity arrives faster than contracts, payment rules, and ownership boundaries.",
+        "Relationship-wise, attraction alone is not enough. The right relationship should calm the decision system, not pull money, time, city choice, and career direction into one emotional knot. Slow commitment is not avoidance; for this chart, it is risk control.",
+        "The practical advice is simple: build rules before scale, separate money from emotion, keep written records, and use timing as a way to choose sequence. Ming Atelier reads the chart so you can act with more clarity, not so you can hand your decisions to fate.",
+    ]
 
 
 def load_font(size: int, bold: bool = False):
@@ -3206,7 +4075,7 @@ def load_font(size: int, bold: bool = False):
     return ImageFont.load_default()
 
 
-def generate_standard_visuals(run_id: str, elements: list[str]) -> tuple[Path, Path]:
+def generate_standard_visuals(run_id: str, elements: list[str], lang_en: bool = False) -> tuple[Path, Path]:
     colors_map = {"金": "#d8b35f", "水": "#73a9d8", "木": "#76b978", "火": "#d96b4d", "土": "#b89362"}
     useful_path = GENERATED / f"{run_id}-useful-gods.png"
     crystal_path = GENERATED / f"{run_id}-crystals.png"
@@ -3222,8 +4091,8 @@ def generate_standard_visuals(run_id: str, elements: list[str]) -> tuple[Path, P
     draw = ImageDraw.Draw(img)
     draw.rectangle((28, 28, 1572, 892), outline="#c7963f", width=4)
     draw.rectangle((58, 58, 1542, 862), outline="#3c2c12", width=2)
-    draw.text((88, 82), "Ming Atelier · 喜用神", font=font_mid, fill="#f0c47a")
-    draw.text((88, 132), "Five-element remedy sigils", font=font_small, fill="#8d7b58")
+    draw.text((88, 82), "Ming Atelier · Useful Elements" if lang_en else "Ming Atelier · 喜用神", font=font_mid, fill="#f0c47a")
+    draw.text((88, 132), "Five-element timing anchors" if lang_en else "Five-element remedy sigils", font=font_small, fill="#8d7b58")
     for i, element in enumerate(elements[:2] or ["金", "水"]):
         cx = 450 + i * 700
         cy = 485
@@ -3249,27 +4118,197 @@ def generate_standard_visuals(run_id: str, elements: list[str]) -> tuple[Path, P
         else:
             draw.line((cx - 125, cy - 125, cx + 125, cy + 125), fill=color, width=4)
             draw.line((cx + 125, cy - 125, cx - 125, cy + 125), fill=color, width=4)
-        center_text(draw, (cx, cy), element, font_big, color)
-        center_text(draw, (cx, 760), f"{element} · 五行补足", font_mid, "#f0c47a")
+        center_text(draw, (cx, cy), element_en(element) if lang_en else element, font_big, color)
+        center_text(draw, (cx, 760), f"{element_en(element)} · Useful Element" if lang_en else f"{element} · 五行补足", font_mid, "#f0c47a")
     img.save(useful_path)
     crystal = PILImage.new("RGB", (1600, 920), "#0b0906")
     draw = ImageDraw.Draw(crystal)
     draw.rectangle((28, 28, 1572, 892), outline="#c7963f", width=4)
     draw.rectangle((58, 58, 1542, 862), outline="#3c2c12", width=2)
-    draw.text((88, 82), "Ming Atelier · 适配水晶", font=font_mid, fill="#f0c47a")
+    draw.text((88, 82), "Ming Atelier · Crystal Anchors" if lang_en else "Ming Atelier · 适配水晶", font=font_mid, fill="#f0c47a")
     draw.text((88, 132), "Crystal anchors for daily reminders", font=font_small, fill="#8d7b58")
-    for i, row in enumerate(crystal_rows(elements[:2] or ["金", "水"])):
+    source_rows = crystal_rows_en(elements[:2] or ["金", "水"]) if lang_en else crystal_rows(elements[:2] or ["金", "水"])
+    for i, row in enumerate(source_rows):
         element, name, fit, _ = row
+        element_key = next((key for key, value in ELEMENT_EN.items() if value == element), element)
         x = 160 + i * 700
-        color = colors_map.get(element, "#d8b35f")
+        color = colors_map.get(element_key, "#d8b35f")
         draw.polygon([(x + 245, 260), (x + 390, 360), (x + 340, 620), (x + 150, 620), (x + 100, 360)], outline=color, fill="#151209")
         draw.line((x + 245, 260, x + 245, 620), fill=color, width=2)
         draw.line((x + 100, 360, x + 390, 360), fill=color, width=2)
         center_text(draw, (x + 245, 455), element, font_big, color)
-        draw.text((x + 60, 690), f"{element}｜{name}", font=font_mid, fill=color)
-        draw.text((x + 60, 740), fit[:18], font=font_small, fill="#e8d7b4")
+        draw.text((x + 60, 690), f"{element} | {name}" if lang_en else f"{element}｜{name}", font=font_mid, fill=color)
+        draw.text((x + 60, 740), fit[:34] if lang_en else fit[:18], font=font_small, fill="#e8d7b4")
     crystal.save(crystal_path)
     return useful_path, crystal_path
+
+
+def text_size(draw: ImageDraw.ImageDraw, text: str, font) -> tuple[int, int]:
+    box = draw.textbbox((0, 0), text, font=font)
+    return box[2] - box[0], box[3] - box[1]
+
+
+def wrap_draw_text(draw: ImageDraw.ImageDraw, text: str, font, max_width: int, max_lines: int = 3) -> list[str]:
+    words = re.split(r"(\s+|/|,|;|·)", str(text or ""))
+    lines: list[str] = []
+    current = ""
+    for word in words:
+        if not word:
+            continue
+        trial = current + word
+        if text_size(draw, trial, font)[0] <= max_width:
+            current = trial
+        else:
+            if current.strip():
+                lines.append(current.strip())
+            current = word.strip()
+        if len(lines) >= max_lines:
+            break
+    if current.strip() and len(lines) < max_lines:
+        lines.append(current.strip())
+    if len(lines) == max_lines and text_size(draw, lines[-1], font)[0] > max_width:
+        while lines[-1] and text_size(draw, lines[-1] + "...", font)[0] > max_width:
+            lines[-1] = lines[-1][:-1]
+        lines[-1] = lines[-1].rstrip() + "..."
+    return lines
+
+
+def short_en_name(value: str, mapping: dict[str, str]) -> str:
+    mapped = mapping.get(str(value), "")
+    short = mapped.split(" / ", 1)[0].split(":", 1)[0].strip()
+    return re.sub(r"\s*\([^)]*\)", "", short).strip()
+
+
+def hidden_bilingual_text(items: list[str]) -> str:
+    parts = []
+    for item in items:
+        stem, _, element = str(item).partition("·")
+        en_stem = STEM_EN.get(stem, "")
+        en_element = ELEMENT_EN.get(element, element)
+        parts.append(f"{item} {en_stem}/{en_element}".strip("/"))
+    return " | ".join(parts) or "None"
+
+
+def list_bilingual_text(items: list[str], mapping: dict[str, str], limit: int = 4) -> str:
+    parts = []
+    for item in items[:limit]:
+        en = short_en_name(item, mapping)
+        parts.append(f"{item} {en}".strip())
+    return " | ".join(parts) or "None"
+
+
+def chart_color_for(label: str, pillar: dict, cn: str = "") -> str:
+    if label == "Heavenly Stem":
+        return ELEMENT_COLOR.get(STEM_ELEMENT.get(str(cn)), "#ffe0a0")
+    if label == "Earthly Branch":
+        return ELEMENT_COLOR.get(BRANCH_ELEMENT.get(str(cn)), "#ffe0a0")
+    if label in {"Hidden Stems", "Branch Ten-Gods", "ShenSha"}:
+        return ELEMENT_COLOR.get(BRANCH_ELEMENT.get(str(pillar.get("branch", ""))), "#cdbb98")
+    if label == "NaYin":
+        element = next((item for item in ELEMENT_EN if str(cn).endswith(item)), "")
+        return ELEMENT_COLOR.get(element, "#ffe0a0")
+    if label == "Growth Stage":
+        return "#f0c47a"
+    if label == "Ten God":
+        return ELEMENT_COLOR.get(STEM_ELEMENT.get(str(pillar.get("stem", ""))), "#ffe0a0")
+    return "#ffe0a0"
+
+
+def generate_bilingual_chart_image(run_id: str, model: dict) -> Path:
+    path = GENERATED / f"{run_id}-english-bazi-chart.png"
+    width, height = 2100, 1660
+    margin = 58
+    label_w = 235
+    col_w = (width - margin * 2 - label_w) // 4
+    row_heights = [86, 128, 128, 128, 168, 168, 126, 116, 116, 270]
+    gold = "#d8ad55"
+    gold2 = "#ffe0a0"
+    line = "#6d4d1f"
+    muted = "#cdbb98"
+    panel = "#100b05"
+    img = PILImage.new("RGB", (width, height), "#070503")
+    draw = ImageDraw.Draw(img)
+    title_font = load_font(56, True)
+    subtitle_font = load_font(26)
+    label_font = load_font(28, True)
+    cn_font = load_font(48, True)
+    en_font = load_font(22)
+    small_font = load_font(19)
+
+    draw.rectangle((24, 24, width - 24, height - 24), outline=gold, width=3)
+    draw.rectangle((42, 42, width - 42, height - 42), outline="#2d2110", width=2)
+    draw.text((margin, 54), "Ming Atelier · Four Pillars Chart", font=title_font, fill=gold2)
+    draw.text((margin, 114), "Original BaZi symbols preserved with English labels underneath", font=subtitle_font, fill=muted)
+    draw.ellipse((width - 205, 56, width - 82, 179), outline="#8b6b34", width=2)
+    draw.line((width - 144, 72, width - 144, 163), fill="#8b6b34", width=2)
+    draw.line((width - 188, 118, width - 101, 118), fill="#8b6b34", width=2)
+
+    x0 = margin
+    y0 = 190
+    table_w = label_w + col_w * 4
+    table_h = sum(row_heights)
+    draw.rounded_rectangle((x0, y0, x0 + table_w, y0 + table_h), radius=10, outline=line, fill=panel, width=3)
+    x_positions = [x0, x0 + label_w] + [x0 + label_w + col_w * i for i in range(1, 5)]
+    y = y0
+    for h in row_heights:
+        draw.line((x0, y, x0 + table_w, y), fill=line, width=2)
+        y += h
+    draw.line((x0, y0 + table_h, x0 + table_w, y0 + table_h), fill=line, width=2)
+    for x in x_positions:
+        draw.line((x, y0, x, y0 + table_h), fill=line, width=2)
+
+    headers = ["", "Year Pillar", "Month Pillar", "Day Pillar", "Hour Pillar"]
+    pillars = model.get("chart", {}).get("pillars", [])
+    for i, header in enumerate(headers):
+        left = x0 if i == 0 else x0 + label_w + col_w * (i - 1)
+        right = x0 + label_w if i == 0 else left + col_w
+        tw, th = text_size(draw, header, label_font)
+        draw.text((left + (right - left - tw) / 2, y0 + 26), header, font=label_font, fill=gold2)
+
+    row_specs = [
+        ("Ten God", lambda p: (p.get("gan_shen") or "日主", short_en_name(p.get("gan_shen") or "日主", TEN_GOD_EN))),
+        ("Heavenly Stem", lambda p: (p.get("stem", ""), STEM_EN.get(p.get("stem", ""), ""))),
+        ("Earthly Branch", lambda p: (p.get("branch", ""), BRANCH_EN.get(p.get("branch", ""), ""))),
+        ("Hidden Stems", lambda p: ("", hidden_bilingual_text(p.get("hidden", [])))),
+        ("Branch Ten-Gods", lambda p: ("", list_bilingual_text(p.get("zhi_shen", []), TEN_GOD_EN, 4))),
+        ("NaYin", lambda p: (p.get("nayin", ""), NAYIN_EN.get(p.get("nayin", ""), ""))),
+        ("Void", lambda p: (p.get("kongwang", "") or "None", "")),
+        ("Growth Stage", lambda p: (p.get("dishi", ""), BRANCH_STAGE_EN.get(p.get("dishi", ""), ""))),
+        ("ShenSha", lambda p: ("", list_bilingual_text(p.get("shen_sha", []), SHENSHA_TEXT_EN, 5))),
+    ]
+    y = y0 + row_heights[0]
+    for row_index, (label, getter) in enumerate(row_specs, start=1):
+        h = row_heights[row_index]
+        draw.text((x0 + 22, y + 22), label, font=label_font, fill=gold)
+        for col, pillar in enumerate(pillars):
+            left = x0 + label_w + col_w * col
+            center_x = left + col_w / 2
+            cn, en = getter(pillar)
+            cell_color = chart_color_for(label, pillar, cn)
+            if cn:
+                tw, _ = text_size(draw, cn, cn_font)
+                draw.text((center_x - tw / 2, y + 18), cn, font=cn_font, fill=cell_color)
+                en_y = y + 72
+                max_lines = 2
+            else:
+                en_y = y + 24
+                max_lines = 5 if label == "ShenSha" else 4
+            for line_text in wrap_draw_text(draw, en, en_font if cn else small_font, col_w - 34, max_lines):
+                tw, _ = text_size(draw, line_text, en_font if cn else small_font)
+                draw.text((center_x - tw / 2, en_y), line_text, font=en_font if cn else small_font, fill=muted if cn else cell_color)
+                en_y += 27
+        y += h
+
+    footer_y = y0 + table_h + 26
+    notes = [
+        "Natal chart image generated deterministically from the locked Four Pillars data.",
+        "Use the Flow Overlay tab for major luck, annual luck, and monthly timing layers.",
+    ]
+    for note in notes:
+        draw.text((margin, footer_y), note, font=subtitle_font, fill="#9f8d6b")
+        footer_y += 36
+    img.save(path)
+    return path
 
 
 def pdf_table(rows, widths, font_name, font_size=7.2):
@@ -3284,8 +4323,16 @@ def pdf_table(rows, widths, font_name, font_size=7.2):
 
 def html_table(headers: list[str], rows: list[list[str]]) -> str:
     head = "".join(f"<th>{html.escape(item)}</th>" for item in headers)
+
+    def cell_html(cell: str) -> str:
+        parts = str(cell).splitlines()
+        if len(parts) <= 1:
+            return html.escape(str(cell))
+        first, rest = parts[0], parts[1:]
+        return html.escape(first) + "".join(f"<small class='en-sub'>{html.escape(part)}</small>" for part in rest if part)
+
     body = "".join(
-        "<tr>" + "".join(f"<td>{html.escape(str(cell))}</td>" for cell in row) + "</tr>"
+        "<tr>" + "".join(f"<td>{cell_html(cell)}</td>" for cell in row) + "</tr>"
         for row in rows
     )
     return f"<div class='table-wrap'><table><thead><tr>{head}</tr></thead><tbody>{body}</tbody></table></div>"
@@ -3305,18 +4352,28 @@ def html_detail_cards(rows_by_group: dict[str, list[list[str]]]) -> str:
 
 def html_shensha_tables(model: dict) -> str:
     parts = []
+    lang_en = model.get("lang") == "en"
+    headers = ["Rank", "ShenSha", "Strength", "General Meaning", "Pillar Meaning"] if lang_en else ["排名", "神煞", "强度", "通用解释", "在该柱代表什么"]
+
+    def detail_title(value: str) -> str:
+        parts = str(value).splitlines()
+        if len(parts) <= 1:
+            return html.escape(str(value))
+        return html.escape(parts[0]) + "".join(f"<small class='en-sub'>{html.escape(part)}</small>" for part in parts[1:] if part)
+
     for group, rows in model["shensha_rows"].items():
         detail = "".join(
-            f"<details class='star-detail'><summary>{html.escape(row[1])}<span>{html.escape(row[2])}</span></summary>"
+            f"<details class='star-detail'><summary>{detail_title(row[1])}<span>{html.escape(row[2])}</span></summary>"
             f"<p>{html.escape(row[3])}</p><p>{html.escape(row[4])}</p></details>"
             for row in rows
         )
         parts.append(
-            f"<article class='card shensha-block'><h3>{html.escape(group)}神煞</h3>"
-            f"{html_table(['排名','神煞','强度','通用解释','在该柱代表什么'], rows)}"
+            f"<article class='card shensha-block'><h3>{html.escape(group + (' ShenSha' if lang_en else '神煞'))}</h3>"
+            f"{html_table(headers, rows)}"
             f"<p class='balance'>{html.escape(model['shensha_balance'][group])}</p>{detail}</article>"
         )
-    parts.append(f"<article class='card'><h3>跨柱神煞制衡关系</h3><p>{html.escape(model['cross_shensha_balance'])}</p></article>")
+    cross_title = "Cross-Pillar ShenSha Balance" if lang_en else "跨柱神煞制衡关系"
+    parts.append(f"<article class='card'><h3>{cross_title}</h3><p>{html.escape(model['cross_shensha_balance'])}</p></article>")
     return "".join(parts)
 
 
@@ -3334,33 +4391,117 @@ def html_income_cards(model: dict) -> str:
 
 def html_flow_chart(model: dict) -> str:
     flow = model["flow_chart"]
-    intro = (
-        f"<div class='card liupan-note'><b>流盘参照</b>"
-        f"<p>生成时间：{html.escape(flow['reference'])}。当前大运为 {html.escape(flow['selected_dayun'])}，"
-        f"流年为 {html.escape(flow['flow_year'])}，流月为 {html.escape(flow['flow_month'])}。"
-        "MVP 版先用来观察本命四柱与大运、流年、流月的叠加关系；后续可继续扩展为可切换年份、月份的完整流盘。</p></div>"
-    )
+    if model.get("lang") == "en":
+        intro = (
+            f"<div class='card liupan-note'><b>Flow Overlay Reference</b>"
+            f"<p>Generated at {html.escape(flow['reference'])}. Current major luck: {html.escape(flow['selected_dayun'])}; "
+            f"annual pillar: {html.escape(flow['flow_year'])}; monthly pillar: {html.escape(flow['flow_month'])}. "
+            "This MVP uses the overlay to read natal chart, major luck, annual luck, and monthly luck in one console.</p></div>"
+        )
+        dayun_headers = ["Age Range", "Start Year", "Major Luck", "Status"]
+        dayun_title = "Major-Luck Track"
+    else:
+        intro = (
+            f"<div class='card liupan-note'><b>流盘参照</b>"
+            f"<p>生成时间：{html.escape(flow['reference'])}。当前大运为 {html.escape(flow['selected_dayun'])}，"
+            f"流年为 {html.escape(flow['flow_year'])}，流月为 {html.escape(flow['flow_month'])}。"
+            "MVP 版先用来观察本命四柱与大运、流年、流月的叠加关系；后续可继续扩展为可切换年份、月份的完整流盘。</p></div>"
+        )
+        dayun_headers = ["年龄段", "起始年", "大运", "状态"]
+        dayun_title = "大运轨道"
     return (
         intro
         + html_table(flow["headers"], flow["rows"])
-        + "<article class='card'><h3>大运轨道</h3>"
-        + html_table(["年龄段", "起始年", "大运", "状态"], flow["dayun_strip"])
+        + f"<article class='card'><h3>{dayun_title}</h3>"
+        + html_table(dayun_headers, flow["dayun_strip"])
         + "</article>"
+    )
+
+
+def bilingual_value(value: str, mapping: dict[str, str]) -> str:
+    value = str(value or "")
+    mapped = mapping.get(value)
+    if mapped:
+        return f"<b>{html.escape(value)}</b><small>{html.escape(mapped)}</small>"
+    return f"<b>{html.escape(value)}</b>"
+
+
+def hidden_bilingual(items: list[str]) -> str:
+    if not items:
+        return "<small>None</small>"
+    parts = []
+    for item in items:
+        stem, _, element = str(item).partition("·")
+        en_stem = STEM_EN.get(stem, "")
+        en_element = ELEMENT_EN.get(element, element)
+        sub = " / ".join(part for part in [en_stem, en_element] if part)
+        parts.append(f"<span>{html.escape(item)}<small>{html.escape(sub)}</small></span>")
+    return "".join(parts)
+
+
+def text_bilingual_list(items: list[str], mapping: dict[str, str]) -> str:
+    if not items:
+        return "<small>None</small>"
+    return "".join(
+        f"<span>{html.escape(str(item))}<small>{html.escape(mapping.get(str(item), ''))}</small></span>"
+        for item in items
+    )
+
+
+def natal_bilingual_chart(model: dict) -> str:
+    headers = ["", "Year Pillar", "Month Pillar", "Day Pillar", "Hour Pillar"]
+    pillars = model.get("chart", {}).get("pillars", [])
+
+    def cell(content: str) -> str:
+        return f"<td class='bazi-cell'>{content}</td>"
+
+    rows = []
+    row_specs = [
+        ("Ten God", lambda p: text_bilingual_list([p.get("gan_shen") or "日主"], TEN_GOD_EN)),
+        ("Heavenly Stem", lambda p: bilingual_value(p.get("stem", ""), STEM_EN)),
+        ("Earthly Branch", lambda p: bilingual_value(p.get("branch", ""), BRANCH_EN)),
+        ("Hidden Stems", lambda p: hidden_bilingual(p.get("hidden", []))),
+        ("Branch Ten-Gods", lambda p: text_bilingual_list(p.get("zhi_shen", []), TEN_GOD_EN)),
+        ("NaYin", lambda p: text_bilingual_list([p.get("nayin", "")], NAYIN_EN)),
+        ("Void", lambda p: bilingual_value(p.get("kongwang", ""), BRANCH_EN) if len(str(p.get("kongwang", ""))) == 1 else f"<b>{html.escape(str(p.get('kongwang', '') or 'None'))}</b>"),
+        ("Growth Stage", lambda p: text_bilingual_list([p.get("dishi", "")], BRANCH_STAGE_EN)),
+        ("ShenSha", lambda p: text_bilingual_list(p.get("shen_sha", [])[:6], SHENSHA_TEXT_EN)),
+    ]
+    for label, getter in row_specs:
+        rows.append("<tr><th>{}</th>{}</tr>".format(html.escape(label), "".join(cell(getter(p)) for p in pillars)))
+    head = "".join(f"<th>{html.escape(item)}</th>" for item in headers)
+    return (
+        "<div class='bazi-board'><p class='bazi-caption'>English chart view keeps the original Chinese BaZi symbols, with English reading labels underneath.</p>"
+        f"<div class='table-wrap'><table class='bazi-pillars'><thead><tr>{head}</tr></thead><tbody>{''.join(rows)}</tbody></table></div></div>"
     )
 
 
 def html_chart_console(model: dict, chart_url: str) -> str:
     flow = model["flow_chart"]
+    lang_en = model.get("lang") == "en"
+    tab_labels = ("Natal Chart", "Flow Overlay", "Major Luck") if lang_en else ("本命排盘", "流盘叠加", "大运")
+    chart_alt = "black-gold BaZi chart" if lang_en else "黑金命盘图"
+    flow_title = "Flow Overlay Reference" if lang_en else "流盘参照"
+    flow_selected = str(flow["selected_dayun"]).replace("\n", " / ")
+    flow_year = str(flow["flow_year"]).replace("\n", " / ")
+    flow_month = str(flow["flow_month"]).replace("\n", " / ")
+    flow_note = (
+        f"Generated at {html.escape(flow['reference'])}. Current major luck: {html.escape(flow_selected)}; annual pillar: {html.escape(flow_year)}; monthly pillar: {html.escape(flow_month)}. The natal chart and current timing layers are read in the same console."
+        if lang_en
+        else f"生成时间：{html.escape(flow['reference'])}。当前大运 {html.escape(flow['selected_dayun'])}，流年 {html.escape(flow['flow_year'])}，流月 {html.escape(flow['flow_month'])}。此处把本命盘与当前运势叠在同一排盘控制台里看。"
+    )
+    dayun_headers = ["Age Range", "Start Year", "Major Luck", "Status"] if lang_en else ["年龄段", "起始年", "大运", "状态"]
+    natal_panel = f"<div class='chart'><img src='{chart_url}' alt='{chart_alt}'></div>"
     return (
         "<div class='chart-console'>"
         "<div class='chart-tabs' role='tablist'>"
-        "<button class='active' data-chart-tab='natal'>本命排盘</button>"
-        "<button data-chart-tab='flow'>流盘叠加</button>"
-        "<button data-chart-tab='dayun'>大运</button>"
+        f"<button class='active' data-chart-tab='natal'>{tab_labels[0]}</button>"
+        f"<button data-chart-tab='flow'>{tab_labels[1]}</button>"
+        f"<button data-chart-tab='dayun'>{tab_labels[2]}</button>"
         "</div>"
-        f"<div class='chart-panel active' data-chart-panel='natal'><div class='chart'><img src='{chart_url}' alt='黑金命盘图'></div></div>"
-        f"<div class='chart-panel' data-chart-panel='flow'><div class='card liupan-note'><b>流盘参照</b><p>生成时间：{html.escape(flow['reference'])}。当前大运 {html.escape(flow['selected_dayun'])}，流年 {html.escape(flow['flow_year'])}，流月 {html.escape(flow['flow_month'])}。此处把本命盘与当前运势叠在同一排盘控制台里看。</p></div>{html_table(flow['headers'], flow['rows'])}</div>"
-        f"<div class='chart-panel' data-chart-panel='dayun'>{html_table(['年龄段', '起始年', '大运', '状态'], flow['dayun_strip'])}</div>"
+        f"<div class='chart-panel active' data-chart-panel='natal'>{natal_panel}</div>"
+        f"<div class='chart-panel' data-chart-panel='flow'><div class='card liupan-note'><b>{flow_title}</b><p>{flow_note}</p></div>{html_table(flow['headers'], flow['rows'])}</div>"
+        f"<div class='chart-panel' data-chart-panel='dayun'>{html_table(dayun_headers, flow['dayun_strip'])}</div>"
         "</div>"
     )
 
@@ -3407,7 +4548,9 @@ def report_plain_summary(data: dict, model: dict) -> str:
 
 def deep_report_pdf(data: dict, computed: dict, chart_png: Path, output: Path, model: dict | None = None) -> None:
     model = model or report_model(data, computed)
-    useful_img, crystal_img = generate_standard_visuals(output.stem, model["useful_elements"])
+    lang_en = is_english(data)
+    useful_img, crystal_img = generate_standard_visuals(output.stem, model["useful_elements"], lang_en)
+    display_chart_png = generate_bilingual_chart_image(output.stem, model) if lang_en else chart_png
     font = register_font()
     base = getSampleStyleSheet()
     styles = {
@@ -3418,68 +4561,88 @@ def deep_report_pdf(data: dict, computed: dict, chart_png: Path, output: Path, m
         "note": ParagraphStyle("deepNote", parent=base["BodyText"], fontName=font, fontSize=8.2, leading=12, backColor=colors.HexColor("#fff6df"), borderColor=colors.HexColor("#ead69d"), borderWidth=0.4, borderPadding=6, textColor=colors.HexColor("#6d541d"), wordWrap="CJK"),
     }
     ec = model["ec"]
-    pillars = f"{ec.getYear()} 年｜{ec.getMonth()} 月｜{ec.getDay()} 日｜{ec.getTime()} 时"
+    pillars = bilingual_pillars(ec) if lang_en else f"{ec.getYear()} 年｜{ec.getMonth()} 月｜{ec.getDay()} 日｜{ec.getTime()} 时"
+    day_master_display = f"{ec.getDayGan()}\n{STEM_EN.get(ec.getDayGan(), '')} | {model['day_strength_label']} {model['day_strength']}%" if lang_en else f"{ec.getDayGan()}｜{model['day_strength_label']}｜{model['day_strength']}%"
+    raw_relation_text = "；".join(computed["chart"].get("relations") or [])
+    relation_text = bilingual_branch_relation_text(raw_relation_text.replace("；", "; ")) if lang_en else raw_relation_text
+    labels = {
+        "title": f"{data.get('name') or 'Anonymous'} Destiny Report" if lang_en else f"{data.get('name') or '匿名'}命理报告",
+        "sub": f"{data.get('calendar', 'Solar')} {data.get('birthDate')} {data.get('birthTime')} | {data.get('birthPlace', '')} | {GENDER_EN.get(data.get('gender', ''), data.get('gender', ''))}" if lang_en else f"{data.get('calendar', '阳历')} {data.get('birthDate')} {data.get('birthTime')}｜{data.get('birthPlace', '')}｜{data.get('gender', '')}",
+        "note": "This report follows the Ming Atelier structure: locked chart facts first, then client-facing interpretation across personality, career, wealth, relationship, timing, risk, useful elements, and crystals. It is a cultural reading and does not replace professional advice." if lang_en else "本报告按 Ming Atelier 标准化结构生成：以原始盘、大运流年、十神、神煞、地支关系和现实问卷为基础，输出可复核的命理阅读。自动版用于客测交付，后续可叠加人工校准。",
+        "raw": "1. Original Chart Information" if lang_en else "一、原始盘信息",
+        "summary": "2. Plain-Language Summary" if lang_en else "二、大白话总结",
+        "pattern": "3. Structure and Useful Elements" if lang_en else "三、分析：格局与用神体系",
+        "career": "4. Career Development" if lang_en else "四、事业发展",
+        "wealth": "5. Ten-Year Wealth and Income Tiers" if lang_en else "五、未来十年财运与收入层级",
+        "relationship": "6. Relationship Outlook" if lang_en else "六、感情运势",
+        "monthly": "7. 2026 Monthly Timing" if lang_en else "七、2026 年单独流月拆解",
+        "crisis": "8. Core Constraints and Risks" if lang_en else "八、核心限制与潜在危机",
+        "ten_god": "9. Ten-God Analysis" if lang_en else "九、十神分析",
+        "shensha": "10. ShenSha System" if lang_en else "十、神煞体系",
+        "elements": "11. Useful Elements" if lang_en else "十一、喜用神与五行补足",
+        "crystals": "12. Crystal Recommendations" if lang_en else "十二、适配水晶建议",
+    }
     story = [
-        paragraph(f"{data.get('name') or '匿名'}命理报告", styles["title"]),
-        paragraph(f"{data.get('calendar', '阳历')} {data.get('birthDate')} {data.get('birthTime')}｜{data.get('birthPlace', '')}｜{data.get('gender', '')}", styles["sub"]),
+        paragraph(labels["title"], styles["title"]),
+        paragraph(labels["sub"], styles["sub"]),
         Spacer(1, 8),
-        paragraph("本报告按 Ming Atelier 标准化结构生成：以原始盘、大运流年、十神、神煞、地支关系和现实问卷为基础，输出可复核的命理阅读。自动版用于客测交付，后续可叠加人工校准。", styles["note"]),
+        paragraph(labels["note"], styles["note"]),
         Spacer(1, 10),
-        Image(str(chart_png), width=135 * mm, height=205 * mm),
+        Image(str(display_chart_png), width=170 * mm, height=134 * mm) if lang_en else Image(str(chart_png), width=135 * mm, height=205 * mm),
         PageBreak(),
     ]
     story.extend([
-        paragraph("一、原始盘信息", styles["h1"]),
+        paragraph(labels["raw"], styles["h1"]),
         pdf_table([
-            ["项目", "内容"],
-            ["四柱", pillars],
-            ["日主", f"{ec.getDayGan()}｜{model['day_strength_label']}｜{model['day_strength']}%"],
-            ["当前/2026大运", model["selected_dayun"]],
-            ["五行估计", model["dominant"]],
-            ["地支关系", "；".join(computed["chart"].get("relations") or [])],
+            ["Item" if lang_en else "项目", "Content" if lang_en else "内容"],
+            ["Four Pillars" if lang_en else "四柱", pillars],
+            ["Day Master" if lang_en else "日主", day_master_display],
+            ["Current / 2026 Luck Pillar" if lang_en else "当前/2026大运", model["selected_dayun"]],
+            ["Five Element Estimate" if lang_en else "五行估计", model["dominant"]],
+            ["Branch Relations" if lang_en else "地支关系", relation_text],
         ], [35 * mm, 135 * mm], font),
-        paragraph("二、大白话总结", styles["h1"]),
+        paragraph(labels["summary"], styles["h1"]),
     ])
     for item in plain_summary_paragraphs(data, model):
         story.append(paragraph(item, styles["body"]))
     story.extend([
-        paragraph("三、分析：格局与用神体系", styles["h1"]),
+        paragraph(labels["pattern"], styles["h1"]),
         paragraph(model["strength_reason"], styles["body"]),
         paragraph(model["useful_text"], styles["body"]),
-        pdf_table([["喜用", "行为落地"]] + [[e, element_behavior(e)] for e in model["useful_elements"]], [28 * mm, 142 * mm], font),
-        paragraph("四、事业发展", styles["h1"]),
-        pdf_table([["主题", "判断", "依据"]] + model["career_rows"], [30 * mm, 70 * mm, 70 * mm], font, 6.8),
-        paragraph("五、未来十年财运与收入层级", styles["h1"]),
+        pdf_table(([["Useful Element", "Practical Use"]] if lang_en else [["喜用", "行为落地"]]) + [[element_en(e) if lang_en else e, element_behavior_en(e) if lang_en else element_behavior(e)] for e in model["useful_elements"]], [28 * mm, 142 * mm], font),
+        paragraph(labels["career"], styles["h1"]),
+        pdf_table(([["Theme", "Reading", "Basis"]] if lang_en else [["主题", "判断", "依据"]]) + model["career_rows"], [30 * mm, 70 * mm, 70 * mm], font, 6.8),
+        paragraph(labels["wealth"], styles["h1"]),
         paragraph(model["wealth_tone"]["base"], styles["body"]),
-        pdf_table([["层级", "概率", "金额", "条件"]] + model["income_rows"], [24 * mm, 18 * mm, 38 * mm, 90 * mm], font, 6.8),
-        pdf_table([["阶段", "收入判断", "关键条件", "风险"]] + model["income_stage_rows"], [26 * mm, 38 * mm, 58 * mm, 48 * mm], font, 6.6),
-        pdf_table([["年份", "流年", "大运", "事业", "财运", "感情", "健康/压力", "破财", "家宅", "合规", "年度大白话分析"]] + model["annual_rows"], [12 * mm, 14 * mm, 16 * mm, 8 * mm, 8 * mm, 8 * mm, 13 * mm, 8 * mm, 8 * mm, 8 * mm, 75 * mm], font, 5.2),
-        paragraph("六、感情运势", styles["h1"]),
-        pdf_table([["主题", "判断", "说明"]] + model["relationship_rows"], [35 * mm, 48 * mm, 87 * mm], font, 6.8),
-        paragraph("七、2026 年单独流月拆解", styles["h1"]),
+        pdf_table(([["Tier", "Probability", "Amount", "Conditions"]] if lang_en else [["层级", "概率", "金额", "条件"]]) + model["income_rows"], [24 * mm, 18 * mm, 38 * mm, 90 * mm], font, 6.8),
+        pdf_table(([["Stage", "Income Reading", "Key Conditions", "Risk"]] if lang_en else [["阶段", "收入判断", "关键条件", "风险"]]) + model["income_stage_rows"], [26 * mm, 38 * mm, 58 * mm, 48 * mm], font, 6.6),
+        pdf_table(([["Year", "Annual", "Luck", "Career", "Wealth", "Relation", "Stress", "Loss", "Home", "Compliance", "Plain-Language Annual Reading"]] if lang_en else [["年份", "流年", "大运", "事业", "财运", "感情", "健康/压力", "破财", "家宅", "合规", "年度大白话分析"]]) + model["annual_rows"], [12 * mm, 14 * mm, 16 * mm, 8 * mm, 8 * mm, 8 * mm, 13 * mm, 8 * mm, 8 * mm, 8 * mm, 75 * mm], font, 5.2),
+        paragraph(labels["relationship"], styles["h1"]),
+        pdf_table(([["Theme", "Reading", "Notes"]] if lang_en else [["主题", "判断", "说明"]]) + model["relationship_rows"], [35 * mm, 48 * mm, 87 * mm], font, 6.8),
+        paragraph(labels["monthly"], styles["h1"]),
         paragraph(model["june_2026_detail"], styles["note"]),
-        pdf_table([["月份", "月柱", "节气", "事业", "财运", "关系", "风险", "行动建议"]] + model["monthly_rows"], [18 * mm, 16 * mm, 28 * mm, 13 * mm, 13 * mm, 13 * mm, 13 * mm, 56 * mm], font, 6.0),
-        paragraph("八、核心限制与潜在危机", styles["h1"]),
-        pdf_table([["风险", "表现", "控制方式"]] + model["crisis_rows"], [28 * mm, 72 * mm, 70 * mm], font, 6.8),
-        paragraph("九、十神分析", styles["h1"]),
-        pdf_table([["十神", "柱(干/支)", "通用解释", "判断"]] + model["ten_god_rows"], [22 * mm, 34 * mm, 52 * mm, 62 * mm], font, 6.8),
-        paragraph("十神制衡关系：外显天干决定可见行为，地支藏干决定暗线动机。判断时不能只看一个十神，要看它在年、月、日、时四个位置分别作用于圈层、事业、自我关系和长期项目。", styles["body"]),
-        paragraph("地支关系制衡", styles["body"]),
-        pdf_table([["关系", "结构提示", "可能影响", "现实制化"]] + model["branch_relation_rows"], [34 * mm, 43 * mm, 48 * mm, 45 * mm], font, 6.8),
-        paragraph("十、神煞体系", styles["h1"]),
+        pdf_table(([["Month", "Pillar", "Solar Term", "Career", "Wealth", "Relation", "Risk", "Action"]] if lang_en else [["月份", "月柱", "节气", "事业", "财运", "关系", "风险", "行动建议"]]) + model["monthly_rows"], [18 * mm, 16 * mm, 28 * mm, 13 * mm, 13 * mm, 13 * mm, 13 * mm, 56 * mm], font, 6.0),
+        paragraph(labels["crisis"], styles["h1"]),
+        pdf_table(([["Risk", "Expression", "Control Method"]] if lang_en else [["风险", "表现", "控制方式"]]) + model["crisis_rows"], [28 * mm, 72 * mm, 70 * mm], font, 6.8),
+        paragraph(labels["ten_god"], styles["h1"]),
+        pdf_table(([["Ten God", "Pillar", "General Meaning", "Reading"]] if lang_en else [["十神", "柱(干/支)", "通用解释", "判断"]]) + model["ten_god_rows"], [22 * mm, 34 * mm, 52 * mm, 62 * mm], font, 6.8),
+        paragraph("Ten-God balance: visible heavenly stems describe outward behavior; hidden stems describe the inner motive line. A serious reading must observe where each signal sits across year, month, day, and hour." if lang_en else "十神制衡关系：外显天干决定可见行为，地支藏干决定暗线动机。判断时不能只看一个十神，要看它在年、月、日、时四个位置分别作用于圈层、事业、自我关系和长期项目。", styles["body"]),
+        paragraph("Branch relation balance" if lang_en else "地支关系制衡", styles["body"]),
+        pdf_table(([["Relation", "Structure Signal", "Possible Impact", "Practical Resolution"]] if lang_en else [["关系", "结构提示", "可能影响", "现实制化"]]) + model["branch_relation_rows"], [34 * mm, 43 * mm, 48 * mm, 45 * mm], font, 6.8),
+        paragraph(labels["shensha"], styles["h1"]),
     ])
     for group, rows in model["shensha_rows"].items():
         story.append(paragraph(group, styles["body"]))
-        story.append(pdf_table([["排名", "神煞", "强度", "通用解释", "在该柱代表什么"]] + rows, [14 * mm, 24 * mm, 18 * mm, 58 * mm, 56 * mm], font, 6.6))
+        story.append(pdf_table(([["Rank", "ShenSha", "Strength", "General Meaning", "Pillar Meaning"]] if lang_en else [["排名", "神煞", "强度", "通用解释", "在该柱代表什么"]]) + rows, [14 * mm, 24 * mm, 18 * mm, 58 * mm, 56 * mm], font, 6.6))
         story.append(paragraph(model["shensha_balance"][group], styles["body"]))
         story.append(Spacer(1, 5))
     story.extend([
         paragraph(model["cross_shensha_balance"], styles["body"]),
-        paragraph("十一、喜用神与五行补足", styles["h1"]),
+        paragraph(labels["elements"], styles["h1"]),
         Image(str(useful_img), width=170 * mm, height=96 * mm),
-        paragraph("十二、适配水晶建议", styles["h1"]),
+        paragraph(labels["crystals"], styles["h1"]),
         Image(str(crystal_img), width=170 * mm, height=96 * mm),
-        pdf_table([["五行", "建议", "适配点", "使用方式"]] + crystal_rows(model["useful_elements"]), [18 * mm, 38 * mm, 54 * mm, 60 * mm], font, 6.8),
+        pdf_table(([["Element", "Recommendation", "Fit", "Use"]] if lang_en else [["五行", "建议", "适配点", "使用方式"]]) + (crystal_rows_en(model["useful_elements"]) if lang_en else crystal_rows(model["useful_elements"])), [18 * mm, 38 * mm, 54 * mm, 60 * mm], font, 6.8),
     ])
     doc = SimpleDocTemplate(str(output), pagesize=A4, rightMargin=16 * mm, leftMargin=16 * mm, topMargin=14 * mm, bottomMargin=14 * mm)
     doc.build(story)
@@ -3487,67 +4650,69 @@ def deep_report_pdf(data: dict, computed: dict, chart_png: Path, output: Path, m
 
 def deep_report_html(data: dict, computed: dict, chart_png: Path, output: Path, model: dict | None = None) -> None:
     model = model or report_model(data, computed)
-    useful_img, crystal_img = generate_standard_visuals(output.stem, model["useful_elements"])
+    lang_en = is_english(data)
+    useful_img, crystal_img = generate_standard_visuals(output.stem, model["useful_elements"], lang_en)
+    display_chart_png = generate_bilingual_chart_image(output.stem, model) if lang_en else chart_png
     ec = model["ec"]
-    raw_title = f"{data.get('name') or '匿名'}命理报告"
+    raw_title = f"{data.get('name') or 'Anonymous'} Destiny Report" if lang_en else f"{data.get('name') or '匿名'}命理报告"
     title = html.escape(raw_title)
-    chart_url = f"/generated/{chart_png.name}"
+    chart_url = f"/generated/{display_chart_png.name}"
     useful_url = f"/generated/{useful_img.name}"
     crystal_url = f"/generated/{crystal_img.name}"
-    sections = [
-        ("raw", "原始盘信息"),
-        ("summary", "大白话总结"),
-        ("pattern", "格局与用神"),
-        ("career", "事业发展"),
-        ("wealth", "未来十年财运"),
-        ("relationship", "感情运势"),
-        ("monthly", "2026流月"),
-        ("crisis", "核心危机"),
-        ("ten-god", "十神分析"),
-        ("shensha", "神煞体系"),
-        ("elements", "喜用神"),
-        ("crystals", "适配水晶"),
-    ]
+    sections = (
+        [("raw", "Original Chart"), ("summary", "Plain Summary"), ("pattern", "Structure"), ("career", "Career"), ("wealth", "Ten-Year Wealth"), ("relationship", "Relationship"), ("monthly", "2026 Monthly"), ("crisis", "Core Risks"), ("ten-god", "Ten Gods"), ("shensha", "ShenSha"), ("elements", "Useful Elements"), ("crystals", "Crystals")]
+        if lang_en
+        else [("raw", "原始盘信息"), ("summary", "大白话总结"), ("pattern", "格局与用神"), ("career", "事业发展"), ("wealth", "未来十年财运"), ("relationship", "感情运势"), ("monthly", "2026流月"), ("crisis", "核心危机"), ("ten-god", "十神分析"), ("shensha", "神煞体系"), ("elements", "喜用神"), ("crystals", "适配水晶")]
+    )
     nav = "".join(f"<a href='#{sid}'>{html.escape(label)}</a>" for sid, label in sections)
-    relation_text = "；".join(computed["chart"].get("relations") or [])
+    raw_relation_text = "；".join(computed["chart"].get("relations") or [])
+    relation_text = bilingual_branch_relation_text(raw_relation_text.replace("；", "; ")) if lang_en else raw_relation_text
     risk_year = max(model["annual_rows"], key=lambda row: int(row[6]) + int(row[7]) + int(row[9]))
-    useful_text = "、".join(model["useful_elements"]) or "节奏"
+    useful_text = ", ".join(element_en(e) for e in model["useful_elements"]) if lang_en else "、".join(model["useful_elements"]) or "节奏"
+    current_luck_display = model["selected_dayun"] if lang_en else model["selected_dayun"]
+    risk_year_display = f"{risk_year[0]} {risk_year[1]}" if not lang_en else f"{risk_year[0]} {str(risk_year[1]).replace(chr(10), ' / ')}"
     kpis = [
-        ["身强估计", f"{model['day_strength_label']} {model['day_strength']}%", model["strength_reason"]],
-        ["核心喜用", useful_text, model["useful_text"]],
-        ["当前大运", model["selected_dayun"], "以 2026 所在大运为基准，所有流年判断均需与大运叠加。"],
-        ["风险最高年", f"{risk_year[0]} {risk_year[1]}", compact_flow_note(risk_year[10])],
+        ["Day-Master Strength" if lang_en else "身强估计", f"{model['day_strength_label']} {model['day_strength']}%", model["strength_reason"]],
+        ["Core Useful Elements" if lang_en else "核心喜用", useful_text, model["useful_text"]],
+        ["Current Luck Pillar" if lang_en else "当前大运", current_luck_display, "Annual timing should be read together with the current major-luck cycle." if lang_en else "以 2026 所在大运为基准，所有流年判断均需与大运叠加。"],
+        ["Highest-Risk Year" if lang_en else "风险最高年", risk_year_display, compact_flow_note(risk_year[10])],
     ]
-    kpi_html = "".join(f"<div class='kpi'><span>{html.escape(k[0])}</span><b>{html.escape(k[1])}</b><p>{html.escape(k[2])}</p></div>" for k in kpis)
+    def multiline_html(value: str) -> str:
+        parts = str(value).splitlines()
+        if len(parts) <= 1:
+            return html.escape(str(value))
+        return html.escape(parts[0]) + "".join(f"<small class='en-sub'>{html.escape(part)}</small>" for part in parts[1:] if part)
+
+    kpi_html = "".join(f"<div class='kpi'><span>{html.escape(k[0])}</span><b>{multiline_html(k[1])}</b><p>{html.escape(k[2])}</p></div>" for k in kpis)
     monthly_html = "".join(
-        f"<article class='month'><i></i><b>{html.escape(row[0])}｜{html.escape(row[1])}</b><em>{html.escape(row[2])}</em>"
-        f"<p>{html.escape(row[7])}</p><small>事业 {row[3]} / 财运 {row[4]} / 关系 {row[5]} / 风险 {row[6]}</small></article>"
+        f"<article class='month'><i></i><b>{html.escape(row[0])}｜{multiline_html(row[1])}</b><em>{multiline_html(row[2])}</em>"
+        f"<p>{html.escape(row[7])}</p><small>{'Career' if lang_en else '事业'} {row[3]} / {'Wealth' if lang_en else '财运'} {row[4]} / {'Relationship' if lang_en else '关系'} {row[5]} / {'Risk' if lang_en else '风险'} {row[6]}</small></article>"
         for row in model["monthly_rows"]
     )
     chart_console = html_chart_console(model, chart_url)
     summary_html = "".join(f"<p>{html.escape(item)}</p>" for item in plain_summary_paragraphs(data, model))
     output.write_text(f"""<!doctype html>
-<html lang="zh-CN">
+<html lang="{'en' if lang_en else 'zh-CN'}">
 <head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>{title}</title><link rel="stylesheet" href="/pages.css">
 <style>
-	body{{background:#080604;color:#f7ead2}}.scroll-progress{{position:fixed;top:0;left:0;height:3px;background:#d8b35f;z-index:80;width:0}}.report-nav{{position:sticky;top:70px;z-index:20;background:rgba(8,6,4,.9);backdrop-filter:blur(12px);border-block:1px solid rgba(216,179,95,.22);overflow:auto;white-space:nowrap}}.report-nav .shell{{display:flex;gap:18px;padding:12px 20px}}.report-nav a{{color:#e8d7b4;text-decoration:none;font-size:13px}}.hero{{min-height:82vh;display:grid;align-items:center;padding:98px 0 56px;background:radial-gradient(circle at 50% 18%,rgba(216,179,95,.24),transparent 34%),linear-gradient(180deg,#0d0905,#080604);position:relative;overflow:hidden}}.hero:before{{content:"命";position:absolute;right:7vw;top:10vh;font-size:34vw;line-height:1;color:rgba(216,179,95,.07);animation:breathe 6s ease-in-out infinite}}.hero h1{{font-size:56px;line-height:1.08;max-width:760px;color:#f7ead2}}.lead{{max-width:760px;color:#e8d7b4}}.hero-actions{{display:flex;gap:12px;flex-wrap:wrap;margin-top:26px}}.print-btn{{border:1px solid rgba(216,179,95,.5);background:#d8b35f;color:#090604;border-radius:6px;padding:12px 18px;text-decoration:none;font-weight:700;cursor:pointer}}.panel{{max-width:1160px;margin:0 auto;padding:46px 20px;border-top:1px solid rgba(216,179,95,.2)}}.panel h2{{color:#f0c47a;font-size:28px}}.grid{{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px}}.grid.two{{grid-template-columns:repeat(2,minmax(0,1fr))}}.grid.three{{grid-template-columns:repeat(3,minmax(0,1fr))}}.card,.kpi{{border:1px solid rgba(216,179,95,.28);background:rgba(20,15,8,.72);border-radius:8px;padding:18px;box-shadow:0 18px 44px rgba(0,0,0,.18);transition:transform .25s ease,border-color .25s ease}}.card:hover,.kpi:hover{{transform:translateY(-3px);border-color:rgba(240,196,122,.58)}}.kpi b{{display:block;color:#f0c47a;font-size:25px;line-height:1.2;margin:8px 0}}.kpi p,.card small{{color:#cdbb98}}.chart-console{{margin-top:22px;border:1px solid rgba(216,179,95,.3);border-radius:8px;background:rgba(12,9,5,.82);padding:14px}}.chart-tabs{{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px}}.chart-tabs button{{border:1px solid rgba(216,179,95,.35);background:rgba(216,179,95,.08);color:#e8d7b4;border-radius:6px;padding:9px 12px;cursor:pointer;font:inherit;white-space:nowrap}}.chart-tabs button.active{{background:#d8b35f;color:#090604}}.chart-panel{{display:none}}.chart-panel.active{{display:block}}.table-wrap{{overflow:auto;border:1px solid rgba(216,179,95,.22);border-radius:8px;margin-top:14px}}table{{border-collapse:collapse;width:100%;min-width:850px}}th,td{{border-bottom:1px solid rgba(216,179,95,.16);padding:11px 12px;text-align:left;vertical-align:top}}th{{color:#f0c47a;background:rgba(216,179,95,.08)}}td{{color:#ead9b7}}tr:hover td{{background:rgba(216,179,95,.05)}}.chart{{max-width:620px;margin:22px auto;animation:softGlow 4s ease-in-out infinite}}.chart img,.god-art img{{width:100%;height:auto;object-fit:contain;border:1px solid rgba(216,179,95,.35);border-radius:8px}}.god-art{{animation:lineDrift 5s ease-in-out infinite}}.bar-track{{height:10px;border-radius:99px;background:rgba(216,179,95,.13);overflow:hidden;margin:12px 0}}.bar{{display:block;height:100%;width:var(--w);border-radius:99px;background:linear-gradient(90deg,#d8b35f,#8f6a2a);animation:barGrow 1.2s ease both}}.income-band b,.warning b{{color:#f0c47a}}.income-band strong{{display:block;font-size:28px;color:#f7ead2;margin-top:8px}}.balance{{color:#dcc796}}details.star-detail{{border-top:1px solid rgba(216,179,95,.18);padding:10px 0}}details.star-detail summary{{cursor:pointer;color:#f0c47a}}details.star-detail summary span{{float:right;color:#d8b35f}}.timeline{{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px}}.month{{position:relative;border:1px solid rgba(216,179,95,.22);border-radius:8px;padding:16px 16px 16px 42px;background:rgba(20,15,8,.65)}}.month i{{position:absolute;left:16px;top:22px;width:10px;height:10px;border-radius:50%;background:#d8b35f;box-shadow:0 0 0 0 rgba(216,179,95,.5);animation:pulse 2.2s infinite}}.month b,.month em{{display:block;color:#f0c47a;font-style:normal}}.fade{{opacity:0;transform:translateY(18px);transition:opacity .7s ease,transform .7s ease}}.fade.show{{opacity:1;transform:none}}footer{{padding:34px 20px;color:#9f8d6b}}@keyframes breathe{{50%{{transform:scale(1.04);opacity:.8}}}}@keyframes softGlow{{50%{{filter:drop-shadow(0 0 22px rgba(216,179,95,.26))}}}}@keyframes barGrow{{from{{width:0}}to{{width:var(--w)}}}}@keyframes pulse{{70%{{box-shadow:0 0 0 12px rgba(216,179,95,0)}}100%{{box-shadow:0 0 0 0 rgba(216,179,95,0)}}}}@keyframes lineDrift{{50%{{transform:translateY(-7px)}}}}@media(max-width:760px){{.hero h1{{font-size:38px}}.grid,.grid.two,.grid.three,.timeline{{grid-template-columns:1fr}}.report-nav{{top:64px}}table{{min-width:760px}}.chart-tabs button{{flex:1 1 31%;font-size:13px}}}}
+	body{{background:#080604;color:#f7ead2}}.scroll-progress{{position:fixed;top:0;left:0;height:3px;background:#d8b35f;z-index:80;width:0}}.report-nav{{position:sticky;top:70px;z-index:20;background:rgba(8,6,4,.9);backdrop-filter:blur(12px);border-block:1px solid rgba(216,179,95,.22);overflow:auto;white-space:nowrap}}.report-nav .shell{{display:flex;gap:18px;padding:12px 20px}}.report-nav a{{color:#e8d7b4;text-decoration:none;font-size:13px}}.hero{{min-height:82vh;display:grid;align-items:center;padding:98px 0 56px;background:radial-gradient(circle at 50% 18%,rgba(216,179,95,.24),transparent 34%),linear-gradient(180deg,#0d0905,#080604);position:relative;overflow:hidden}}.hero:before{{content:"命";position:absolute;right:7vw;top:10vh;font-size:34vw;line-height:1;color:rgba(216,179,95,.07);animation:breathe 6s ease-in-out infinite}}.hero h1{{font-size:56px;line-height:1.08;max-width:760px;color:#f7ead2}}.lead{{max-width:760px;color:#e8d7b4}}.hero-actions{{display:flex;gap:12px;flex-wrap:wrap;margin-top:26px}}.print-btn{{border:1px solid rgba(216,179,95,.5);background:#d8b35f;color:#090604;border-radius:6px;padding:12px 18px;text-decoration:none;font-weight:700;cursor:pointer}}.panel{{max-width:1160px;margin:0 auto;padding:46px 20px;border-top:1px solid rgba(216,179,95,.2)}}.panel h2{{color:#f0c47a;font-size:28px}}.grid{{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px}}.grid.two{{grid-template-columns:repeat(2,minmax(0,1fr))}}.grid.three{{grid-template-columns:repeat(3,minmax(0,1fr))}}.card,.kpi{{border:1px solid rgba(216,179,95,.28);background:rgba(20,15,8,.72);border-radius:8px;padding:18px;box-shadow:0 18px 44px rgba(0,0,0,.18);transition:transform .25s ease,border-color .25s ease}}.card:hover,.kpi:hover{{transform:translateY(-3px);border-color:rgba(240,196,122,.58)}}.kpi b{{display:block;color:#f0c47a;font-size:25px;line-height:1.2;margin:8px 0}}.kpi p,.card small{{color:#cdbb98}}.chart-console{{margin-top:22px;border:1px solid rgba(216,179,95,.3);border-radius:8px;background:rgba(12,9,5,.82);padding:14px}}.chart-tabs{{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px}}.chart-tabs button{{border:1px solid rgba(216,179,95,.35);background:rgba(216,179,95,.08);color:#e8d7b4;border-radius:6px;padding:9px 12px;cursor:pointer;font:inherit;white-space:nowrap}}.chart-tabs button.active{{background:#d8b35f;color:#090604}}.chart-panel{{display:none}}.chart-panel.active{{display:block}}.table-wrap{{overflow:auto;border:1px solid rgba(216,179,95,.22);border-radius:8px;margin-top:14px}}table{{border-collapse:collapse;width:100%;min-width:850px}}th,td{{border-bottom:1px solid rgba(216,179,95,.16);padding:11px 12px;text-align:left;vertical-align:top}}th{{color:#f0c47a;background:rgba(216,179,95,.08)}}td{{color:#ead9b7}}td .en-sub,.kpi .en-sub,.month .en-sub{{display:block;margin-top:4px;color:#cdbb98;font-size:.72em;line-height:1.25}}tr:hover td{{background:rgba(216,179,95,.05)}}.bazi-caption{{margin:6px 0 10px;color:#cdbb98}}.bazi-pillars{{min-width:920px}}.bazi-cell b{{display:block;color:#ffe0a0;font-size:24px;line-height:1.1}}.bazi-cell small{{display:block;color:#cdbb98;font-size:12px;line-height:1.25;margin-top:3px}}.bazi-cell span{{display:block;margin-bottom:6px}}.chart-reference{{max-width:960px;opacity:.96}}.chart{{max-width:980px;margin:22px auto;animation:softGlow 4s ease-in-out infinite}}.chart img,.god-art img{{width:100%;height:auto;object-fit:contain;border:1px solid rgba(216,179,95,.35);border-radius:8px}}.god-art{{animation:lineDrift 5s ease-in-out infinite}}.bar-track{{height:10px;border-radius:99px;background:rgba(216,179,95,.13);overflow:hidden;margin:12px 0}}.bar{{display:block;height:100%;width:var(--w);border-radius:99px;background:linear-gradient(90deg,#d8b35f,#8f6a2a);animation:barGrow 1.2s ease both}}.income-band b,.warning b{{color:#f0c47a}}.income-band strong{{display:block;font-size:28px;color:#f7ead2;margin-top:8px}}.balance{{color:#dcc796}}details.star-detail{{border-top:1px solid rgba(216,179,95,.18);padding:10px 0}}details.star-detail summary{{cursor:pointer;color:#f0c47a}}details.star-detail summary span{{float:right;color:#d8b35f}}.timeline{{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px}}.month{{position:relative;border:1px solid rgba(216,179,95,.22);border-radius:8px;padding:16px 16px 16px 42px;background:rgba(20,15,8,.65)}}.month i{{position:absolute;left:16px;top:22px;width:10px;height:10px;border-radius:50%;background:#d8b35f;box-shadow:0 0 0 0 rgba(216,179,95,.5);animation:pulse 2.2s infinite}}.month b,.month em{{display:block;color:#f0c47a;font-style:normal}}.fade{{opacity:0;transform:translateY(18px);transition:opacity .7s ease,transform .7s ease}}.fade.show{{opacity:1;transform:none}}footer{{padding:34px 20px;color:#9f8d6b}}@keyframes breathe{{50%{{transform:scale(1.04);opacity:.8}}}}@keyframes softGlow{{50%{{filter:drop-shadow(0 0 22px rgba(216,179,95,.26))}}}}@keyframes barGrow{{from{{width:0}}to{{width:var(--w)}}}}@keyframes pulse{{70%{{box-shadow:0 0 0 12px rgba(216,179,95,0)}}100%{{box-shadow:0 0 0 0 rgba(216,179,95,0)}}}}@keyframes lineDrift{{50%{{transform:translateY(-7px)}}}}@media(max-width:760px){{.hero h1{{font-size:38px}}.grid,.grid.two,.grid.three,.timeline{{grid-template-columns:1fr}}.report-nav{{top:64px}}table{{min-width:760px}}.bazi-pillars{{min-width:900px}}.chart-tabs button{{flex:1 1 31%;font-size:13px}}}}
 	</style></head>
-		<body><header class="top"><nav class="shell nav"><a class="brand" href="/"><img src="/assets/ming-four-pillars-mark.png"><span>Ming Atelier<small>命理工坊</small></span></a><div class="links"><a href="/">首页</a><a href="/questionnaire.html">问卷</a><a href="/divination.html">起卦</a></div></nav></header>
+		<body><header class="top"><nav class="shell nav"><a class="brand" href="/{'?lang=en' if lang_en else ''}"><img src="/assets/ming-four-pillars-mark.png"><span>Ming Atelier<small>{'Destiny Readings' if lang_en else '命理工坊'}</small></span></a><div class="links"><a href="/{'?lang=en' if lang_en else ''}">{'Home' if lang_en else '首页'}</a><a href="/questionnaire.html{'?lang=en' if lang_en else ''}">{'Intake' if lang_en else '问卷'}</a><a href="/divination.html{'?lang=en' if lang_en else ''}">{'Divination' if lang_en else '起卦'}</a></div></nav></header>
 		<div class="scroll-progress" id="scrollProgress"></div><main>
-	<section class="hero"><div class="shell fade"><p class="eyebrow">Ming Atelier · Eastern Destiny Readings</p><h1>{title}</h1><p class="lead">以八字四柱为底图，读性格、节奏、选择与关系。关于你如何行动、如何取舍、如何顺势。</p><div class="hero-actions"><button class="print-btn" onclick="window.print()">保存 PDF</button><a class="print-btn" href="/">回到主页</a></div></div></section><nav class="report-nav"><div class="shell">{nav}</div></nav>
-	<section class="panel fade" id="raw"><h2>原始盘信息</h2><div class="grid">{kpi_html}</div>{chart_console}{html_table(["项目","内容"], [["四柱", f"{ec.getYear()} 年｜{ec.getMonth()} 月｜{ec.getDay()} 日｜{ec.getTime()} 时"], ["五行估计", model["dominant"]], ["地支关系", relation_text]])}</section>
-	<section class="panel fade" id="summary"><h2>大白话总结</h2><div class="card">{summary_html}</div></section>
-	<section class="panel fade" id="pattern"><h2>格局与用神体系</h2><div class="card"><p>{html.escape(model["strength_reason"])}</p><p>{html.escape(model["useful_text"])}</p></div>{html_table(["喜用","行为落地"], [[e, element_behavior(e)] for e in model["useful_elements"]])}</section>
-	<section class="panel fade" id="career"><h2>事业发展</h2>{html_card_table(model["career_rows"])}</section>
-	<section class="panel fade" id="wealth"><h2>未来十年财运与收入层级</h2><div class="card"><p>{html.escape(model["wealth_tone"]["base"])}</p></div>{html_income_cards(model)}{html_table(["阶段","收入判断","关键条件","风险"], model["income_stage_rows"])}{html_table(["年份","流年","大运","事业","财运","感情","健康/压力","破财","家宅","合规","年度大白话分析"], model["annual_rows"])}</section>
-	<section class="panel fade" id="relationship"><h2>感情运势</h2>{html_table(["主题","判断","说明"], model["relationship_rows"])}</section>
-	<section class="panel fade" id="monthly"><h2>2026 年单独流月拆解</h2><div class="card warning"><b>6 月甲午重点提示</b><p>{html.escape(model["june_2026_detail"])}</p></div><div class="timeline">{monthly_html}</div></section>
-	<section class="panel fade" id="crisis"><h2>核心限制与潜在危机</h2>{html_card_table(model["crisis_rows"])}</section>
-	<section class="panel fade" id="ten-god"><h2>十神分析</h2>{html_table(["十神","柱(干/支)","通用解释","判断"], model["ten_god_rows"])}<div class="grid two"><article class="card"><b>十神制衡关系</b><p>外显天干决定可见行为，地支藏干决定暗线动机。判断时不能只看一个十神，要看它在年、月、日、时四个位置分别作用于圈层、事业、自我关系和长期项目。</p></article><article class="card"><b>地支合冲与大盘制化</b>{html_table(["关系","盘面含义","对大盘影响","制化/化解方式"], model["branch_relation_rows"])}</article></div></section>
-	<section class="panel fade" id="shensha"><h2>神煞体系</h2>{html_shensha_tables(model)}</section>
-	<section class="panel fade elements" id="elements"><h2>喜用神</h2><div class="god-art"><img src="{useful_url}" alt="喜用神图"></div>{html_table(["喜用","行为落地"], [[e, element_behavior(e)] for e in model["useful_elements"]])}</section>
-	<section class="panel fade" id="crystals"><h2>适配水晶建议</h2><div class="god-art"><img src="{crystal_url}" alt="适配水晶图"></div>{html_table(["五行","建议","适配点","使用方式"], crystal_rows(model["useful_elements"]))}</section></main>
-	<footer class="shell">Ming Atelier｜命理工坊。自动标准版用于客测交付，关键人生决策建议叠加人工复核。</footer><script>const p=document.getElementById('scrollProgress');addEventListener('scroll',()=>{{const h=document.documentElement; p.style.width=((h.scrollTop)/(h.scrollHeight-h.clientHeight)*100)+'%';}});const io=new IntersectionObserver(es=>es.forEach(e=>e.isIntersecting&&e.target.classList.add('show')),{{threshold:.14}});document.querySelectorAll('.fade').forEach(el=>io.observe(el));document.querySelectorAll('[data-chart-tab]').forEach(btn=>btn.addEventListener('click',()=>{{const target=btn.dataset.chartTab;document.querySelectorAll('[data-chart-tab]').forEach(b=>b.classList.toggle('active',b===btn));document.querySelectorAll('[data-chart-panel]').forEach(panel=>panel.classList.toggle('active',panel.dataset.chartPanel===target));}}));</script></body></html>""", encoding="utf-8")
+	<section class="hero"><div class="shell fade"><p class="eyebrow">Ming Atelier · Eastern Destiny Readings</p><h1>{title}</h1><p class="lead">{'Using the Four Pillars as the base map, this report reads personality, rhythm, choices, and relationships: how you act, what you choose, and how you move with timing.' if lang_en else '以八字四柱为底图，读性格、节奏、选择与关系。关于你如何行动、如何取舍、如何顺势。'}</p><div class="hero-actions"><button class="print-btn" onclick="window.print()">{'Save PDF' if lang_en else '保存 PDF'}</button><a class="print-btn" href="/{'?lang=en' if lang_en else ''}">{'Back Home' if lang_en else '回到主页'}</a></div></div></section><nav class="report-nav"><div class="shell">{nav}</div></nav>
+	<section class="panel fade" id="raw"><h2>{'Original Chart Information' if lang_en else '原始盘信息'}</h2><div class="grid">{kpi_html}</div>{chart_console}{html_table(["Item" if lang_en else "项目","Content" if lang_en else "内容"], [["Four Pillars" if lang_en else "四柱", bilingual_pillars(ec) if lang_en else f"{ec.getYear()} 年｜{ec.getMonth()} 月｜{ec.getDay()} 日｜{ec.getTime()} 时"], ["Five Element Estimate" if lang_en else "五行估计", model["dominant"]], ["Branch Relations" if lang_en else "地支关系", relation_text]])}</section>
+	<section class="panel fade" id="summary"><h2>{'Plain-Language Summary' if lang_en else '大白话总结'}</h2><div class="card">{summary_html}</div></section>
+	<section class="panel fade" id="pattern"><h2>{'Structure and Useful Elements' if lang_en else '格局与用神体系'}</h2><div class="card"><p>{html.escape(model["strength_reason"])}</p><p>{html.escape(model["useful_text"])}</p></div>{html_table(["Useful Element" if lang_en else "喜用","Practical Use" if lang_en else "行为落地"], [[element_en(e) if lang_en else e, element_behavior_en(e) if lang_en else element_behavior(e)] for e in model["useful_elements"]])}</section>
+	<section class="panel fade" id="career"><h2>{'Career Development' if lang_en else '事业发展'}</h2>{html_card_table(model["career_rows"])}</section>
+	<section class="panel fade" id="wealth"><h2>{'Ten-Year Wealth and Income Tiers' if lang_en else '未来十年财运与收入层级'}</h2><div class="card"><p>{html.escape(model["wealth_tone"]["base"])}</p></div>{html_income_cards(model)}{html_table(["Stage" if lang_en else "阶段","Income Reading" if lang_en else "收入判断","Key Conditions" if lang_en else "关键条件","Risk" if lang_en else "风险"], model["income_stage_rows"])}{html_table(["Year" if lang_en else "年份","Annual" if lang_en else "流年","Luck" if lang_en else "大运","Career" if lang_en else "事业","Wealth" if lang_en else "财运","Relation" if lang_en else "感情","Stress" if lang_en else "健康/压力","Loss" if lang_en else "破财","Home" if lang_en else "家宅","Compliance" if lang_en else "合规","Plain-Language Annual Reading" if lang_en else "年度大白话分析"], model["annual_rows"])}</section>
+	<section class="panel fade" id="relationship"><h2>{'Relationship Outlook' if lang_en else '感情运势'}</h2>{html_table(["Theme" if lang_en else "主题","Reading" if lang_en else "判断","Notes" if lang_en else "说明"], model["relationship_rows"])}</section>
+	<section class="panel fade" id="monthly"><h2>{'2026 Monthly Timing' if lang_en else '2026 年单独流月拆解'}</h2><div class="card warning"><b>{'June 2026 Focus' if lang_en else '6 月甲午重点提示'}</b><p>{html.escape(model["june_2026_detail"])}</p></div><div class="timeline">{monthly_html}</div></section>
+	<section class="panel fade" id="crisis"><h2>{'Core Constraints and Risks' if lang_en else '核心限制与潜在危机'}</h2>{html_card_table(model["crisis_rows"])}</section>
+	<section class="panel fade" id="ten-god"><h2>{'Ten-God Analysis' if lang_en else '十神分析'}</h2>{html_table(["Ten God" if lang_en else "十神","Pillar" if lang_en else "柱(干/支)","General Meaning" if lang_en else "通用解释","Reading" if lang_en else "判断"], model["ten_god_rows"])}<div class="grid two"><article class="card"><b>{'Ten-God Balance' if lang_en else '十神制衡关系'}</b><p>{'Visible heavenly stems describe outward behavior; hidden stems describe the inner motive line. A serious reading must observe where each signal sits across year, month, day, and hour.' if lang_en else '外显天干决定可见行为，地支藏干决定暗线动机。判断时不能只看一个十神，要看它在年、月、日、时四个位置分别作用于圈层、事业、自我关系和长期项目。'}</p></article><article class="card"><b>{'Branch Relations and Resolution' if lang_en else '地支合冲与大盘制化'}</b>{html_table(["Relation" if lang_en else "关系","Structure Signal" if lang_en else "盘面含义","Impact" if lang_en else "对大盘影响","Resolution" if lang_en else "制化/化解方式"], model["branch_relation_rows"])}</article></div></section>
+	<section class="panel fade" id="shensha"><h2>{'ShenSha System' if lang_en else '神煞体系'}</h2>{html_shensha_tables(model)}</section>
+	<section class="panel fade elements" id="elements"><h2>{'Useful Elements' if lang_en else '喜用神'}</h2><div class="god-art"><img src="{useful_url}" alt="{'Useful element sigils' if lang_en else '喜用神图'}"></div>{html_table(["Useful Element" if lang_en else "喜用","Practical Use" if lang_en else "行为落地"], [[element_en(e) if lang_en else e, element_behavior_en(e) if lang_en else element_behavior(e)] for e in model["useful_elements"]])}</section>
+	<section class="panel fade" id="crystals"><h2>{'Crystal Recommendations' if lang_en else '适配水晶建议'}</h2><div class="god-art"><img src="{crystal_url}" alt="{'Crystal recommendations' if lang_en else '适配水晶图'}"></div>{html_table(["Element" if lang_en else "五行","Recommendation" if lang_en else "建议","Fit" if lang_en else "适配点","Use" if lang_en else "使用方式"], crystal_rows_en(model["useful_elements"]) if lang_en else crystal_rows(model["useful_elements"]))}</section></main>
+	<footer class="shell">{'Ming Atelier | Automated standard report for testing. Important life decisions should be reviewed with real-world evidence and professional advice where needed.' if lang_en else 'Ming Atelier｜命理工坊。自动标准版用于客测交付，关键人生决策建议叠加人工复核。'}</footer><script>const p=document.getElementById('scrollProgress');addEventListener('scroll',()=>{{const h=document.documentElement; p.style.width=((h.scrollTop)/(h.scrollHeight-h.clientHeight)*100)+'%';}});const io=new IntersectionObserver(es=>es.forEach(e=>e.isIntersecting&&e.target.classList.add('show')),{{threshold:.14}});document.querySelectorAll('.fade').forEach(el=>io.observe(el));document.querySelectorAll('[data-chart-tab]').forEach(btn=>btn.addEventListener('click',()=>{{const target=btn.dataset.chartTab;document.querySelectorAll('[data-chart-tab]').forEach(b=>b.classList.toggle('active',b===btn));document.querySelectorAll('[data-chart-panel]').forEach(panel=>panel.classList.toggle('active',panel.dataset.chartPanel===target));}}));</script></body></html>""", encoding="utf-8")
 
 
 class Handler(BaseHTTPRequestHandler):
@@ -3643,7 +4808,7 @@ class Handler(BaseHTTPRequestHandler):
                     "id": record_id,
                     "type": "compatibility",
                     "createdAt": now_text(),
-                    "title": f"{data.get('aName') or '你'} × {data.get('bName') or '对方'} 合盘",
+                    "title": f"{data.get('aName') or 'You'} × {data.get('bName') or 'Other'} Compatibility" if is_english(data) else f"{data.get('aName') or '你'} × {data.get('bName') or '对方'} 合盘",
                     "htmlUrl": html_url,
                     "llmStatus": model.get("llmStatus"),
                 })
@@ -3664,9 +4829,9 @@ class Handler(BaseHTTPRequestHandler):
             run_id = f"{safe_name(data.get('name') or 'anonymous')}-{uuid.uuid4().hex[:8]}"
             computed, chart_png = build_chart(data, run_id)
             if self.path == "/api/deep-report":
-                report_slug = safe_name(f"{data.get('name') or '匿名'}命理报告")
+                report_slug = safe_name(f"{data.get('name') or 'Anonymous'} Destiny Report" if is_english(data) else f"{data.get('name') or '匿名'}命理报告")
                 pdf_path = GENERATED / f"{report_slug}-{uuid.uuid4().hex[:6]}.pdf"
-                html_path = GENERATED / f"{report_slug}-互动版-{uuid.uuid4().hex[:6]}.html"
+                html_path = GENERATED / f"{report_slug}-interactive-{uuid.uuid4().hex[:6]}.html" if is_english(data) else GENERATED / f"{report_slug}-互动版-{uuid.uuid4().hex[:6]}.html"
                 model = report_model(data, computed)
                 deep_report_pdf(data, computed, chart_png, pdf_path, model)
                 deep_report_html(data, computed, chart_png, html_path, model)
@@ -3677,7 +4842,7 @@ class Handler(BaseHTTPRequestHandler):
                     "id": run_id,
                     "type": "deep-bazi",
                     "createdAt": now_text(),
-                    "title": f"{data.get('name') or '匿名'}命理报告",
+                    "title": f"{data.get('name') or 'Anonymous'} Destiny Report" if is_english(data) else f"{data.get('name') or '匿名'}命理报告",
                     "input": data,
                     "pdfUrl": pdf_url,
                     "htmlUrl": html_url,
@@ -3704,7 +4869,7 @@ class Handler(BaseHTTPRequestHandler):
                 "id": run_id,
                 "type": "bazi",
                 "createdAt": now_text(),
-                "title": f"{data.get('name') or '匿名'}命理报告",
+                "title": f"{data.get('name') or 'Anonymous'} Destiny Report" if is_english(data) else f"{data.get('name') or '匿名'}命理报告",
                 "input": data,
                 "pdfUrl": pdf_url,
                 "chartUrl": chart_url,

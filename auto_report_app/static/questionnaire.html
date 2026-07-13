@@ -5,6 +5,11 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>深度报告问卷｜Ming Atelier</title>
   <link rel="stylesheet" href="/pages.css">
+  <style>
+    .lang-modal{display:none;position:fixed;inset:0;z-index:80;place-items:center;background:rgba(0,0,0,.72);backdrop-filter:blur(8px)}
+    .lang-dialog{width:min(460px,calc(100% - 36px));border:1px solid rgba(216,179,95,.45);background:#100b05;color:#f7ead2;padding:24px;box-shadow:0 24px 70px rgba(0,0,0,.46)}
+    .lang-dialog h3{margin-top:0;color:#f0c47a}.lang-dialog p{color:#d8c7a3}.lang-dialog .actions{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:18px}.lang-dialog .btn{width:100%}
+  </style>
 </head>
 <body>
   <header class="top">
@@ -115,10 +120,39 @@
       </div>
     </div>
   </section>
+  <div class="lang-modal" id="languageModal" role="dialog" aria-modal="true" aria-labelledby="languageTitle">
+    <div class="lang-dialog">
+      <h3 id="languageTitle">Choose Report Language / 选择报告语言</h3>
+      <p id="languageCopy">Choose the output language for this deep report. English will generate an English HTML and PDF; 中文 will generate a Chinese HTML and PDF.<br>请选择本次深度报告的输出语言：English 生成英文版 HTML 与 PDF；中文生成中文版 HTML 与 PDF。</p>
+      <div class="actions">
+        <button class="btn primary" type="button" id="chooseEnglish">English</button>
+        <button class="btn secondary" type="button" id="chooseChinese">中文</button>
+      </div>
+    </div>
+  </div>
 
   <footer class="shell">问卷用于深度报告校准。信息越具体，报告越能贴近真实人生节奏。</footer>
 
   <script>
+    const pageLang = new URLSearchParams(location.search).get('lang') === 'en' ? 'en' : 'zh';
+    let pendingPayload = null;
+    if (pageLang === 'en') {
+      document.documentElement.lang = 'en';
+      document.title = 'Deep Report Intake | Ming Atelier';
+      const replaceText = [
+        ['首页','Home'],['免费报告','Free Reading'],['深度报告','Deep Report'],['起卦','Divination'],
+        ['深度报告问卷','Deep Report Intake'],
+        ['这份问卷只采集标准排盘信息和现实基线。报告会按固定模板输出事业、财运、感情、未来十年、2026流月、神煞、喜用神与水晶建议。','This intake collects standard chart information and real-life baseline. The report covers career, wealth, relationship, ten-year timing, 2026 monthly timing, ShenSha, useful elements, and crystal recommendations.'],
+        ['填写原则','How to fill it'],['能确定的如实填写；不确定的直接选“不确定”。关键事件为可选项，只用于校准，不会覆盖八字结构本身。','Enter what you know. If uncertain, choose “uncertain”. Key events are optional calibration only; they do not override the chart structure.'],
+        ['信息采集','Information Intake'],['填写后可直接生成标准深度报告，也可复制文本用于后续人工复核。','After filling it out, you can generate the standard deep report or copy the intake for later human review.'],
+        ['一、排盘硬信息','1. Birth Chart Information'],['二、现实基线','2. Real-Life Baseline'],['三、感情与家庭状态','3. Relationship and Family'],['四、可选校准','4. Optional Calibration'],
+        ['生成标准深度报告','Generate Deep Report'],['生成并复制问卷结果','Generate and Copy Intake'],['下载填写结果','Download Intake'],
+        ['深度报告需要排盘、调用大模型解读、交付前复查并生成 HTML/PDF，通常需要 2-5 分钟。生成期间请尽量不要锁屏、切换 App 或关闭页面。','The deep report needs chart calculation, model interpretation, pre-delivery review, and HTML/PDF generation. It usually takes 2-5 minutes. Please keep the page open.'],
+        ['标准深度报告','Deep Report'],['报告已生成，可在线阅读，也可以下载 PDF。','The report has been generated. You can read the HTML or download the PDF.'],['在线阅读 HTML','Read HTML'],['下载 PDF','Download PDF'],['查看命盘图','View Chart']
+        ,['Choose Report Language / 选择报告语言','Choose Report Language / 选择报告语言'],['Choose the output language for this deep report. English will generate an English HTML and PDF; 中文 will generate a Chinese HTML and PDF.<br>请选择本次深度报告的输出语言：English 生成英文版 HTML 与 PDF；中文生成中文版 HTML 与 PDF。','Choose the output language for this deep report. English will generate an English HTML and PDF; 中文 will generate a Chinese HTML and PDF.<br>请选择本次深度报告的输出语言：English 生成英文版 HTML 与 PDF；中文生成中文版 HTML 与 PDF。']
+      ];
+      document.body.innerHTML = replaceText.reduce((html,[from,to])=>html.split(from).join(to), document.body.innerHTML);
+    }
     async function postJson(url, payload) {
       const res = await fetch(url, {
         method: 'POST',
@@ -126,7 +160,7 @@
         body: JSON.stringify(payload)
       });
       const data = await res.json();
-      if (!res.ok || !data.ok) throw new Error(data.error || '生成失败');
+      if (!res.ok || !data.ok) throw new Error(data.error || (pageLang === 'en' ? 'Generation failed' : '生成失败'));
       return data;
     }
     function collect() {
@@ -219,16 +253,20 @@
       clearInterval(progressTimer);
       setProgress(0, '生成失败', message || '生成失败，请稍后重试。');
     }
-    document.getElementById('generate').addEventListener('click', async () => {
-      if (!validateRequired()) return;
+    async function generateDeepReport(language) {
       const button = document.getElementById('generate');
       const box = document.getElementById('reportBox');
+      const languageModal = document.getElementById('languageModal');
+      const payload = pendingPayload || collectPayload();
+      payload.lang = language;
+      languageModal.style.display = 'none';
+      pendingPayload = null;
       button.disabled = true;
-      button.textContent = '生成中...';
+      button.textContent = pageLang === 'en' ? 'Generating...' : '生成中...';
       box.style.display = 'none';
       startProgress();
       try {
-        const data = await postJson('/api/deep-report', collectPayload());
+        const data = await postJson('/api/deep-report', payload);
         document.getElementById('htmlLink').href = data.htmlUrl;
         document.getElementById('pdfLink').href = data.pdfUrl;
         document.getElementById('chartLink').href = data.chartUrl;
@@ -240,9 +278,19 @@
         alert(error.message);
       } finally {
         button.disabled = false;
-        button.textContent = '生成标准深度报告';
+        button.textContent = pageLang === 'en' ? 'Generate Deep Report' : '生成标准深度报告';
       }
+    }
+    document.getElementById('generate').addEventListener('click', async () => {
+      if (!validateRequired()) return;
+      pendingPayload = collectPayload();
+      document.getElementById('languageModal').style.display = 'grid';
     });
+    if (new URLSearchParams(location.search).get('modal') === '1') {
+      document.getElementById('languageModal').style.display = 'grid';
+    }
+    document.getElementById('chooseEnglish').addEventListener('click', () => generateDeepReport('en'));
+    document.getElementById('chooseChinese').addEventListener('click', () => generateDeepReport('zh'));
     document.getElementById('copy').addEventListener('click', async () => {
       if (!validateRequired()) return;
       const text = collect();

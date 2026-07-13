@@ -82,8 +82,43 @@
   </main>
 
   <script>
+    const lang = new URLSearchParams(location.search).get('lang') === 'en' ? 'en' : 'zh';
+    if (lang === 'en') {
+      document.documentElement.lang = 'en';
+      document.title = 'Relationship Compatibility | Ming Atelier';
+      const replacements = [
+        ['首页', 'Home'], ['人生剧本', 'Life Script'], ['起卦问事', 'Divination'], ['八字合盘', 'Relationship Compatibility'],
+        ['不只看生肖合不合，而是看双方日主、伴侣星、夫妻宫、喜用互补、冲合刑害和未来年份窗口。适合恋爱、暧昧、复合、婚前判断，也适合先看一段关系能不能长期稳定。', 'Not a simple zodiac match. This reading compares both Day Masters, partner stars, spouse palaces, useful-element complement, branch clashes/combinations, and timing windows. Suitable for dating, ambiguity, reconciliation, premarital decisions, or checking whether a relationship can stabilize.'],
+        ['填写双方信息', 'Enter Both Birth Details'], ['出生时间只需时和分。系统先锁定双方命盘事实，再调用模型写关系解读。', 'Birth time only needs hour and minute. The system locks both charts first, then writes the relationship interpretation.'],
+        ['你 / A 方', 'You / Person A'], ['对方 / B 方', 'Other Person / Person B'], ['称呼 *', 'Name *'], ['性别 *', 'Gender *'], ['出生日期 *', 'Birth Date *'], ['出生时间 *', 'Birth Time *'], ['出生地点 *', 'Birthplace *'],
+        ['当前关系状态', 'Current Relationship Status'], ['你最想问的问题', 'Your Main Question'], ['生成合盘分析', 'Generate Relationship Compatibility'], ['你会看到什么', 'What You Will See'],
+        ['吸引力', 'Attraction'], ['看双方是否互相触动伴侣星、日主和夫妻宫，不用只凭感觉判断。', 'Whether each person activates the other’s partner star, Day Master, and spouse palace.'],
+        ['互补度', 'Complement'], ['看谁补谁的五行、规则、行动力、冷静度和现实承接能力。', 'Who brings calm, direction, structure, action, or real-life containment to whom.'],
+        ['风险点', 'Risk Points'], ['看子卯刑、卯酉冲、子酉破等关系如何落到安全感、钱和节奏上。', 'How clashes, punishments, harms, and breaks translate into safety, money, rhythm, and commitment issues.'],
+        ['合盘结果已生成', 'Relationship Compatibility Generated'], ['打开完整合盘报告', 'Open Full Compatibility Report']
+      ];
+      document.body.innerHTML = replacements.reduce((html, [from, to]) => html.split(from).join(to), document.body.innerHTML);
+      document.querySelectorAll('option').forEach(option => {
+        if (option.textContent === '请选择') option.textContent = 'Select';
+        if (option.textContent === '男') option.textContent = 'Male';
+        if (option.textContent === '女') option.textContent = 'Female';
+      });
+      const placeholders = {
+        '例如：我': 'e.g. Me',
+        '例如：中国广州': 'e.g. Guangzhou, China',
+        '例如：小李': 'e.g. Lily',
+        '例如：中国上海': 'e.g. Shanghai, China',
+        '暧昧 / 恋爱 / 复合 / 婚前 / 合作型关系': 'Ambiguous / dating / reconciliation / premarital / partnership-like relationship',
+        '例如：我们适不适合长期发展？2026 年要不要推进关系？': 'e.g. Are we suitable long term? Should we move forward in 2026?'
+      };
+      document.querySelectorAll('input, textarea').forEach(el => {
+        if (placeholders[el.placeholder]) el.placeholder = placeholders[el.placeholder];
+      });
+    }
     const $ = id => document.getElementById(id);
-    const stepTexts = ['正在排双方命盘...', '正在计算日主、十神和夫妻宫...', '正在检查冲合刑害与喜用互补...', '正在切换模型做关系解读...', '正在生成合盘页面...'];
+    const stepTexts = lang === 'en'
+      ? ['Calculating both birth charts...', 'Reading Day Masters, Ten Gods, and spouse palaces...', 'Checking clashes, combinations, and useful-element complement...', 'Switching model for relationship interpretation...', 'Generating relationship compatibility page...']
+      : ['正在排双方命盘...', '正在计算日主、十神和夫妻宫...', '正在检查冲合刑害与喜用互补...', '正在切换模型做关系解读...', '正在生成合盘页面...'];
     let timer = null;
     function startProgress() {
       let i = 0;
@@ -99,7 +134,7 @@
     function stopProgress() {
       if (timer) clearInterval(timer);
       $('bar').style.width = '100%';
-      $('steps').textContent = '合盘完成。';
+      $('steps').textContent = lang === 'en' ? 'Relationship compatibility completed.' : '合盘完成。';
     }
     function esc(value) {
       return String(value || '').replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
@@ -107,7 +142,7 @@
     async function postJson(url, payload) {
       const res = await fetch(url, {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(payload)});
       const data = await res.json();
-      if (!res.ok || !data.ok) throw new Error(data.error || '请求失败');
+      if (!res.ok || !data.ok) throw new Error(data.error || (lang === 'en' ? 'Request failed' : '请求失败'));
       return data;
     }
     $('compatForm').addEventListener('submit', async e => {
@@ -119,12 +154,13 @@
       startProgress();
       try {
         const payload = Object.fromEntries(new FormData(e.target).entries());
+        payload.lang = lang;
         const data = await postJson('/api/compatibility', payload);
         stopProgress();
         const scores = data.scores || {};
-        const labels = [['整体适配','overall'],['吸引力','attraction'],['互补度','complement'],['摩擦度','friction'],['稳定度','stability']];
+        const labels = lang === 'en' ? [['Overall Fit','overall'],['Attraction','attraction'],['Complement','complement'],['Friction','friction'],['Stability','stability']] : [['整体适配','overall'],['吸引力','attraction'],['互补度','complement'],['摩擦度','friction'],['稳定度','stability']];
         $('kpis').innerHTML = labels.map(([label,key]) => `<article class="kpi"><span>${label}</span><b>${esc(scores[key])}</b></article>`).join('');
-        $('summary').textContent = data.text?.overall || '合盘已生成，请打开完整报告查看。';
+        $('summary').textContent = data.text?.overall || (lang === 'en' ? 'Relationship compatibility generated. Open the full report to read details.' : '合盘已生成，请打开完整报告查看。');
         $('reportLink').href = data.htmlUrl;
         $('result').style.display = 'block';
       } catch (err) {
@@ -132,7 +168,7 @@
         $('error').style.display = 'block';
       } finally {
         $('compatSubmit').disabled = false;
-        $('compatSubmit').textContent = '生成合盘分析';
+        $('compatSubmit').textContent = lang === 'en' ? 'Generate Relationship Compatibility' : '生成合盘分析';
       }
     });
   </script>
