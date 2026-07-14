@@ -8,6 +8,7 @@ import re
 import subprocess
 import sys
 import uuid
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
@@ -3438,8 +3439,54 @@ def llm_relationship_prompt(packet: dict, lang: str = "zh") -> list[dict[str, st
     return [{"role": "system", "content": system}, {"role": "user", "content": user}]
 
 
-def llm_english_translation_prompt(packet: dict, issues: list[str] | None = None) -> list[dict[str, str]]:
-    schema_note = {
+TRANSLATION_FIELD_GROUPS = (
+    (
+        "useful_text",
+        "strength_reason",
+        "career_rows",
+        "income_notes",
+        "income_stage_rows",
+        "relationship_rows",
+        "crisis_rows",
+        "summary_paragraphs",
+    ),
+    ("wealth_intro", "annual_notes", "monthly_notes", "june_2026_detail"),
+    (
+        "ten_god_judgments",
+        "shensha_notes",
+        "shensha_balances",
+        "cross_shensha_balance",
+        "branch_relation_rows",
+    ),
+)
+
+TRANSLATION_SOURCE_KEYS = {
+    "useful_text": "usefulText",
+    "strength_reason": "strengthReason",
+    "career_rows": "careerRows",
+    "wealth_intro": "wealthIntro",
+    "income_notes": "incomeRows",
+    "income_stage_rows": "incomeStageRows",
+    "annual_notes": "annualRows",
+    "relationship_rows": "relationshipRows",
+    "monthly_notes": "monthlyRows",
+    "june_2026_detail": "june2026Detail",
+    "crisis_rows": "crisisRows",
+    "summary_paragraphs": "summaryParagraphs",
+    "ten_god_judgments": "tenGodRows",
+    "shensha_notes": "shenshaRows",
+    "shensha_balances": "shenshaBalance",
+    "cross_shensha_balance": "crossShenshaBalance",
+    "branch_relation_rows": "branchRelationRows",
+}
+
+
+def llm_english_translation_prompt(
+    packet: dict,
+    issues: list[str] | None = None,
+    field_names: tuple[str, ...] | None = None,
+) -> list[dict[str, str]]:
+    full_schema = {
         "useful_text": "Full English translation of the finalized Chinese useful-element reasoning.",
         "strength_reason": "Full English translation of the finalized Chinese Day-Master strength reasoning.",
         "career_rows": [["Theme", "Reading", "Reasoning"]],
@@ -3458,6 +3505,15 @@ def llm_english_translation_prompt(packet: dict, issues: list[str] | None = None
         "cross_shensha_balance": "Full English translation of the cross-pillar balance.",
         "branch_relation_rows": [["Relation", "Structure Signal", "Impact", "Resolution"]],
     }
+    selected_fields = field_names or tuple(full_schema)
+    schema_note = {key: full_schema[key] for key in selected_fields}
+    scoped_packet = copy.deepcopy(packet)
+    visible = packet.get("currentVisibleSections", {})
+    scoped_packet["currentVisibleSections"] = {
+        TRANSLATION_SOURCE_KEYS[key]: visible.get(TRANSLATION_SOURCE_KEYS[key])
+        for key in selected_fields
+    }
+    scoped_packet.pop("computedSections", None)
     review_note = (
         "\nA previous translation attempt had these completeness issues. Correct every one of them: "
         + json.dumps(issues, ensure_ascii=False)
@@ -3473,15 +3529,49 @@ def llm_english_translation_prompt(packet: dict, issues: list[str] | None = None
         "The English version should carry roughly 85% to 130% of the information volume of the Chinese source. Never compress a paragraph into a short sentence. "
         "Return valid JSON only."
     )
+    coverage_rules = []
+    if "annual_notes" in selected_fields:
+        coverage_rules.append("annual_notes must contain all 11 source years from 2026 through 2036")
+    if "monthly_notes" in selected_fields:
+        coverage_rules.append("monthly_notes must contain every supplied 2026 month")
+    coverage_rules.append("every requested row-based field must preserve its source row count and order")
+    if "summary_paragraphs" in selected_fields:
+        coverage_rules.append("summary_paragraphs must preserve every source paragraph and its detail")
     user = (
-        "Translate every field in currentVisibleSections using the exact schema below. "
-        "annual_notes must contain all 11 years from 2026 through 2036. monthly_notes must contain every supplied 2026 month. "
-        "career_rows, income_stage_rows, relationship_rows, crisis_rows, branch_relation_rows, Ten-God judgments, and ShenSha notes must preserve their source row counts and order. "
-        "summary_paragraphs must preserve every source paragraph and its detail. Do not introduce new chart facts or generic filler."
+        "Translate every supplied field in currentVisibleSections using the exact schema below. "
+        + "; ".join(coverage_rules)
+        + ". Do not introduce new chart facts or generic filler."
         f"{review_note}\n\nSchema: {json.dumps(schema_note, ensure_ascii=False)}\n\n"
-        f"Finalized Chinese source and locked chart packet:\n{json.dumps(packet, ensure_ascii=False)}"
+        f"Finalized Chinese source and locked chart packet:\n{json.dumps(scoped_packet, ensure_ascii=False)}"
     )
     return [{"role": "system", "content": system}, {"role": "user", "content": user}]
+
+
+def translate_english_sections(packet: dict, issues: list[str] | None = None) -> dict | None:
+    translated: dict = {}
+    failed_groups: list[tuple[str, ...]] = []
+    workers = max(1, min(3, int(os.environ.get("MING_ATELIER_TRANSLATION_WORKERS", "2"))))
+    with ThreadPoolExecutor(max_workers=workers) as pool:
+        futures = {
+            pool.submit(call_llm_json, llm_english_translation_prompt(packet, issues, fields)): fields
+            for fields in TRANSLATION_FIELD_GROUPS
+        }
+        for future in as_completed(futures):
+            fields = futures[future]
+            try:
+                result = future.result()
+            except Exception:
+                result = None
+            if isinstance(result, dict):
+                translated.update(result)
+            else:
+                failed_groups.append(fields)
+    for fields in failed_groups:
+        retry_issues = list(issues or []) + [f"The {', '.join(fields)} translation group returned invalid JSON."]
+        result = call_llm_json(llm_english_translation_prompt(packet, retry_issues, fields))
+        if isinstance(result, dict):
+            translated.update(result)
+    return translated or None
 
 
 def parse_llm_json_text(content: str) -> dict | None:
@@ -4024,10 +4114,10 @@ def enrich_model_with_llm(data: dict, computed: dict, model: dict) -> None:
     source_model = copy.deepcopy(model)
     translation_packet = finalized_translation_packet(source_data, computed, source_model)
     localize_deep_model_en(data, model)
-    translated = call_llm_json(llm_english_translation_prompt(translation_packet))
+    translated = translate_english_sections(translation_packet)
     issues = english_translation_issues(source_model, translated)
     if issues:
-        revised = call_llm_json(llm_english_translation_prompt(translation_packet, issues))
+        revised = translate_english_sections(translation_packet, issues)
         revised_issues = english_translation_issues(source_model, revised)
         if len(revised_issues) < len(issues):
             translated = revised
