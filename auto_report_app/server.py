@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import copy
 import json
 import html
 import os
@@ -12,7 +13,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib import error as urlerror
 from urllib import request as urlrequest
-from urllib.parse import unquote, urlparse
+from urllib.parse import parse_qs, unquote, urlparse
 
 from reportlab.lib import colors
 from reportlab.lib.pagesizes import A4
@@ -3437,6 +3438,52 @@ def llm_relationship_prompt(packet: dict, lang: str = "zh") -> list[dict[str, st
     return [{"role": "system", "content": system}, {"role": "user", "content": user}]
 
 
+def llm_english_translation_prompt(packet: dict, issues: list[str] | None = None) -> list[dict[str, str]]:
+    schema_note = {
+        "useful_text": "Full English translation of the finalized Chinese useful-element reasoning.",
+        "strength_reason": "Full English translation of the finalized Chinese Day-Master strength reasoning.",
+        "career_rows": [["Theme", "Reading", "Reasoning"]],
+        "wealth_intro": "Full English translation of the finalized Chinese ten-year wealth opening.",
+        "income_notes": [{"index": 1, "text": "Full English condition text for this income tier."}],
+        "income_stage_rows": [["Stage", "Income Reading", "Key Condition", "Risk"]],
+        "annual_notes": [{"year": "2026", "note": "Full English translation of that year's finalized Chinese reading."}],
+        "relationship_rows": [["Theme", "Reading", "Explanation"]],
+        "monthly_notes": [{"month": "2026-02", "note": "Full English translation of that month's finalized Chinese reading."}],
+        "june_2026_detail": "Full English translation of the finalized June 2026 focus.",
+        "crisis_rows": [["Theme", "Chart Basis", "Real-World Action"]],
+        "summary_paragraphs": ["Five or more full English summary paragraphs."],
+        "ten_god_judgments": [{"index": 1, "judgment": "Full English translation of this finalized Chinese Ten-God judgment."}],
+        "shensha_notes": [{"pillar_index": 1, "row_index": 1, "note": "Full English translation of this finalized Chinese ShenSha pillar reading."}],
+        "shensha_balances": [{"pillar_index": 1, "text": "Full English translation of this pillar balance."}],
+        "cross_shensha_balance": "Full English translation of the cross-pillar balance.",
+        "branch_relation_rows": [["Relation", "Structure Signal", "Impact", "Resolution"]],
+    }
+    review_note = (
+        "\nA previous translation attempt had these completeness issues. Correct every one of them: "
+        + json.dumps(issues, ensure_ascii=False)
+        if issues
+        else ""
+    )
+    system = (
+        "You are the bilingual delivery editor for Ming Atelier. The Chinese report has already been generated and reviewed. "
+        "Translate the finalized client-visible Chinese text into polished English without recalculating, shortening, summarizing, or changing any conclusion. "
+        "Preserve the same section structure, row count, year coverage, month coverage, evidence, practical advice, and emotional nuance. "
+        "Keep Four Pillars, GanZhi, Ten Gods, ShenSha, major luck, annual/monthly pillars, scores, useful elements, and risk flags locked. "
+        "Chinese technical names may be retained only when they identify a BaZi term; explanatory prose must be English. "
+        "The English version should carry roughly 85% to 130% of the information volume of the Chinese source. Never compress a paragraph into a short sentence. "
+        "Return valid JSON only."
+    )
+    user = (
+        "Translate every field in currentVisibleSections using the exact schema below. "
+        "annual_notes must contain all 11 years from 2026 through 2036. monthly_notes must contain every supplied 2026 month. "
+        "career_rows, income_stage_rows, relationship_rows, crisis_rows, branch_relation_rows, Ten-God judgments, and ShenSha notes must preserve their source row counts and order. "
+        "summary_paragraphs must preserve every source paragraph and its detail. Do not introduce new chart facts or generic filler."
+        f"{review_note}\n\nSchema: {json.dumps(schema_note, ensure_ascii=False)}\n\n"
+        f"Finalized Chinese source and locked chart packet:\n{json.dumps(packet, ensure_ascii=False)}"
+    )
+    return [{"role": "system", "content": system}, {"role": "user", "content": user}]
+
+
 def parse_llm_json_text(content: str) -> dict | None:
     if not content:
         return None
@@ -3634,6 +3681,143 @@ def apply_llm_sections(model: dict, llm: dict | None) -> bool:
     return changed
 
 
+def english_translation_issues(source_model: dict, translated: dict | None) -> list[str]:
+    if not isinstance(translated, dict):
+        return ["translation response is missing or invalid JSON"]
+    issues: list[str] = []
+    expected_rows = {
+        "career_rows": len(source_model.get("career_rows", [])),
+        "income_stage_rows": len(source_model.get("income_stage_rows", [])),
+        "relationship_rows": len(source_model.get("relationship_rows", [])),
+        "crisis_rows": len(source_model.get("crisis_rows", [])),
+        "branch_relation_rows": len(source_model.get("branch_relation_rows", [])),
+    }
+    for key, expected in expected_rows.items():
+        actual = translated.get(key)
+        if expected and (not isinstance(actual, list) or len(actual) != expected):
+            issues.append(f"{key} must preserve {expected} rows")
+    annual_years = {
+        str(item.get("year"))
+        for item in translated.get("annual_notes", [])
+        if isinstance(item, dict)
+    }
+    expected_years = {str(row[0]) for row in source_model.get("annual_rows", [])}
+    if annual_years != expected_years:
+        issues.append("annual_notes must preserve every source year")
+    monthly_keys = {
+        str(item.get("month"))
+        for item in translated.get("monthly_notes", [])
+        if isinstance(item, dict)
+    }
+    expected_months = {str(row[0]) for row in source_model.get("monthly_rows", [])}
+    if monthly_keys != expected_months:
+        issues.append("monthly_notes must preserve every source month")
+    summaries = translated.get("summary_paragraphs")
+    expected_summaries = len(plain_summary_paragraphs({}, source_model))
+    if not isinstance(summaries, list) or len(summaries) != expected_summaries:
+        issues.append(f"summary_paragraphs must preserve {expected_summaries} paragraphs")
+    ten_god_indexes = {
+        int(item.get("index", 0))
+        for item in translated.get("ten_god_judgments", [])
+        if isinstance(item, dict) and str(item.get("index", "")).isdigit()
+    }
+    if len(ten_god_indexes) != len(source_model.get("ten_god_rows", [])):
+        issues.append("ten_god_judgments must preserve every source row")
+    expected_shensha = sum(len(rows) for rows in source_model.get("shensha_rows", {}).values())
+    shensha_keys = {
+        (int(item.get("pillar_index", 0)), int(item.get("row_index", 0)))
+        for item in translated.get("shensha_notes", [])
+        if isinstance(item, dict)
+        and str(item.get("pillar_index", "")).isdigit()
+        and str(item.get("row_index", "")).isdigit()
+    }
+    if len(shensha_keys) != expected_shensha:
+        issues.append("shensha_notes must preserve every source row")
+    source_text = " ".join(text for _, text in review_texts(source_model))
+    translated_text = " ".join(
+        str(value)
+        for key, value in translated.items()
+        if key not in {"useful_elements"}
+    )
+    if source_text and len(translated_text) < len(source_text) * 0.58:
+        issues.append("English information volume is materially shorter than the Chinese source")
+    return issues
+
+
+def apply_english_translation(model: dict, translated: dict | None) -> bool:
+    if not isinstance(translated, dict):
+        return False
+    changed = apply_llm_sections(model, translated)
+    if valid_text(translated.get("useful_text"), 40):
+        model["useful_text"] = translated["useful_text"].strip()
+        changed = True
+    if valid_text(translated.get("strength_reason"), 40):
+        model["strength_reason"] = translated["strength_reason"].strip()
+        changed = True
+    income_notes = translated.get("income_notes")
+    if isinstance(income_notes, list):
+        by_index = {
+            int(item.get("index", 0)) - 1: str(item.get("text", "")).strip()
+            for item in income_notes
+            if isinstance(item, dict) and str(item.get("index", "")).isdigit()
+        }
+        if by_index:
+            model["income_rows"] = [
+                row[:3] + [by_index.get(index, row[3]) if valid_text(by_index.get(index), 25) else row[3]]
+                for index, row in enumerate(model.get("income_rows", []))
+            ]
+            changed = True
+    branch_rows = translated.get("branch_relation_rows")
+    if valid_rows(branch_rows, 4, len(model.get("branch_relation_rows", [])), len(model.get("branch_relation_rows", []))):
+        model["branch_relation_rows"] = branch_rows
+        changed = True
+    notes = translated.get("shensha_notes")
+    if isinstance(notes, list):
+        note_map = {}
+        for item in notes:
+            if not isinstance(item, dict):
+                continue
+            try:
+                key = (int(item.get("pillar_index", 0)) - 1, int(item.get("row_index", 0)) - 1)
+            except (TypeError, ValueError):
+                continue
+            note = str(item.get("note", "")).strip()
+            if key[0] >= 0 and key[1] >= 0 and valid_text(note, 25):
+                note_map[key] = note
+        if note_map:
+            updated = {}
+            for pillar_index, (pillar, rows) in enumerate(model.get("shensha_rows", {}).items()):
+                updated[pillar] = [
+                    row[:4] + [note_map.get((pillar_index, row_index), row[4])]
+                    for row_index, row in enumerate(rows)
+                ]
+            model["shensha_rows"] = updated
+            changed = True
+    balances = translated.get("shensha_balances")
+    if isinstance(balances, list):
+        balance_map = {}
+        for item in balances:
+            if not isinstance(item, dict):
+                continue
+            try:
+                index = int(item.get("pillar_index", 0)) - 1
+            except (TypeError, ValueError):
+                continue
+            value = str(item.get("text", "")).strip()
+            if index >= 0 and valid_text(value, 30):
+                balance_map[index] = value
+        if balance_map:
+            model["shensha_balance"] = {
+                pillar: balance_map.get(index, model["shensha_balance"].get(pillar, ""))
+                for index, pillar in enumerate(model.get("shensha_rows", {}))
+            }
+            changed = True
+    if valid_text(translated.get("cross_shensha_balance"), 35):
+        model["cross_shensha_balance"] = translated["cross_shensha_balance"].strip()
+        changed = True
+    return changed
+
+
 REVIEW_BANNED_PHRASES = [
     "高风险点在",
     "触发日支/关系宫",
@@ -3789,22 +3973,70 @@ def pre_delivery_review(data: dict, computed: dict, model: dict) -> None:
         model["review_status"] = "passed_after_llm_review" if not remaining else "reviewed_with_warnings"
 
 
+def finalized_translation_packet(data: dict, computed: dict, model: dict) -> dict:
+    packet = llm_fact_packet(data, computed, model)
+    packet["currentVisibleSections"] = {
+        "strengthReason": model.get("strength_reason", ""),
+        "usefulText": model.get("useful_text", ""),
+        "careerRows": model.get("career_rows", []),
+        "wealthIntro": model.get("wealth_tone", {}).get("base", ""),
+        "incomeRows": model.get("income_rows", []),
+        "incomeStageRows": model.get("income_stage_rows", []),
+        "annualRows": model.get("annual_rows", []),
+        "relationshipRows": model.get("relationship_rows", []),
+        "monthlyRows": model.get("monthly_rows", []),
+        "june2026Detail": model.get("june_2026_detail", ""),
+        "crisisRows": model.get("crisis_rows", []),
+        "summaryParagraphs": plain_summary_paragraphs(data, model),
+        "tenGodRows": model.get("ten_god_rows", []),
+        "shenshaRows": model.get("shensha_rows", {}),
+        "shenshaBalance": model.get("shensha_balance", {}),
+        "crossShenshaBalance": model.get("cross_shensha_balance", ""),
+        "branchRelationRows": model.get("branch_relation_rows", []),
+    }
+    return packet
+
+
 def enrich_model_with_llm(data: dict, computed: dict, model: dict) -> None:
     model["llm_status"] = "disabled"
+    output_english = is_english(data)
+    source_data = dict(data)
+    source_data["lang"] = "zh"
     if not llm_report_enabled():
-        pre_delivery_review(data, computed, model)
+        pre_delivery_review(source_data, computed, model)
+        if output_english:
+            localize_deep_model_en(data, model)
+            model["translation_status"] = "fallback"
         return
-    packet = llm_fact_packet(data, computed, model)
+    packet = llm_fact_packet(source_data, computed, model)
     changed = False
-    lang = "en" if is_english(data) else "zh"
-    llm = call_llm_json(llm_report_prompt(packet, lang))
+    llm = call_llm_json(llm_report_prompt(packet, "zh"))
     changed = apply_llm_sections(model, llm) or changed
-    relationship_llm = call_llm_json(llm_relationship_prompt(packet, lang))
+    relationship_llm = call_llm_json(llm_relationship_prompt(packet, "zh"))
     changed = apply_llm_sections(model, relationship_llm) or changed
-    detail_llm = call_llm_json(llm_detail_prompt(packet, lang))
+    detail_llm = call_llm_json(llm_detail_prompt(packet, "zh"))
     changed = apply_llm_sections(model, detail_llm) or changed
     model["llm_status"] = "applied" if changed else "fallback"
-    pre_delivery_review(data, computed, model)
+    pre_delivery_review(source_data, computed, model)
+    if not output_english:
+        return
+
+    source_model = copy.deepcopy(model)
+    translation_packet = finalized_translation_packet(source_data, computed, source_model)
+    localize_deep_model_en(data, model)
+    translated = call_llm_json(llm_english_translation_prompt(translation_packet))
+    issues = english_translation_issues(source_model, translated)
+    if issues:
+        revised = call_llm_json(llm_english_translation_prompt(translation_packet, issues))
+        revised_issues = english_translation_issues(source_model, revised)
+        if len(revised_issues) < len(issues):
+            translated = revised
+            issues = revised_issues
+    translated_changed = apply_english_translation(model, translated)
+    model["translation_issues"] = issues
+    model["translation_status"] = "passed" if translated_changed and not issues else "reviewed_with_warnings" if translated_changed else "fallback"
+    if translated_changed:
+        model["llm_status"] = "applied"
 
 
 def report_model(data: dict, computed: dict) -> dict:
@@ -3858,8 +4090,6 @@ def report_model(data: dict, computed: dict) -> dict:
     model["crisis_rows"] = crisis_rows(context)
     model["june_2026_detail"] = june_2026_detail(context)
     model["event_calibration_rows"] = event_calibration_rows(events, model)
-    if is_english(data):
-        localize_deep_model_en(data, model)
     enrich_model_with_llm(data, computed, model)
     return model
 
@@ -4739,14 +4969,23 @@ class Handler(BaseHTTPRequestHandler):
         self.wfile.write(body)
 
     def do_GET(self) -> None:
-        path = unquote(urlparse(self.path).path)
+        parsed = urlparse(self.path)
+        path = unquote(parsed.path)
+        query = parse_qs(parsed.query)
         if path == "/api/health":
             self.send_json({"ok": True, "service": "ming-atelier-mvp"})
             return
         if path == "/api/history":
             self.send_error(404)
             return
-        if path == "/":
+        english_static = {
+            "/ten-gods.html": "ten-gods-en.html",
+            "/shensha.html": "shensha-en.html",
+            "/shop.html": "shop-en.html",
+        }
+        if query.get("lang", [""])[0].lower() == "en" and path in english_static:
+            target = STATIC / english_static[path]
+        elif path == "/":
             target = STATIC / "index.html"
         elif path.startswith("/generated/"):
             target = GENERATED / path.removeprefix("/generated/")
@@ -4764,8 +5003,17 @@ class Handler(BaseHTTPRequestHandler):
         self.wfile.write(body)
 
     def do_HEAD(self) -> None:
-        path = unquote(urlparse(self.path).path)
-        if path == "/":
+        parsed = urlparse(self.path)
+        path = unquote(parsed.path)
+        query = parse_qs(parsed.query)
+        english_static = {
+            "/ten-gods.html": "ten-gods-en.html",
+            "/shensha.html": "shensha-en.html",
+            "/shop.html": "shop-en.html",
+        }
+        if query.get("lang", [""])[0].lower() == "en" and path in english_static:
+            target = STATIC / english_static[path]
+        elif path == "/":
             target = STATIC / "index.html"
         elif path.startswith("/generated/"):
             target = GENERATED / path.removeprefix("/generated/")
@@ -4849,6 +5097,8 @@ class Handler(BaseHTTPRequestHandler):
                     "chartUrl": chart_url,
                     "llmStatus": model.get("llm_status"),
                     "reviewStatus": model.get("review_status"),
+                    "translationStatus": model.get("translation_status"),
+                    "translationIssues": model.get("translation_issues", []),
                     "reviewIssues": model.get("review_issues", []),
                 })
                 self.send_json({
@@ -4859,6 +5109,7 @@ class Handler(BaseHTTPRequestHandler):
                     "chartUrl": chart_url,
                     "llmStatus": model.get("llm_status"),
                     "reviewStatus": model.get("review_status"),
+                    "translationStatus": model.get("translation_status"),
                 })
                 return
             pdf_path = GENERATED / f"{run_id}.pdf"
